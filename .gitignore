@@ -42,3 +42,5 @@ next-env.d.ts
 
 # AI context resources
 /prompt/
+/ai-context/
+/docs/ai-context/
