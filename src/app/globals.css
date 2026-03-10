@@ -89,7 +89,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
+  --primary: oklch(0.87 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -126,4 +126,48 @@
   html {
     @apply font-sans;
   }
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Fix for Safari & SVG markers inheriting stroke dashes and animation from paths */
+.react-flow__arrowhead,
+marker path,
+marker polyline,
+marker polygon {
+  stroke-dasharray: none !important;
+  animation: none !important;
+}
+
+/* Custom React Flow Controls for better dark mode contrast */
+.react-flow__controls {
+  @apply shadow-lg border border-border;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.react-flow__controls-button:hover {
+  background-color: var(--secondary) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom-width: 0 !important;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+  width: 16px !important;
+  height: 16px !important;
 }
