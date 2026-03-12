@@ -32,11 +32,11 @@ export function AttachmentsTab({
       <FileDropzone onDrop={onDropAction} />
 
       {attachments.length > 0 && (
-        <div className="mt-5 flex min-h-0 flex-1 flex-col">
+        <div className="mt-5 flex flex-col">
           <h3 className="border-b border-border/70 pb-2 text-sm font-semibold text-foreground">
             Attached files ({attachments.length})
           </h3>
-          <div className="workspace-scroll mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="mt-3 space-y-2 pr-1">
             {attachments.map((attachment) => (
               <div
                 key={attachment.id}
