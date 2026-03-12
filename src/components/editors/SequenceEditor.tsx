@@ -1,21 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Link2, Info } from "lucide-react";
 import { EditorProps } from "./ProjectBriefEditor";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-
-const PARTICIPANT_TYPES = [
-  "actor",
-  "component",
-  "service",
-  "database",
-  "external",
-];
-const MESSAGE_TYPES = ["request", "response", "self"];
-const GROUP_TYPES = ["none", "alt", "opt", "loop"];
+import { useSequenceLogic } from "./sequence/hooks/useSequenceLogic";
+import { ParticipantItem } from "./sequence/components/ParticipantItem";
+import { MessageItem } from "./sequence/components/MessageItem";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function useUseCases(projectId?: string) {
   return useLiveQuery(
@@ -35,304 +35,153 @@ function useUseCases(projectId?: string) {
 
 export function SequenceEditor({ fields, onChange, projectId }: EditorProps) {
   const useCases = useUseCases(projectId);
+  const {
+    participants,
+    messages,
+    addParticipant,
+    updateParticipant,
+    removeParticipant,
+    addMessage,
+    updateMessage,
+    removeMessage,
+  } = useSequenceLogic(fields, onChange);
 
-  const participants = fields.participants || [];
-  const messages = fields.messages || [];
+  const participantNames = participants.map((p) => p.name).filter(Boolean);
 
-  const updateParticipants = (newP: any[]) =>
-    onChange({ ...fields, participants: newP });
-  const updateMessages = (newM: any[]) =>
-    onChange({ ...fields, messages: newM });
-
-  // Migrate old string[] participants to structured
-  const getParticipantName = (p: any) =>
-    typeof p === "string" ? p : p?.name || "";
-  const getParticipantType = (p: any) =>
-    typeof p === "string" ? "component" : p?.type || "component";
-  const participantNames = participants.map(getParticipantName);
-
-  const addParticipant = () =>
-    updateParticipants([
-      ...participants,
-      { name: "", type: "component", order: participants.length },
-    ]);
-  const updateParticipant = (index: number, updates: any) => {
-    const arr = [...participants];
-    const current =
-      typeof arr[index] === "string"
-        ? { name: arr[index], type: "component", order: index }
-        : arr[index];
-    arr[index] = { ...current, ...updates };
-    updateParticipants(arr);
-  };
-  const removeParticipant = (index: number) =>
-    updateParticipants(participants.filter((_: any, i: number) => i !== index));
-
-  const addMessage = () =>
-    updateMessages([
-      ...messages,
-      {
-        id: crypto.randomUUID(),
-        from: "",
-        to: "",
-        content: "",
-        type: "request",
-        group: "none",
-        group_label: "",
-      },
-    ]);
-  const updateMessage = (id: string, updates: any) =>
-    updateMessages(
-      messages.map((m: any) => (m.id === id ? { ...m, ...updates } : m)),
-    );
-  const removeMessage = (id: string) =>
-    updateMessages(messages.filter((m: any) => m.id !== id));
-
-  // Auto-extract API endpoints
+  // Auto-extract API endpoints for summary reference
   const apiEndpoints = messages
-    .filter((m: any) => {
+    .filter((m) => {
       const c = (m.content || "").toUpperCase();
       return (
         /^(GET|POST|PUT|PATCH|DELETE)\s/.test(c) ||
         /\/api\//.test(m.content || "")
       );
     })
-    .map((m: any) => m.content);
+    .map((m) => m.content);
 
   return (
-    <div className="flex flex-col gap-6 p-4 overflow-y-auto w-full h-full">
-      {/* Sequence metadata */}
-      <div className="space-y-3">
-        <div className="grid gap-2">
-          <Label className="text-xs text-muted-foreground">
-            Related Use Case
-          </Label>
-          <select
-            value={fields.related_use_case || ""}
-            onChange={(e) =>
-              onChange({ ...fields, related_use_case: e.target.value })
-            }
-            className="h-8 text-xs border rounded bg-background px-2"
+    <div className="flex flex-col gap-10 p-8 w-full workspace-scroll pb-24 h-full">
+      {/* Header & Meta */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          <h2 className="text-2xl font-black tracking-tighter uppercase italic opacity-20">Sequence Flow</h2>
+        </div>
+
+        <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 space-y-4">
+          <div className="flex items-center gap-2 text-primary">
+            <Link2 className="h-4 w-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Connect to Business Logic</span>
+          </div>
+          <Select
+            value={fields.related_use_case || "none"}
+            onValueChange={(val) => onChange({ ...fields, related_use_case: val })}
           >
-            <option value="">Select UC...</option>
-            {useCases.map((uc: any, i: number) => (
-              <option key={uc.id} value={uc.id}>
-                UC-{String(i + 1).padStart(3, "0")}: {uc.name || "Untitled"}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-12 border-none bg-background rounded-2xl font-bold shadow-lg shadow-primary/5">
+              <SelectValue placeholder="Link to existing Use Case..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="font-bold">Unlinked</SelectItem>
+              {useCases.map((uc: any, i: number) => (
+                <SelectItem key={uc.id} value={uc.id} className="font-bold">
+                  UC-{String(i + 1).padStart(3, "0")}: {uc.name || "Untitled"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Participants */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-semibold">Participants</Label>
+      {/* Participants Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-2">
+          <div className="space-y-1">
+            <h3 className="text-sm font-black uppercase tracking-widest">Participants</h3>
+            <p className="text-[10px] text-muted-foreground font-medium italic">Define actors and systems in this flow</p>
+          </div>
           <Button
             size="sm"
             variant="outline"
             onClick={addParticipant}
-            className="h-7 text-xs"
+            className="h-10 px-4 rounded-xl font-black uppercase tracking-widest text-[10px] border-primary/20 hover:bg-primary/5 transition-all"
           >
-            <Plus className="h-3 w-3 mr-1" /> Add
+            <Plus className="h-4 w-4 mr-2" />
+            New Identity
           </Button>
         </div>
-        <div className="space-y-2">
-          {participants.map((p: any, i: number) => (
-            <div
+        
+        <div className="space-y-3">
+          {participants.map((p, i) => (
+            <ParticipantItem
               key={i}
-              className="flex items-center gap-2 p-2 border rounded-md bg-background"
-            >
-              <select
-                value={getParticipantType(p)}
-                onChange={(e) => updateParticipant(i, { type: e.target.value })}
-                className="h-8 text-[10px] border rounded bg-background px-1 w-24"
-              >
-                {PARTICIPANT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <Input
-                value={getParticipantName(p)}
-                onChange={(e) => updateParticipant(i, { name: e.target.value })}
-                placeholder="Participant name..."
-                className="h-8 text-sm flex-1"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                onClick={() => removeParticipant(i)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+              index={i}
+              participant={p}
+              onUpdate={(upd) => updateParticipant(i, upd)}
+              onRemove={() => removeParticipant(i)}
+            />
           ))}
           {participants.length === 0 && (
-            <div className="text-xs text-muted-foreground italic p-2 border border-dashed rounded text-center">
-              No participants.
+            <div className="p-12 border-2 border-dashed border-border/40 rounded-[2rem] flex flex-col items-center justify-center gap-3 grayscale opacity-30">
+              <Info className="h-8 w-8" />
+              <span className="text-xs font-black uppercase tracking-widest">Identity List Empty</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-semibold">Messages</Label>
+      {/* Messages Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-2">
+          <div className="space-y-1">
+            <h3 className="text-sm font-black uppercase tracking-widest">Interaction Timeline</h3>
+            <p className="text-[10px] text-muted-foreground font-medium italic">Map the sequence of events and messaging</p>
+          </div>
           <Button
             size="sm"
-            variant="outline"
+            variant="default"
             onClick={addMessage}
-            className="h-7 text-xs"
+            className="h-11 px-6 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
           >
-            <Plus className="h-3 w-3 mr-1" /> Add
+            <Plus className="h-4 w-4 mr-2" />
+            Add Interaction
           </Button>
         </div>
-        <div className="space-y-3">
-          {messages.map((m: any, msgIdx: number) => (
-            <div
+
+        <div className="space-y-6">
+          {messages.map((m, i) => (
+            <MessageItem
               key={m.id}
-              className="flex flex-col gap-2 p-3 border rounded-md bg-background shadow-sm relative"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  Step {msgIdx + 1}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => removeMessage(m.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-              {/* From → To */}
-              <div className="flex gap-2 items-center">
-                <select
-                  value={m.from || ""}
-                  onChange={(e) =>
-                    updateMessage(m.id, { from: e.target.value })
-                  }
-                  className="h-8 text-xs border rounded bg-background px-1 flex-1"
-                >
-                  <option value="">From...</option>
-                  {participantNames
-                    .filter(Boolean)
-                    .map((name: string, idx: number) => (
-                      <option key={idx} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                </select>
-                <span className="text-muted-foreground text-xs font-bold px-1">
-                  →
-                </span>
-                <select
-                  value={m.to || ""}
-                  onChange={(e) => updateMessage(m.id, { to: e.target.value })}
-                  className="h-8 text-xs border rounded bg-background px-1 flex-1"
-                >
-                  <option value="">To...</option>
-                  {participantNames
-                    .filter(Boolean)
-                    .map((name: string, idx: number) => (
-                      <option key={idx} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              {/* Content */}
-              <Input
-                value={m.content || ""}
-                onChange={(e) =>
-                  updateMessage(m.id, { content: e.target.value })
-                }
-                placeholder="Message (e.g. POST /api/login)"
-                className="h-8 text-sm"
-              />
-              {/* Type + Group */}
-              <div className="flex gap-2">
-                <div className="grid gap-1 flex-1">
-                  <Label className="text-[10px] text-muted-foreground">
-                    Type
-                  </Label>
-                  <select
-                    value={m.type || "request"}
-                    onChange={(e) =>
-                      updateMessage(m.id, { type: e.target.value })
-                    }
-                    className="h-7 text-[10px] border rounded bg-background px-1"
-                  >
-                    {MESSAGE_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-1 flex-1">
-                  <Label className="text-[10px] text-muted-foreground">
-                    Group
-                  </Label>
-                  <select
-                    value={m.group || "none"}
-                    onChange={(e) =>
-                      updateMessage(m.id, { group: e.target.value })
-                    }
-                    className="h-7 text-[10px] border rounded bg-background px-1"
-                  >
-                    {GROUP_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t === "none" ? "— none —" : t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {m.group && m.group !== "none" && (
-                  <div className="grid gap-1 flex-1">
-                    <Label className="text-[10px] text-muted-foreground">
-                      Group Label
-                    </Label>
-                    <Input
-                      value={m.group_label || ""}
-                      onChange={(e) =>
-                        updateMessage(m.id, { group_label: e.target.value })
-                      }
-                      placeholder="e.g. Invalid credentials"
-                      className="h-7 text-[10px]"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
+              index={i}
+              message={m}
+              participants={participantNames}
+              onUpdate={(upd) => updateMessage(m.id, upd)}
+              onRemove={() => removeMessage(m.id)}
+            />
           ))}
           {messages.length === 0 && (
-            <div className="text-xs text-muted-foreground italic p-2 border border-dashed rounded text-center">
-              No messages.
+            <div className="p-20 border-2 border-dashed border-border/40 rounded-[3rem] flex flex-col items-center justify-center gap-4 grayscale opacity-20">
+              <Plus className="h-12 w-12" />
+              <span className="text-sm font-black uppercase tracking-widest">Awaiting interaction</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Auto-extracted API Endpoints */}
+      {/* Detected Endpoints */}
       {apiEndpoints.length > 0 && (
-        <div className="space-y-2 border-t pt-3">
-          <Label className="text-xs text-muted-foreground font-semibold uppercase">
-            Auto-detected API Endpoints
-          </Label>
-          <div className="space-y-1">
-            {apiEndpoints.map((ep: string, i: number) => (
-              <div
+        <div className="pt-10 space-y-4 border-t border-border/40">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-50">Intelligent Context Discovery</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {apiEndpoints.map((ep, i) => (
+              <span
                 key={i}
-                className="text-xs font-mono bg-muted/50 px-2 py-1 rounded border"
+                className="px-3 py-1.5 bg-emerald-500/5 text-emerald-600 border border-emerald-500/10 rounded-lg text-[10px] font-mono font-bold"
               >
                 {ep}
-              </div>
+              </span>
             ))}
           </div>
         </div>

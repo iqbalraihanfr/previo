@@ -1,61 +1,35 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, ListChecks } from "lucide-react";
 import { EditorProps } from "./ProjectBriefEditor";
-import { useBriefFields } from "@/lib/hooks";
 
-const FR_CATEGORIES = [
-  "Authentication",
-  "Authorization",
-  "User Management",
-  "Data Management",
-  "Reporting",
-  "Notification",
-  "Payment",
-  "Integration",
-  "Search",
-  "File Management",
-  "Communication",
-  "Settings",
-  "Dashboard",
-];
-
-const NFR_CATEGORIES = [
-  "Performance",
-  "Security",
-  "Usability",
-  "Reliability",
-  "Scalability",
-  "Compatibility",
-];
+import { useRequirementLogic } from "./requirement/hooks/useRequirementLogic";
+import { RequirementItem } from "./requirement/components/RequirementItem";
+import { RequirementValidationHeader } from "./requirement/components/RequirementValidationHeader";
 
 export function RequirementEditor({
   fields,
   onChange,
   projectId,
 }: EditorProps) {
-  const [activeTab, setActiveTab] = useState("FR");
-  const briefFields = useBriefFields(projectId);
+  const [activeTab, setActiveTab] = useState<"FR" | "NFR">("FR");
+  
+  const {
+    items,
+    frItems,
+    nfrItems,
+    scopeInItems,
+    addItem,
+    updateItem,
+    removeItem,
+  } = useRequirementLogic(projectId!, fields, onChange);
 
-  const items = (fields.items as any[]) || [];
   const activeItems = items.filter((i: any) => (i.type || "FR") === activeTab);
-
-  // Compute auto-IDs for display
-  const frItems = items.filter((i: any) => (i.type || "FR") === "FR");
-  const nfrItems = items.filter((i: any) => i.type === "NFR");
+  const hasMust = items.some((i: any) => i.priority === "Must");
 
   const getDisplayId = (item: any) => {
     if ((item.type || "FR") === "FR") {
@@ -66,271 +40,105 @@ export function RequirementEditor({
     return `NFR-${String(idx + 1).padStart(3, "0")}`;
   };
 
-  const updateItems = (newItems: any[]) => {
-    onChange({ ...fields, items: newItems });
-  };
-
-  const addItem = () => {
-    const base: any = {
-      id: crypto.randomUUID(),
-      type: activeTab,
-      description: "",
-      priority: "Should",
-      category: "",
-    };
-    if (activeTab === "NFR") {
-      base.metric = "";
-      base.target = "";
-    } else {
-      base.related_scope = "";
-    }
-    updateItems([...items, base]);
-  };
-
-  const updateItem = (id: string, updates: any) => {
-    updateItems(
-      items.map((it: any) => (it.id === id ? { ...it, ...updates } : it)),
-    );
-  };
-
-  const removeItem = (id: string) => {
-    updateItems(items.filter((it: any) => it.id !== id));
-  };
-
-  const scopeInItems: string[] = briefFields?.scope_in || [];
-  const categories = activeTab === "FR" ? FR_CATEGORIES : NFR_CATEGORIES;
-
-  // Validation hints
-  const frCount = frItems.length;
-  const nfrCount = nfrItems.length;
-  const hasMust = items.some((i: any) => i.priority === "Must");
-
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="p-4 border-b shrink-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
-            <TabsTrigger value="FR" className="flex-1 text-xs">
-              Functional (FR){" "}
-              {frCount > 0 && (
-                <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 rounded-full">
-                  {frCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="NFR" className="flex-1 text-xs">
-              Non-Functional (NFR){" "}
-              {nfrCount > 0 && (
-                <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 rounded-full">
-                  {nfrCount}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Validation hints */}
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-          <span className={frCount >= 3 ? "text-green-600" : "text-amber-600"}>
-            {frCount >= 3 ? "✓" : "!"} Min 3 FRs ({frCount}/3)
-          </span>
-          <span className={nfrCount >= 1 ? "text-green-600" : "text-amber-600"}>
-            {nfrCount >= 1 ? "✓" : "!"} Min 1 NFR ({nfrCount}/1)
-          </span>
-          <span className={hasMust ? "text-green-600" : "text-amber-600"}>
-            {hasMust ? "✓" : "!"} At least 1 Must priority
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4">
-        <div className="flex items-center justify-between shrink-0 mb-2">
-          <Label className="text-sm font-semibold">
-            {activeTab === "FR"
-              ? "Functional Requirements"
-              : "Non-Functional Requirements"}
-          </Label>
-          <Button size="sm" variant="outline" onClick={addItem}>
-            <Plus className="h-4 w-4 mr-2" /> Add
-          </Button>
-        </div>
-
-        {activeItems.length === 0 && (
-          <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm shrink-0">
-            No {activeTab} defined yet. Click Add.
+    <div className="workspace-scroll flex-1 overflow-y-auto px-8 py-10 w-full bg-card/5">
+      <div className="max-w-4xl mx-auto space-y-12">
+        {/* Header Segment */}
+        <div className="space-y-4 border-b border-border/70 pb-10">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-primary">
+              System Specification
+            </span>
+            <span className="rounded-full bg-accent/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-accent-foreground/70">
+              Requirements
+            </span>
           </div>
-        )}
+          <div>
+            <h2 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
+              <ListChecks className="h-6 w-6 text-primary" />
+              Functional Blueprint
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground max-w-xl">
+              Document what the system must do (FR) and how it must perform (NFR). These constraints define the boundaries for all downstream architecture.
+            </p>
+          </div>
+        </div>
 
-        <div className="space-y-4 pb-4">
-          {activeItems.map((item: any) => (
-            <div
-              key={item.id}
-              className="flex flex-col gap-3 p-4 border rounded-md bg-background shadow-sm relative"
+        {/* Validation Header */}
+        <RequirementValidationHeader
+          frCount={frItems.length}
+          nfrCount={nfrItems.length}
+          hasMust={hasMust}
+        />
+
+        {/* Requirements Workspace */}
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <Tabs 
+              value={activeTab} 
+              onValueChange={(v) => setActiveTab(v as any)}
+              className="w-full md:w-auto"
             >
-              {/* Header: Auto-ID + Delete */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                  {getDisplayId(item)}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => removeItem(item.id)}
+              <TabsList className="h-12 bg-muted/50 p-1.5 rounded-2xl shadow-sm inline-flex">
+                <TabsTrigger 
+                  value="FR" 
+                  className="rounded-xl px-6 text-xs font-bold uppercase tracking-widest data-[state=active]:bg-background transition-all"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  Functional
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="NFR" 
+                  className="rounded-xl px-6 text-xs font-bold uppercase tracking-widest data-[state=active]:bg-background transition-all"
+                >
+                  Quality Attributes
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <Button
+              size="sm"
+              onClick={() => addItem(activeTab)}
+              className="rounded-full h-10 font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all px-8 shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-2" /> New Requirement
+            </Button>
+          </div>
+
+          <div className="space-y-12 pb-20">
+            {activeItems.map((item: any, idx: number) => (
+              <RequirementItem
+                key={item.id}
+                item={item}
+                index={idx}
+                type={activeTab}
+                displayId={getDisplayId(item)}
+                scopeInItems={scopeInItems}
+                onUpdate={(updates) => updateItem(item.id, updates)}
+                onRemove={() => removeItem(item.id)}
+              />
+            ))}
+
+            {activeItems.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border/60 rounded-[3rem] bg-muted/5">
+                <div className="bg-primary/5 p-4 rounded-full mb-4">
+                  <ListChecks className="h-8 w-8 text-primary/20" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground/40 uppercase tracking-widest">
+                  No {activeTab} defined
+                </h3>
+                <p className="mt-2 text-[10px] font-medium text-muted-foreground/30 px-6 text-center">
+                  Define your initial system boundaries by adding a {activeTab === "FR" ? "functional capability" : "performance metric"}.
+                </p>
+                <Button
+                  variant="link"
+                  className="mt-4 text-xs font-bold text-primary/60 hover:text-primary"
+                  onClick={() => addItem(activeTab)}
+                >
+                  Create initial requirement
                 </Button>
               </div>
-
-              {/* Description */}
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">
-                  Description <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  value={item.description || ""}
-                  onChange={(e) =>
-                    updateItem(item.id, {
-                      description: e.target.value.slice(0, 200),
-                    })
-                  }
-                  placeholder="Requirement details..."
-                  className="min-h-[60px] resize-none text-sm"
-                  maxLength={200}
-                />
-                <p className="text-[10px] text-muted-foreground text-right">
-                  {(item.description || "").length}/200
-                </p>
-              </div>
-
-              {/* Category + Priority row */}
-              <div className="flex items-end gap-3">
-                <div className="grid gap-2 flex-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Category <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={
-                      categories.includes(item.category)
-                        ? item.category
-                        : "__custom__"
-                    }
-                    onValueChange={(val) => {
-                      if (val !== "__custom__") {
-                        updateItem(item.id, { category: val });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select category..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__custom__">Custom...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {!categories.includes(item.category) && (
-                    <Input
-                      value={item.category || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, { category: e.target.value })
-                      }
-                      placeholder="Custom category..."
-                      className="h-8 text-sm"
-                    />
-                  )}
-                </div>
-                <div className="grid gap-2 w-[130px] shrink-0">
-                  <Label className="text-xs text-muted-foreground">
-                    Priority <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={item.priority || "Should"}
-                    onValueChange={(val) =>
-                      updateItem(item.id, { priority: val })
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Must">Must</SelectItem>
-                      <SelectItem value="Should">Should</SelectItem>
-                      <SelectItem value="Could">Could</SelectItem>
-                      <SelectItem value="Wont">Won&apos;t</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* FR-specific: Related Scope Item */}
-              {activeTab === "FR" && scopeInItems.length > 0 && (
-                <div className="grid gap-2">
-                  <Label className="text-xs text-muted-foreground">
-                    Related Scope Item
-                  </Label>
-                  <Select
-                    value={item.related_scope || ""}
-                    onValueChange={(val) =>
-                      updateItem(item.id, {
-                        related_scope: val === "__none__" ? "" : val,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Link to a scope item..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— None —</SelectItem>
-                      {scopeInItems
-                        .filter(Boolean)
-                        .map((scope: string, idx: number) => (
-                          <SelectItem key={idx} value={scope}>
-                            {scope}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* NFR-specific: Metric + Target */}
-              {activeTab === "NFR" && (
-                <div className="flex items-end gap-3">
-                  <div className="grid gap-2 flex-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Metric <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      value={item.metric || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, { metric: e.target.value })
-                      }
-                      placeholder="e.g. Response Time"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="grid gap-2 flex-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Target <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      value={item.target || ""}
-                      onChange={(e) =>
-                        updateItem(item.id, { target: e.target.value })
-                      }
-                      placeholder="e.g. < 200ms"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+            )}
+          </div>
         </div>
       </div>
     </div>
