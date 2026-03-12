@@ -8,7 +8,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -28,85 +28,22 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useLiveQuery } from "dexie-react-hooks";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Command,
-  Download,
-  HelpCircle,
-  Info,
-  Maximize,
-  PanelRight,
-  Plus,
-  Sparkles,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 
 import { db, NodeData } from "@/lib/db";
 import { ArchwayNode } from "@/components/ArchwayNode";
 import { ArchwayEdge } from "@/components/ArchwayEdge";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { NodeEditorPanel } from "@/components/NodeEditorPanel";
-import { ValidationSummaryPanel } from "@/components/ValidationSummaryPanel";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { WorkspaceCommandDialog } from "@/components/WorkspaceCommandDialog";
-import { WorkspaceHelpDialog } from "@/components/WorkspaceHelpDialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  exportProjectToMarkdown,
-  exportProjectToPDF,
-} from "@/lib/exportEngine";
-import { ModeToggle } from "@/components/mode-toggle";
+import { NodeEditorPanel } from "@/components/editors/NodeEditorPanel";
+import { ValidationSummaryPanel } from "@/components/editors/ValidationSummaryPanel";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { WorkspaceCommandDialog } from "@/components/layout/WorkspaceCommandDialog";
+import { WorkspaceHelpDialog } from "@/components/layout/WorkspaceHelpDialog";
+import { getValidationTone } from "./utils";
+import { WorkspaceHeader } from "./components/WorkspaceHeader";
+import { WorkspaceOverlays } from "./components/WorkspaceOverlays";
 
 const WORKSPACE_ONBOARDING_KEY = "archway-workspace-onboarding-dismissed";
-
-type ValidationTone = "success" | "warning" | "danger" | "info";
-
-function formatRelativeProjectState(doneCount: number, totalCount: number) {
-  if (totalCount === 0) {
-    return { label: "No nodes yet", tone: "warning" as ValidationTone };
-  }
-
-  if (doneCount === totalCount) {
-    return { label: "All nodes complete", tone: "success" as ValidationTone };
-  }
-
-  if (doneCount === 0) {
-    return { label: "Start documenting", tone: "warning" as ValidationTone };
-  }
-
-  return { label: "In progress", tone: "info" as ValidationTone };
-}
-
-function getValidationTone(
-  errorCount: number,
-  warningCount: number,
-): ValidationTone {
-  if (errorCount > 0) return "danger";
-  if (warningCount > 0) return "warning";
-  return "success";
-}
-
-function getMetricPillClass(tone: ValidationTone) {
-  switch (tone) {
-    case "danger":
-      return "metric-pill metric-pill--danger";
-    case "warning":
-      return "metric-pill metric-pill--warning";
-    case "info":
-      return "metric-pill metric-pill--info";
-    default:
-      return "metric-pill metric-pill--success";
-  }
-}
 
 type DeleteNodeState = {
   id: string;
@@ -114,7 +51,6 @@ type DeleteNodeState = {
 } | null;
 
 function WorkspaceContent({ projectId }: { projectId: string }) {
-  const router = useRouter();
   const reactFlow = useReactFlow();
 
   const project = useLiveQuery(
@@ -236,10 +172,6 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
   const progressPercent =
     dbNodes.length > 0 ? Math.round((doneCount / dbNodes.length) * 100) : 0;
 
-  const projectProgressMeta = formatRelativeProjectState(
-    doneCount,
-    dbNodes.length,
-  );
   const validationTone = getValidationTone(errorCount, warningCount);
 
   const helpChecklist = useMemo(
@@ -603,235 +535,27 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
   return (
     <div className="workspace-shell h-screen w-full overflow-hidden">
       <div className="flex h-full flex-col overflow-hidden">
-        <header className="workspace-header z-20 border-b border-border/70 px-4 py-3 sm:px-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 rounded-full"
-                onClick={() => router.push("/")}
-                aria-label="Back to dashboard"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-lg font-semibold sm:text-xl">
-                    {project.name}
-                  </h1>
-                  <span
-                    className={getMetricPillClass(projectProgressMeta.tone)}
-                  >
-                    {projectProgressMeta.label}
-                  </span>
-                  {recommendedNextNode && (
-                    <span className="metric-pill metric-pill--success">
-                      Next: {recommendedNextNode.label}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-sm leading-6 text-muted-foreground">
-                  <span>
-                    {doneCount}/{dbNodes.length} nodes completed
-                  </span>
-                  <span>•</span>
-                  <span>{progressPercent}% progress</span>
-                  {recommendedNextNode && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        Continue with{" "}
-                        <span className="font-medium text-foreground">
-                          {recommendedNextNode.label}
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                <div className="w-full max-w-sm">
-                  <div className="progress-track">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full"
-                onClick={handleJumpToRecommendedNode}
-                disabled={!recommendedNextNode}
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Next Node
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full"
-                onClick={() => setShowCommandDialog(true)}
-              >
-                <Command className="mr-2 h-4 w-4" />
-                Search / Jump
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full"
-                onClick={handleFitView}
-              >
-                <Maximize className="mr-2 h-4 w-4" />
-                Fit View
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full"
-                onClick={() => setShowHelpDialog(true)}
-              >
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full"
-                onClick={() => setShowValidationPanel((value) => !value)}
-              >
-                {validationTone === "danger" ? (
-                  <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
-                ) : validationTone === "warning" ? (
-                  <AlertTriangle className="mr-2 h-4 w-4 text-yellow-500" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                )}
-                Validation
-                <span className="ml-2 text-readable-xs text-muted-foreground">
-                  {errorCount}E · {warningCount}W · {infoCount}I
-                </span>
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-full"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Node
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  {(() => {
-                    const existingTypes = new Set(
-                      dbNodes.map((node) => node.type),
-                    );
-                    const addableNodes: { type: string; label: string }[] = [
-                      { type: "project_brief", label: "Project Brief" },
-                      { type: "requirements", label: "Requirements" },
-                      { type: "user_stories", label: "User Stories" },
-                      { type: "use_cases", label: "Use Cases" },
-                      { type: "flowchart", label: "Flowchart" },
-                      { type: "dfd", label: "DFD" },
-                      { type: "erd", label: "ERD" },
-                      { type: "sequence", label: "Sequence Diagram" },
-                      { type: "task_board", label: "Task Board" },
-                      { type: "summary", label: "Summary" },
-                    ];
-
-                    const available = addableNodes.filter(
-                      (node) => !existingTypes.has(node.type),
-                    );
-
-                    return (
-                      <>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleAddNode("custom", "Custom Notes")
-                          }
-                        >
-                          Blank Notes
-                        </DropdownMenuItem>
-                        {available.length > 0 &&
-                          available.map((node) => (
-                            <DropdownMenuItem
-                              key={node.type}
-                              onClick={() =>
-                                handleAddNode(node.type, node.label)
-                              }
-                            >
-                              {node.label}
-                            </DropdownMenuItem>
-                          ))}
-                      </>
-                    );
-                  })()}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-full"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() =>
-                      exportProjectToMarkdown(project, dbNodes, dbContents)
-                    }
-                  >
-                    Export Markdown
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      exportProjectToPDF(project, dbNodes, dbContents)
-                    }
-                  >
-                    Export PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {selectedNodeData && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 rounded-full"
-                  onClick={() => setEditorCollapsed((value) => !value)}
-                >
-                  <PanelRight className="mr-2 h-4 w-4" />
-                  {editorCollapsed ? "Show Panel" : "Hide Panel"}
-                </Button>
-              )}
-
-              <ModeToggle />
-            </div>
-          </div>
-        </header>
+        <WorkspaceHeader
+          project={project}
+          dbNodes={dbNodes}
+          dbContents={dbContents}
+          doneCount={doneCount}
+          progressPercent={progressPercent}
+          recommendedNextNode={recommendedNextNode}
+          errorCount={errorCount}
+          warningCount={warningCount}
+          infoCount={infoCount}
+          selectedNodeData={selectedNodeData}
+          editorCollapsed={editorCollapsed}
+          validationTone={validationTone}
+          onJumpNext={handleJumpToRecommendedNode}
+          onShowCommand={() => setShowCommandDialog(true)}
+          onFitView={handleFitView}
+          onShowHelp={() => setShowHelpDialog(true)}
+          onToggleValidation={() => setShowValidationPanel((v) => !v)}
+          onAddNode={handleAddNode}
+          onToggleEditor={() => setEditorCollapsed((v) => !v)}
+        />
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           {showValidationPanel && (
@@ -844,95 +568,16 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
             </div>
           )}
 
-          {showOnboarding && (
-            <div className="pointer-events-none absolute left-3 top-3 z-20 w-[min(460px,calc(100vw-1.5rem))] max-w-full md:left-4 md:top-4">
-              <div className="onboarding-card pointer-events-auto rounded-2xl p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="rounded-full px-2.5 py-1 text-readable-xs">
-                        Getting started
-                      </Badge>
-                      {recommendedNextNode && (
-                        <span className="metric-pill metric-pill--success">
-                          Start with {recommendedNextNode.label}
-                        </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h2 className="text-base font-semibold">
-                        Welcome to your architecture workspace
-                      </h2>
-                      <p className="mt-1 text-sm leading-7 text-muted-foreground">
-                        Click a node to edit it, drag nodes to reorganize your
-                        flow, and use{" "}
-                        <span className="font-medium text-foreground">
-                          Space + drag
-                        </span>{" "}
-                        to pan. You can use the Guided tab as the main source of
-                        truth, jump to the next unfinished node, and reopen help
-                        anytime from the header.
-                      </p>
-                    </div>
-
-                    <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                      <div className="rounded-xl border border-border/70 bg-background/70 px-3 py-3">
-                        <p className="font-medium text-foreground">
-                          Open nodes
-                        </p>
-                        <p className="mt-1 leading-6">
-                          Click any node to open the editor panel.
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-border/70 bg-background/70 px-3 py-3">
-                        <p className="font-medium text-foreground">
-                          Navigate faster
-                        </p>
-                        <p className="mt-1 leading-6">
-                          Use Search / Jump, Next Node, Fit View, and
-                          Validation.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 rounded-full"
-                    onClick={dismissOnboarding}
-                    aria-label="Dismiss onboarding"
-                  >
-                    <ChevronLeft className="h-4 w-4 rotate-45" />
-                  </Button>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-readable-xs text-muted-foreground">
-                    You can reopen guidance anytime from the Help button.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => setShowHelpDialog(true)}
-                    >
-                      Open Help
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="rounded-full"
-                      onClick={dismissOnboarding}
-                    >
-                      Got it
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <WorkspaceOverlays
+            showOnboarding={showOnboarding}
+            recommendedNextNode={!selectedNodeData ? recommendedNextNode : null}
+            dbWarningsLength={dbWarnings.length}
+            dbNodesLength={dbNodes.length}
+            showValidationPanel={showValidationPanel}
+            onDismissOnboarding={dismissOnboarding}
+            onShowHelp={() => setShowHelpDialog(true)}
+            onJumpNext={handleJumpToRecommendedNode}
+          />
 
           <div
             ref={flowWrapperRef}
@@ -989,25 +634,6 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
                 maskColor="rgba(0,0,0,0.55)"
               />
             </ReactFlow>
-
-            <div className="pointer-events-none absolute right-4 top-4 z-20 hidden md:block">
-              <div className="onboarding-card rounded-2xl px-4 py-3">
-                <div className="flex flex-wrap items-center gap-2 text-readable-xs text-muted-foreground">
-                  <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                    ⌘K / Ctrl+K search
-                  </span>
-                  <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                    N next node
-                  </span>
-                  <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                    F fit view
-                  </span>
-                  <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                    ? help
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {selectedNodeData && !editorCollapsed && (
@@ -1046,69 +672,6 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
               </Button>
             </div>
           )}
-
-          {!selectedNodeData && recommendedNextNode && (
-            <div className="pointer-events-none absolute bottom-4 right-4 z-20 hidden max-w-sm md:block">
-              <div className="onboarding-card rounded-2xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Suggested next step</p>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Open{" "}
-                      <span className="font-medium text-foreground">
-                        {recommendedNextNode.label}
-                      </span>{" "}
-                      to keep your documentation flow moving.
-                    </p>
-                    <div className="pointer-events-auto pt-1">
-                      <Button
-                        size="sm"
-                        className="rounded-full"
-                        onClick={handleJumpToRecommendedNode}
-                      >
-                        Open next node
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!showValidationPanel && dbWarnings.length > 0 && (
-            <div className="pointer-events-none absolute bottom-4 left-4 z-20 hidden md:block">
-              <div className="onboarding-card rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                  <p className="text-sm text-muted-foreground">
-                    You have{" "}
-                    <span className="font-medium text-foreground">
-                      {dbWarnings.length} validation issue(s)
-                    </span>
-                    . Open the validation drawer to review them.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!showValidationPanel &&
-            dbWarnings.length === 0 &&
-            dbNodes.length > 0 && (
-              <div className="pointer-events-none absolute bottom-4 left-4 z-20 hidden md:block">
-                <div className="onboarding-card rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <p className="text-sm text-muted-foreground">
-                      Cross-node validation is clear right now.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
           {dbWarnings.length > 0 && (
             <div className="absolute right-4 top-4 z-20 md:hidden">

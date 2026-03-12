@@ -1,340 +1,43 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { db, NodeData, NodeContent, Attachment, TaskData } from "@/lib/db";
+import mermaid from "mermaid";
+import { Download, Sparkles } from "lucide-react";
+
+import { db, type NodeData, type NodeContent, type Attachment, type TaskData } from "@/lib/db";
 import { generateTasksFromNode } from "@/lib/taskEngine";
 import { crossValidateAll } from "@/lib/validationEngine";
-import { TaskBoardEditor } from "@/components/TaskBoardEditor";
-import { SummaryNodeEditor } from "@/components/SummaryNodeEditor";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  X,
-  Loader2,
-  Check,
-  UploadCloud,
-  File,
-  Trash2,
-  Download,
-  Sparkles,
-} from "lucide-react";
-import { useDropzone } from "react-dropzone";
-import mermaid from "mermaid";
-import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
 import { exportDiagramToPNG } from "@/lib/exportEngine";
-import { ProjectBriefEditor } from "@/components/editors/ProjectBriefEditor";
-import { RequirementEditor } from "@/components/editors/RequirementEditor";
-import { UserStoryEditor } from "@/components/editors/UserStoryEditor";
-import { UseCaseEditor } from "@/components/editors/UseCaseEditor";
-import { ERDEditor } from "@/components/editors/ERDEditor";
-import { SequenceEditor } from "@/components/editors/SequenceEditor";
-import { FlowchartEditor } from "@/components/editors/FlowchartEditor";
-import { DFDEditor } from "@/components/editors/DFDEditor";
 import { generateMermaid } from "@/lib/diagramGenerators";
 
-const MERMAID_TEMPLATES: Record<string, string> = {
-  flowchart: `flowchart TD
-    A[Start] --> B[Process]
-    B --> C{Decision?}
-    C -- Yes --> D[Action]
-    C -- No --> E[Other Action]
-    D --> F[End]
-    E --> F`,
-  erd: `erDiagram
-    USERS ||--|{ ORDERS : places
-    ORDERS ||--|{ ORDER_ITEMS : contains
-    PRODUCTS ||--o{ ORDER_ITEMS : included_in
+import { TaskBoardEditor } from "@/components/editors/TaskBoardEditor";
+import { SummaryNodeEditor } from "@/components/editors/SummaryNodeEditor";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { CodeEditor } from "@/components/ui/code-editor";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-    USERS {
-        string id PK
-        string name
-        string email
-    }`,
-  sequence: `sequenceDiagram
-    actor User
-    participant Frontend
-    participant Backend
-    participant Database
-
-    User->>Frontend: Action
-    Frontend->>Backend: API Request
-    Backend->>Database: Query
-    Database-->>Backend: Result
-    Backend-->>Frontend: Response
-    Frontend-->>User: Display`,
-  use_case: `graph TD
-    subgraph System
-        UC1((Use Case 1))
-        UC2((Use Case 2))
-    end
-    Actor1[Actor] --> UC1
-    Actor1 --> UC2`,
-  dfd: `graph LR
-    EE1[External Entity] -->|data flow| P1((Process))
-    P1 -->|output| DS1[(Data Store)]
-    DS1 -->|read| P2((Process 2))
-    P2 -->|result| EE2[External Entity 2]`,
-};
-
-const DIAGRAM_NODES = ["flowchart", "erd", "dfd", "use_case", "sequence"];
-const GUIDED_NODE_TYPES = [
-  "project_brief",
-  "requirements",
-  "user_stories",
-  "use_cases",
-  "erd",
-  "sequence",
-  "flowchart",
-  "dfd",
-];
-
-type EditorTab = "guided" | "mermaid" | "sql" | "text" | "attachments";
+import {
+  MERMAID_TEMPLATES,
+  DIAGRAM_NODES,
+  GUIDED_NODE_TYPES,
+  type EditorTab,
+} from "./panel/constants";
+import {
+  EditorPanelHeader,
+  GuidedOverview,
+  SectionHint,
+  TabBadge,
+} from "./panel/components";
+import { AttachmentsTab } from "./panel/AttachmentsTab";
+import { GuidedEditorContent } from "./panel/GuidedEditorContent";
 
 mermaid.initialize({
   startOnLoad: false,
   theme: "dark",
   securityLevel: "loose",
 });
-
-function getNodeTypeLabel(type: string) {
-  switch (type) {
-    case "project_brief":
-      return "Project Brief";
-    case "requirements":
-      return "Requirements";
-    case "user_stories":
-      return "User Stories";
-    case "use_cases":
-      return "Use Cases";
-    case "flowchart":
-      return "Flowchart";
-    case "dfd":
-      return "DFD";
-    case "erd":
-      return "ERD";
-    case "sequence":
-      return "Sequence";
-    case "task_board":
-      return "Task Board";
-    case "summary":
-      return "Summary";
-    default:
-      return "Notes";
-  }
-}
-
-function getStatusTone(status: NodeData["status"]) {
-  if (status === "Done") {
-    return "metric-pill metric-pill--success";
-  }
-
-  if (status === "In Progress") {
-    return "metric-pill metric-pill--warning";
-  }
-
-  return "metric-pill metric-pill--info";
-}
-
-function SectionHint({
-  title,
-  description,
-  tone = "default",
-}: {
-  title: string;
-  description: string;
-  tone?: "default" | "primary" | "muted";
-}) {
-  const toneClass =
-    tone === "primary"
-      ? "border-primary/20 bg-primary/8"
-      : tone === "muted"
-        ? "border-border/70 bg-muted/25"
-        : "border-border/70 bg-background/60";
-
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function TabBadge({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "primary" | "muted";
-}) {
-  return (
-    <span
-      className={
-        tone === "primary"
-          ? "rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
-          : "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-      }
-    >
-      {label}
-    </span>
-  );
-}
-
-function EditorPanelHeader({
-  node,
-  isSaving,
-  lastSaved,
-  status,
-  onStatusChange,
-  onCloseAction,
-  onDeleteAction,
-}: {
-  node: NodeData;
-  isSaving: boolean;
-  lastSaved: Date | null;
-  status: NodeData["status"];
-  onStatusChange: (status: string | null) => void;
-  onCloseAction: () => void;
-  onDeleteAction?: () => void;
-}) {
-  return (
-    <>
-      <div className="border-b border-border/70 px-5 py-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-readable-xs font-medium text-muted-foreground">
-                {getNodeTypeLabel(node.type)}
-              </span>
-              <span className={getStatusTone(status)}>{status}</span>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold leading-tight text-foreground">
-                {node.label}
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Use the Guided tab as the main source of truth for this node.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden min-w-23 justify-end sm:flex">
-              {isSaving ? (
-                <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Saving...
-                </span>
-              ) : lastSaved ? (
-                <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-                  <Check className="h-3.5 w-3.5" />
-                  Saved
-                </span>
-              ) : null}
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onCloseAction}
-              className="rounded-full hover:bg-destructive/10 hover:text-destructive"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b border-border/70 bg-muted/10 px-5 py-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <Label className="text-readable-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Status
-            </Label>
-            <Select value={status} onValueChange={onStatusChange}>
-              <SelectTrigger className="h-9 w-47.5 text-sm">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Empty">Empty</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Done">Done</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {onDeleteAction && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDeleteAction}
-              className="self-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive lg:self-auto"
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Delete node
-            </Button>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function GuidedOverview({
-  hasGuidedEditor,
-  isDiagram,
-  isErd,
-}: {
-  hasGuidedEditor: boolean;
-  isDiagram: boolean;
-  isErd: boolean;
-}) {
-  return (
-    <div className="space-y-3 px-5 pt-4">
-      {hasGuidedEditor && (
-        <SectionHint
-          title="Recommended workflow"
-          description="Start in Guided. The fields here drive validation, generated tasks, export output, and diagram generation."
-          tone="primary"
-        />
-      )}
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <SectionHint
-          title="Guided"
-          description="Primary structured input. Best place to document the node clearly and consistently."
-          tone="default"
-        />
-        {isDiagram && (
-          <SectionHint
-            title="Diagram"
-            description="Generated from Guided fields. Use manual editing only when you need a custom override."
-            tone="muted"
-          />
-        )}
-        {isErd && (
-          <SectionHint
-            title="SQL Notes"
-            description="Reference-only notes. Helpful for paste-in schemas, but not parsed back into Guided fields."
-            tone="muted"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function NodeEditorPanel({
   node,
@@ -600,7 +303,7 @@ export function NodeEditorPanel({
         if (!task.is_manual && task.source_item_id) {
           existingAutoTasksMap.set(task.source_item_id, {
             ...task,
-            source_item_id: task.source_item_id,
+            source_item_id: task.source_item_id, // Type coercion helper
           });
         }
       });
@@ -727,19 +430,11 @@ export function NodeEditorPanel({
     [node.id],
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
-
   const deleteAttachment = async (attId: string) => {
     await db.attachments.delete(attId);
     setAttachments((prev) =>
       prev.filter((attachment) => attachment.id !== attId),
     );
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
   if (!node) return null;
@@ -853,78 +548,14 @@ export function NodeEditorPanel({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-hidden">
-                  {node.type === "project_brief" && (
-                    <ProjectBriefEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "requirements" && (
-                    <RequirementEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "user_stories" && (
-                    <UserStoryEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "use_cases" && (
-                    <UseCaseEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "erd" && (
-                    <ERDEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "sequence" && (
-                    <SequenceEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "flowchart" && (
-                    <FlowchartEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
-                  {node.type === "dfd" && (
-                    <DFDEditor
-                      fields={guidedFields}
-                      onChange={(fields) =>
-                        setGuidedFields(fields as Record<string, unknown>)
-                      }
-                      projectId={node.project_id}
-                    />
-                  )}
+                  <GuidedEditorContent
+                    type={node.type}
+                    fields={guidedFields}
+                    onChange={(fields) =>
+                      setGuidedFields(fields as Record<string, unknown>)
+                    }
+                    projectId={node.project_id}
+                  />
                 </div>
               </TabsContent>
             )}
@@ -943,16 +574,10 @@ export function NodeEditorPanel({
                 </div>
 
                 <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                  <div className="min-h-0 overflow-hidden rounded-2xl border border-border/70 bg-background">
-                    <CodeMirror
-                      value={mermaidSyntax}
-                      height="100%"
-                      extensions={[javascript()]}
-                      onChange={(value) => setMermaidSyntax(value)}
-                      theme="dark"
-                      className="h-full text-sm"
-                    />
-                  </div>
+                  <CodeEditor
+                    value={mermaidSyntax}
+                    onChange={(value) => setMermaidSyntax(value)}
+                  />
 
                   <div className="relative flex min-h-0 items-center justify-center overflow-auto rounded-2xl border border-border/70 bg-secondary/20 p-4">
                     {!mermaidError && (
@@ -1055,76 +680,11 @@ export function NodeEditorPanel({
               value="attachments"
               className="m-0 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5"
             >
-              <div className="pb-4 pt-1">
-                <SectionHint
-                  title="Reference files"
-                  description="Store supporting documents such as briefs, quotations, mockups, or specs. Files are saved for reference only and are not parsed automatically."
-                  tone="muted"
-                />
-              </div>
-
-              <div
-                {...getRootProps()}
-                className={`rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${
-                  isDragActive
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-primary/45 hover:bg-secondary/40"
-                }`}
-              >
-                <input {...getInputProps()} />
-                <UploadCloud className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-                <p className="text-base font-medium text-foreground">
-                  Drag and drop files here
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  or click to browse your device
-                </p>
-                <p className="mt-4 text-readable-xs text-muted-foreground">
-                  PDF, DOCX, images, markdown, and related references
-                </p>
-              </div>
-
-              {attachments.length > 0 && (
-                <div className="mt-5 flex min-h-0 flex-1 flex-col">
-                  <h3 className="border-b border-border/70 pb-2 text-sm font-semibold text-foreground">
-                    Attached files ({attachments.length})
-                  </h3>
-                  <div className="workspace-scroll mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
-                    {attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background px-4 py-3 shadow-sm transition-colors hover:bg-muted/25"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                            <File className="h-5 w-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p
-                              className="truncate text-sm font-medium text-foreground"
-                              title={attachment.filename}
-                            >
-                              {attachment.filename}
-                            </p>
-                            <p className="mt-0.5 text-readable-xs text-muted-foreground">
-                              {formatSize(attachment.size)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => deleteAttachment(attachment.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <AttachmentsTab
+                attachments={attachments}
+                onDropAction={(files) => void onDrop(files)}
+                onDeleteAction={(id) => void deleteAttachment(id)}
+              />
             </TabsContent>
           </div>
         </Tabs>
