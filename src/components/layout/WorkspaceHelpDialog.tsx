@@ -139,8 +139,8 @@ export function WorkspaceHelpDialog({
 }: WorkspaceHelpDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[760px]">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[860px]">
+        <DialogHeader className="px-6 py-5 shrink-0 border-b">
           <div className="flex items-center gap-2">
             <Badge className="rounded-full px-3 py-1 text-readable-xs">
               Workspace Guide
@@ -160,7 +160,8 @@ export function WorkspaceHelpDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="flex-1 overflow-y-auto px-6 py-6 workspace-scroll">
+          <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-3">
             <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
               <p className="text-readable-xs uppercase tracking-[0.16em] text-muted-foreground">
@@ -215,9 +216,10 @@ export function WorkspaceHelpDialog({
           </div>
 
           <ChecklistProgress checklist={checklist} />
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 shrink-0 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
