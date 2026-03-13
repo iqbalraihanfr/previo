@@ -5,17 +5,14 @@ import { type NodeData } from "@/lib/db";
 import { TaskBoardEditor } from "@/components/editors/TaskBoardEditor";
 import { SummaryNodeEditor } from "@/components/editors/SummaryNodeEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles } from "lucide-react";
+import { FileText, Paperclip } from "lucide-react";
 
 import {
   DIAGRAM_NODES,
   GUIDED_NODE_TYPES,
   type EditorTab,
 } from "./panel/constants";
-import {
-  EditorPanelHeader,
-  GuidedOverview,
-} from "./panel/components";
+import { EditorPanelHeader } from "./panel/components";
 import { AttachmentsTab } from "./panel/AttachmentsTab";
 import { GuidedEditorContent } from "./panel/GuidedEditorContent";
 
@@ -42,6 +39,7 @@ export function NodeEditorPanel({
   const isDiagram = DIAGRAM_NODES.includes(node.type);
   const isErd = node.type === "erd";
   const hasGuidedEditor = GUIDED_NODE_TYPES.includes(node.type);
+  const isDiagramFirst = ["flowchart", "dfd", "sequence"].includes(node.type);
 
   // Data Loading & Basic State
   const {
@@ -79,22 +77,11 @@ export function NodeEditorPanel({
   // Attachment Actions
   const { onDrop, deleteAttachment } = useAttachments(node.id, attachments, setAttachments);
 
-  // Diagram-first nodes: Mermaid code is the primary input, guided is secondary
-  const DIAGRAM_FIRST = ["flowchart", "dfd", "sequence"];
-  const defaultTab: EditorTab = DIAGRAM_FIRST.includes(node.type)
-    ? "mermaid"
-    : hasGuidedEditor
-      ? "guided"
-      : isDiagram
-        ? "mermaid"
-        : "text";
-
-  const [activeTab, setActiveTab] = useState<EditorTab>(defaultTab);
+  const [activeTab, setActiveTab] = useState<EditorTab>("content");
 
   const handleStatusChange = async (newStatus: string | null) => {
     if (!newStatus) return;
     setStatus(newStatus as NodeData["status"]);
-    // Actual DB update happens here since it's a simple discrete action
     const { db } = await import("@/lib/db");
     await db.nodes.update(node.id, {
       status: newStatus as NodeData["status"],
@@ -133,80 +120,41 @@ export function NodeEditorPanel({
           onValueChange={(value) => setActiveTab(value as EditorTab)}
           className="workspace-scroll flex flex-1 flex-col overflow-y-auto overflow-x-hidden"
         >
-          <div className="pt-2">
-            <GuidedOverview
-              hasGuidedEditor={hasGuidedEditor}
-              isDiagram={isDiagram}
-              isErd={isErd}
-            />
-          </div>
-
           <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm px-6 py-4">
             <TabsList className="flex h-12 w-full items-center gap-1.5 rounded-2xl bg-muted/50 p-1.5 shadow-sm">
-              {hasGuidedEditor && (
-                <TabsTrigger
-                  className="h-full flex-1 rounded-xl px-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                  value="guided"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Guided</span>
-                  </div>
-                </TabsTrigger>
-              )}
-
-              {isDiagram && (
-                <TabsTrigger
-                  className="h-full flex-1 rounded-xl px-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                  value="mermaid"
-                >
-                  Diagram
-                </TabsTrigger>
-              )}
-
-              {isErd && (
-                <TabsTrigger
-                  className="h-full flex-1 rounded-xl px-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                  value="sql"
-                >
-                  SQL Notes
-                </TabsTrigger>
-              )}
-
               <TabsTrigger
                 className="h-full flex-1 rounded-xl px-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                value="text"
+                value="content"
               >
-                Notes
+                <div className="flex items-center justify-center gap-2">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>Content</span>
+                </div>
               </TabsTrigger>
 
               <TabsTrigger
                 className="h-full flex-1 rounded-xl px-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-                value="attachments"
+                value="meta"
               >
-                Files
+                <div className="flex items-center justify-center gap-2">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span>
+                    Notes & Files
+                    {attachments.length > 0 && (
+                      <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {attachments.length}
+                      </span>
+                    )}
+                  </span>
+                </div>
               </TabsTrigger>
             </TabsList>
           </div>
 
           <div className="relative flex min-h-0 flex-1">
-            {hasGuidedEditor && (
-              <TabsContent value="guided" className="m-0 flex flex-1 flex-col">
-                <div className="flex-1">
-                  <GuidedEditorContent
-                    type={node.type}
-                    fields={guidedFields}
-                    onChange={(fields) =>
-                      setGuidedFields(fields as Record<string, unknown>)
-                    }
-                    projectId={node.project_id}
-                  />
-                </div>
-              </TabsContent>
-            )}
-
-            {isDiagram && (
-              <TabsContent value="mermaid" className="m-0 flex-1 outline-none">
+            {/* Content Tab */}
+            <TabsContent value="content" className="m-0 flex flex-1 flex-col outline-none">
+              {isDiagramFirst ? (
                 <MermaidEditor
                   mermaidSyntax={mermaidSyntax}
                   onSyntaxChange={setMermaidSyntax}
@@ -214,25 +162,59 @@ export function NodeEditorPanel({
                   mermaidError={mermaidError}
                   nodeLabel={node.label}
                 />
-              </TabsContent>
-            )}
-
-            {isErd && (
-              <TabsContent value="sql" className="m-0 flex flex-1 flex-col outline-none">
-                <SqlNotesEditor value={sqlSchema} onChange={setSqlSchema} />
-              </TabsContent>
-            )}
-
-            <TabsContent value="text" className="m-0 flex-1 outline-none">
-              <NotesEditor value={freeText} onChange={setFreeText} />
+              ) : hasGuidedEditor ? (
+                <GuidedEditorContent
+                  type={node.type}
+                  fields={guidedFields}
+                  onChange={(fields) => setGuidedFields(fields as Record<string, unknown>)}
+                  projectId={node.project_id}
+                />
+              ) : isDiagram ? (
+                <MermaidEditor
+                  mermaidSyntax={mermaidSyntax}
+                  onSyntaxChange={setMermaidSyntax}
+                  mermaidSvg={mermaidSvg}
+                  mermaidError={mermaidError}
+                  nodeLabel={node.label}
+                />
+              ) : (
+                <NotesEditor value={freeText} onChange={setFreeText} />
+              )}
             </TabsContent>
 
-            <TabsContent value="attachments" className="m-0 flex-1 outline-none">
-              <AttachmentsTab
-                attachments={attachments}
-                onDropAction={(files) => void onDrop(files)}
-                onDeleteAction={(id) => void deleteAttachment(id)}
-              />
+            {/* Notes & Files Tab */}
+            <TabsContent value="meta" className="m-0 flex-1 outline-none">
+              <div className="flex flex-col gap-0 divide-y divide-border/40">
+                {/* Notes section */}
+                <div className="px-6 py-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Notes
+                  </p>
+                  <NotesEditor value={freeText} onChange={setFreeText} />
+                </div>
+
+                {/* SQL Notes section — ERD only */}
+                {isErd && (
+                  <div className="px-6 py-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                      SQL / Schema Reference
+                    </p>
+                    <SqlNotesEditor value={sqlSchema} onChange={setSqlSchema} />
+                  </div>
+                )}
+
+                {/* Files section */}
+                <div className="px-6 py-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Files
+                  </p>
+                  <AttachmentsTab
+                    attachments={attachments}
+                    onDropAction={(files) => void onDrop(files)}
+                    onDeleteAction={(id) => void deleteAttachment(id)}
+                  />
+                </div>
+              </div>
             </TabsContent>
           </div>
         </Tabs>
