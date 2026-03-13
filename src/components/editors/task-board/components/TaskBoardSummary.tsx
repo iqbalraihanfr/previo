@@ -12,12 +12,16 @@ function SummaryCard({
   helper: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-background px-4 py-3 shadow-sm">
-      <p className="text-readable-xs uppercase tracking-[0.16em] text-muted-foreground font-medium">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
-      <p className="mt-1 text-readable-xs text-muted-foreground font-medium">{helper}</p>
+    <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2 shadow-sm flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-readable-2xs uppercase tracking-widest text-muted-foreground font-semibold truncate">
+          {label}
+        </p>
+        <p className="mt-0.5 text-readable-2xs text-muted-foreground/60 font-medium truncate">
+          {helper}
+        </p>
+      </div>
+      <p className="text-xl font-bold text-foreground shrink-0">{value}</p>
     </div>
   );
 }
