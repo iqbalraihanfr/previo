@@ -12,6 +12,7 @@ interface WorkspaceOverlaysProps {
   onDismissOnboarding: () => void;
   onShowHelp: () => void;
   onJumpNext: () => void;
+  onToggleValidation: () => void;
 }
 
 export function WorkspaceOverlays({
@@ -23,6 +24,7 @@ export function WorkspaceOverlays({
   onDismissOnboarding,
   onShowHelp,
   onJumpNext,
+  onToggleValidation,
 }: WorkspaceOverlaysProps) {
   return (
     <>
@@ -126,24 +128,26 @@ export function WorkspaceOverlays({
       </div>
 
       {!showValidationPanel && dbWarningsLength > 0 && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-20 hidden md:block">
-          <div className="onboarding-card rounded-2xl px-4 py-3">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <p className="text-sm text-muted-foreground">
-                You have{" "}
-                <span className="font-medium text-foreground">
-                  {dbWarningsLength} validation issue(s)
-                </span>
-                . Open the validation drawer to review them.
-              </p>
-            </div>
-          </div>
+        <div className="pointer-events-none absolute bottom-5 left-15 z-20 hidden md:block">
+          <button
+            type="button"
+            onClick={onToggleValidation}
+            className="onboarding-card pointer-events-auto flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:ring-2 hover:ring-primary/10"
+          >
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <p className="text-sm text-muted-foreground">
+              You have{" "}
+              <span className="font-medium text-foreground">
+                {dbWarningsLength} validation issue(s)
+              </span>
+              . Click to review them.
+            </p>
+          </button>
         </div>
       )}
 
       {!showValidationPanel && dbWarningsLength === 0 && dbNodesLength > 0 && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-20 hidden md:block">
+        <div className="pointer-events-none absolute bottom-5 left-15 z-20 hidden md:block">
           <div className="onboarding-card rounded-2xl px-4 py-3">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-4 w-4 text-green-500" />

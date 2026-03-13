@@ -191,9 +191,6 @@ export function WorkspaceHeader({
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
             )}
             Validation
-            <span className="ml-2 text-readable-xs text-muted-foreground">
-              {errorCount}E · {warningCount}W · {infoCount}I
-            </span>
           </Button>
 
           <DropdownMenu>
