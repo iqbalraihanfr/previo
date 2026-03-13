@@ -479,6 +479,7 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
             onDismissOnboarding={dismissOnboarding}
             onShowHelp={() => setShowHelpDialog(true)}
             onJumpNext={handleJumpToRecommendedNode}
+            onToggleValidation={() => setShowValidationPanel((v) => !v)}
           />
 
           <div
