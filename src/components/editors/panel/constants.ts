@@ -57,7 +57,7 @@ export const GUIDED_NODE_TYPES = [
   "dfd",
 ];
 
-export type EditorTab = "guided" | "mermaid" | "sql" | "text" | "attachments";
+export type EditorTab = "content" | "meta";
 
 export function getNodeTypeLabel(type: string) {
   switch (type) {
