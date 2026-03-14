@@ -7,7 +7,7 @@ import {
   Plus,
 } from "lucide-react";
 
-import { createProject, deleteProject as deleteProjectAction } from "@/lib/projectEngine";
+import { ProjectService } from "@/services/ProjectService";
 import { getContentTemplate, type ContentTemplateKey } from "@/lib/contentTemplates";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -53,7 +53,7 @@ export default function Dashboard() {
     if (!newProjectName.trim()) return;
 
     const contentTpl = getContentTemplate(selectedContentTemplate);
-    const projectId = await createProject({
+    const projectId = await ProjectService.createProject({
       name: newProjectName.trim(),
       description: newProjectDesc.trim(),
       templateKey: selectedTemplate,
@@ -83,7 +83,7 @@ export default function Dashboard() {
 
     setIsDeletingProject(true);
     try {
-      await deleteProjectAction(deleteProject.id);
+      await ProjectService.deleteProject(deleteProject.id);
       setDeleteProject(null);
     } finally {
       setIsDeletingProject(false);
