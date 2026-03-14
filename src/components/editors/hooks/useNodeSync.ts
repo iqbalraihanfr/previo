@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { db, type NodeData, type NodeContent, type TaskData } from "@/lib/db";
-import { generateTasksFromNode } from "@/lib/taskEngine";
-import { crossValidateAll } from "@/lib/validationEngine";
+import { generateTasksFromNode } from "@/services/taskEngine";
+import { crossValidateAll } from "@/services/ValidationService";
 import { generateMermaid } from "@/lib/diagramGenerators";
 import { DIAGRAM_NODES } from "../panel/constants";
 

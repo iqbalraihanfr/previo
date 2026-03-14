@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { db, ValidationWarning } from "./db";
+import { db, ValidationWarning } from "@/lib/db";
 
 export async function crossValidateAll(projectId: string): Promise<void> {
   const nodes = await db.nodes.where({ project_id: projectId }).toArray();

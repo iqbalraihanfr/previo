@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, TaskData, NodeData } from "@/lib/db";
-import { generateTasksFromNode, detectDuplicateTasks } from "@/lib/taskEngine";
+import { generateTasksFromNode, detectDuplicateTasks } from "@/services/taskEngine";
 import {
   GroupingMode,
   StatusFilter,
