@@ -42,7 +42,7 @@ export function ProjectFilters({
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search projects by name or description..."
-          className="h-11 rounded-2xl pl-10 text-sm"
+          className="pl-10 text-sm"
         />
       </div>
 
@@ -50,7 +50,7 @@ export function ProjectFilters({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" className="rounded-full">
+              <Button variant="outline">
                 Filter
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
@@ -79,7 +79,7 @@ export function ProjectFilters({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" className="rounded-full">
+              <Button variant="outline">
                 Sort
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>

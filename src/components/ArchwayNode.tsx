@@ -135,51 +135,51 @@ export const ArchwayNode = memo(
           type="target"
           id="left"
           position={Position.Left}
-          className="w-4 h-4 border-[3px] border-white rounded-full bg-black -left-2! top-7! z-10"
+          className="w-4 h-4 rounded-full border-2 border-card bg-primary -left-2! top-7! z-10"
         />
         <Handle
           type="target"
           id="top"
           position={Position.Top}
-          className="w-4 h-4 border-[3px] border-white rounded-full bg-black -top-2! z-10"
+          className="w-4 h-4 rounded-full border-2 border-card bg-primary -top-2! z-10"
         />
 
         <div
           className={cn(
-            "flex min-w-[320px] max-w-[340px] flex-col overflow-hidden rounded-[1.45rem] border border-border/70 bg-card shadow-[0_18px_45px_-28px_rgba(15,23,42,0.55)] transition-all duration-200",
+            "flex min-w-[320px] max-w-[340px] flex-col overflow-hidden rounded-[12px] border border-border/70 bg-card shadow-[0_4px_20px_rgba(46,50,48,0.06)] transition-all duration-200",
             selected
-              ? "scale-[1.02] ring-2 ring-primary/35 shadow-[0_24px_54px_-28px_rgba(15,23,42,0.65)]"
-              : "ring-1 ring-black/5 hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-28px_rgba(15,23,42,0.55)]",
+              ? "scale-[1.01] ring-2 ring-primary/30 shadow-[0_4px_20px_rgba(46,50,48,0.08)]"
+              : "ring-1 ring-border/55 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(46,50,48,0.07)]",
             nodeData.isNext ? "focus-guidance focus-guidance-ring" : "",
           )}
         >
           <div
             className={cn(
-              "flex items-start justify-between gap-3 px-4 py-3 text-black",
+              "flex items-start justify-between gap-3 px-4 py-3 text-foreground",
               getHeaderColor(nodeData.type),
             )}
           >
             <div className="min-w-0 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/10 text-black">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-foreground/8 text-foreground">
                   {getTypeIcon(nodeData.type)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-readable-xs font-semibold uppercase tracking-[0.16em] text-black/65">
+                  <p className="text-readable-xs font-semibold uppercase tracking-[0.14em] text-foreground/60">
                     {TYPE_LABELS[nodeData.type] || "Node"}
                   </p>
-                  <h3 className="truncate text-base font-bold leading-tight">
+                  <h3 className="truncate font-serif text-lg font-semibold leading-tight">
                     {nodeData.label}
                   </h3>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="rounded-full bg-black/10 px-2.5 py-1 text-readable-xs font-medium text-black/75">
+                <span className="rounded-full bg-foreground/8 px-2.5 py-1 text-readable-xs font-medium text-foreground/72">
                   {getNodeMeta(nodeData.type)}
                 </span>
                 {nodeData.isNext && (
-                  <span className="rounded-full bg-black/85 px-2.5 py-1 text-readable-xs font-semibold uppercase tracking-[0.12em] text-white">
+                  <span className="rounded-full bg-primary px-2.5 py-1 text-readable-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground">
                     Start here
                   </span>
                 )}
@@ -189,7 +189,7 @@ export const ArchwayNode = memo(
             <div className="flex items-center gap-2 pt-0.5">
               {warningCount > 0 && (
                 <div
-                  className="flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-readable-xs font-semibold text-red-800"
+                  className="flex items-center gap-1 rounded-full bg-destructive/12 px-2.5 py-1 text-readable-xs font-semibold text-destructive"
                   title={`${warningCount} issues found`}
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -199,7 +199,7 @@ export const ArchwayNode = memo(
                 </div>
               )}
 
-              <div className="rounded-full bg-black/10 p-1.5 text-black/55">
+              <div className="rounded-full bg-foreground/8 p-1.5 text-foreground/55">
                 <svg
                   width="12"
                   height="12"
@@ -213,7 +213,7 @@ export const ArchwayNode = memo(
             </div>
           </div>
 
-          <div className="border-t border-black/10 bg-card px-4 py-3 text-card-foreground">
+          <div className="border-t border-border/70 bg-card px-4 py-3 text-card-foreground">
             <NodeLivePreview
               nodeId={nodeData.id}
               nodeType={nodeData.type}
@@ -226,13 +226,13 @@ export const ArchwayNode = memo(
           type="source"
           id="right"
           position={Position.Right}
-          className="w-4 h-4 border-[3px] border-white rounded-full bg-black -right-2! top-7! z-10"
+          className="w-4 h-4 rounded-full border-2 border-card bg-primary -right-2! top-7! z-10"
         />
         <Handle
           type="source"
           id="bottom"
           position={Position.Bottom}
-          className="w-4 h-4 border-[3px] border-white rounded-full bg-black -bottom-2! z-10"
+          className="w-4 h-4 rounded-full border-2 border-card bg-primary -bottom-2! z-10"
         />
       </>
     );

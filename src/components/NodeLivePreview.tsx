@@ -14,32 +14,32 @@ function ProgressBar({ value, total }: { value: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((value / total) * 100);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/10">
         <div
-          className="h-full rounded-full bg-black/40 transition-all"
+          className="h-full rounded-full bg-primary/65 transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="shrink-0 text-[10px] font-semibold text-black/50">{pct}%</span>
+      <span className="shrink-0 text-[10px] font-semibold text-foreground/55">{pct}%</span>
     </div>
   );
 }
 
 function StatRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-black/55">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-foreground/58">
       {children}
     </div>
   );
 }
 
 function Dot() {
-  return <span className="text-black/25">·</span>;
+  return <span className="text-foreground/25">·</span>;
 }
 
 function Pill({ label }: { label: string }) {
   return (
-    <span className="rounded-full bg-black/10 px-2 py-0.5 text-[10px] font-semibold text-black/60">
+    <span className="rounded-full bg-foreground/8 px-2 py-0.5 text-[10px] font-semibold text-foreground/65">
       {label}
     </span>
   );
