@@ -118,10 +118,10 @@ export function TaskBoardEditor({
 
   const handleExport = (format: string) => {
     switch (format) {
-      case "md": exportTasksToMarkdown(tasks, "Archway-Tasks"); break;
-      case "csv": exportTasksToCSV(tasks, "Archway"); break;
-      case "linear": exportTasksToLinearCSV(tasks, "Archway"); break;
-      case "json": exportTasksToJSON(tasks, "Archway"); break;
+      case "md": exportTasksToMarkdown(tasks, "Previo-Tasks"); break;
+      case "csv": exportTasksToCSV(tasks, "Previo"); break;
+      case "linear": exportTasksToLinearCSV(tasks, "Previo"); break;
+      case "json": exportTasksToJSON(tasks, "Previo"); break;
     }
   };
 

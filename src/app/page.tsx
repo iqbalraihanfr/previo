@@ -93,27 +93,27 @@ export default function Dashboard() {
   return (
     <div className="workspace-shell min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="workspace-header mb-5 rounded-[1.75rem] border border-border/70 px-5 py-5 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)] sm:px-6">
+        <header className="workspace-header mb-5 rounded-[12px] border border-border/70 px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="rounded-full px-3 py-1 text-readable-xs"
+                  className="px-3 py-1 text-readable-xs"
                 >
                   Local-first workspace
                 </Badge>
                 <Badge
                   variant="secondary"
-                  className="rounded-full px-3 py-1 text-readable-xs"
+                  className="px-3 py-1 text-readable-xs"
                 >
                   Offline-ready
                 </Badge>
               </div>
 
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  ARCHWAY
+              <div className="space-y-3">
+                <h1 className="font-serif text-4xl font-semibold tracking-[-0.04em] text-foreground sm:text-5xl">
+                  Previo
                 </h1>
                 <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
                   The bridge between thinking and building. Capture
@@ -123,7 +123,7 @@ export default function Dashboard() {
               </div>
 
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-4">
+                <div className="rounded-[12px] border border-border/70 bg-background/75 px-6 py-5">
                   <p className="text-readable-2xs uppercase tracking-[0.18em] text-muted-foreground">
                     Continue where you left off
                   </p>
@@ -140,7 +140,6 @@ export default function Dashboard() {
                       </div>
 
                       <Button
-                        className="rounded-full"
                         onClick={() =>
                           router.push(`/workspace/${recentProject.id}`)
                         }
@@ -155,10 +154,7 @@ export default function Dashboard() {
                         No recent workspace yet. Start a new project to begin
                         documenting your flow.
                       </p>
-                      <Button
-                        className="rounded-full"
-                        onClick={() => setIsCreateOpen(true)}
-                      >
+                      <Button onClick={() => setIsCreateOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         New Project
                       </Button>
@@ -179,7 +175,7 @@ export default function Dashboard() {
               <ModeToggle />
               <Button
                 size="lg"
-                className="rounded-full px-5 shadow-sm"
+                className="px-5"
                 onClick={() => setIsCreateOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -202,14 +198,14 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className="rounded-full px-3 py-1 text-readable-xs"
+              className="px-3 py-1 text-readable-xs"
             >
               {projectCards.length} visible
             </Badge>
             {filterBy !== "all" && (
               <Badge
                 variant="secondary"
-                className="rounded-full px-3 py-1 text-readable-xs"
+                className="px-3 py-1 text-readable-xs"
               >
                 Filter:{" "}
                 {filterBy === "quick" ? "Quick Start" : "Full Architecture"}
@@ -218,7 +214,7 @@ export default function Dashboard() {
             {searchQuery.trim() && (
               <Badge
                 variant="secondary"
-                className="rounded-full px-3 py-1 text-readable-xs"
+                className="px-3 py-1 text-readable-xs"
               >
                 Search: “{searchQuery.trim()}”
               </Badge>
