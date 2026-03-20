@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Archway E2E Smoke Tests', () => {
+test.describe('Previo E2E Smoke Tests', () => {
   test('should load dashboard and create a new project', async ({ page }) => {
     // 1. Load Dashboard
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveTitle(/Archway/i);
+    await expect(page).toHaveTitle(/Previo/i);
     
     // Wait for either the "No recent workspace" text or the project list to be ready
     await page.waitForTimeout(2000); 
@@ -67,7 +67,7 @@ test.describe('Archway E2E Smoke Tests', () => {
     
     await expect(page).toHaveURL(/\/workspace\//, { timeout: 15000 });
 
-    // Go back to dashboard - using the "ARCHWAY" logo/link or back button if available
+    // Go back to dashboard - using the "PREVIO" logo/link or back button if available
     // WorkspaceHeader has a back button or link
     await page.goto('/'); 
     
