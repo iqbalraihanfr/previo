@@ -7,9 +7,9 @@ import { ValidationWarning } from '@/lib/db';
 type SourceStatus = 'Empty' | 'In Progress' | 'Done';
 
 const EDGE_STYLES: Record<SourceStatus, { stroke: string; strokeDasharray: string; animate: boolean }> = {
-  'Empty':       { stroke: '#94a3b8', strokeDasharray: '6 6',  animate: true  },
-  'In Progress': { stroke: '#f59e0b', strokeDasharray: '5 4',  animate: true  },
-  'Done':        { stroke: '#22c55e', strokeDasharray: 'none', animate: false },
+  'Empty':       { stroke: '#8f9b8b', strokeDasharray: '6 6',  animate: true  },
+  'In Progress': { stroke: '#8d7340', strokeDasharray: '5 4',  animate: true  },
+  'Done':        { stroke: '#4a7c59', strokeDasharray: 'none', animate: false },
 };
 
 const SEMANTIC_LABELS: Record<string, string> = {
@@ -83,10 +83,10 @@ export function ArchwayEdge({
             className="nodrag nopan"
           >
             <Popover>
-              <PopoverTrigger className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${
+              <PopoverTrigger className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] shadow-sm backdrop-blur-md transition-all hover:scale-[1.02] active:scale-95 ${
                 warnings.length > 0 
-                  ? "border-amber-200 bg-amber-50/90 text-amber-700 hover:bg-amber-100" 
-                  : "border-border/40 bg-background/80 text-muted-foreground/80 hover:bg-background hover:text-foreground"
+                  ? "border-amber-300/55 bg-amber-50/90 text-amber-800 hover:bg-amber-100" 
+                  : "border-border/60 bg-card/90 text-muted-foreground/80 hover:bg-card hover:text-foreground"
               }`}>
                 {displayLabel}
                 {warnings.length > 0 && (
@@ -95,29 +95,29 @@ export function ArchwayEdge({
                   </span>
                 )}
               </PopoverTrigger>
-              <PopoverContent className="w-80 rounded-2xl p-4 shadow-2xl" side="top">
+              <PopoverContent className="w-80 rounded-[12px] p-4 shadow-[0_4px_20px_rgba(46,50,48,0.06)]" side="top">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground/70">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
                       Cross-Validation
                     </h4>
-                    <span className="text-[9px] font-bold text-muted-foreground/40">{semanticKey.replace('-', ' → ')}</span>
+                    <span className="text-[9px] font-semibold text-muted-foreground/45">{semanticKey.replace('-', ' → ')}</span>
                   </div>
                   
                   {warnings.length === 0 ? (
                     <div className="flex items-start gap-3 py-2">
-                      <div className="rounded-full bg-emerald-500/10 p-1.5">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <div className="rounded-full bg-primary/10 p-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-emerald-900">Connection Verified</p>
-                        <p className="text-[10px] text-emerald-700/60 mt-0.5">All semantic requirements between these nodes are satisfied.</p>
+                        <p className="text-xs font-semibold text-foreground">Connection Verified</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">All semantic requirements between these nodes are satisfied.</p>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {warnings.map((w) => (
-                        <div key={w.id} className="flex items-start gap-3 rounded-xl bg-amber-500/5 p-3 border border-amber-200/50">
+                        <div key={w.id} className="flex items-start gap-3 rounded-[12px] border border-amber-300/40 bg-amber-500/5 p-3">
                           {w.severity === 'error' ? (
                             <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                           ) : (

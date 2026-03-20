@@ -53,7 +53,7 @@ export function exportTasksToLinearCSV(tasks: TaskData[], projectName: string) {
     `"${t.title.replace(/"/g, '""')}"`,
     `"${t.description.replace(/"/g, '""')}"`,
     t.priority,
-    `"Archway,${t.group_key.replace(/"/g, '""')}"`, // Add Archway label
+    `"Previo,${t.group_key.replace(/"/g, '""')}"`, // Add Previo label
   ]);
 
   const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join(

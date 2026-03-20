@@ -49,7 +49,7 @@ export function ProjectCard({
 }: ProjectCardProps) {
   return (
     <Card
-      className="group cursor-pointer rounded-[1.6rem] border border-border/70 bg-card/90 py-0 transition-all hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_28px_80px_-44px_rgba(15,23,42,0.5)]"
+      className="group cursor-pointer border border-border/70 bg-card/95 py-0 transition-all hover:-translate-y-0.5 hover:border-primary/25"
       onClick={onClick}
     >
       <CardHeader className="gap-3 border-b border-border/70 px-5 py-5">
@@ -58,7 +58,7 @@ export function ProjectCard({
             <div className="flex items-center gap-2">
               <Badge
                 variant={templateType === "quick" ? "default" : "secondary"}
-                className="rounded-full px-2.5 py-1 text-readable-xs"
+                className="px-2.5 py-1 text-readable-xs"
               >
                 {templateLabel}
               </Badge>
@@ -79,7 +79,7 @@ export function ProjectCard({
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive"
               onClick={onDelete}
               aria-label={`Delete ${project.name}`}
             >
@@ -90,7 +90,7 @@ export function ProjectCard({
       </CardHeader>
 
       <CardContent className="space-y-4 px-5 py-5">
-        <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+        <div className="rounded-[12px] border border-border/70 bg-secondary/45 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-readable-2xs uppercase tracking-[0.16em] text-muted-foreground">
@@ -117,7 +117,7 @@ export function ProjectCard({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-border/70 bg-background px-4 py-3">
+          <div className="rounded-[12px] border border-border/70 bg-background px-4 py-3">
             <p className="text-readable-2xs uppercase tracking-[0.16em] text-muted-foreground">
               Last updated
             </p>
@@ -126,7 +126,7 @@ export function ProjectCard({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-background px-4 py-3">
+          <div className="rounded-[12px] border border-border/70 bg-background px-4 py-3">
             <p className="text-readable-2xs uppercase tracking-[0.16em] text-muted-foreground">
               Suggested action
             </p>
@@ -141,7 +141,7 @@ export function ProjectCard({
         </div>
       </CardContent>
 
-      <CardFooter className="justify-between rounded-b-[1.6rem] border-t border-border/70 bg-muted/25 px-5 py-4">
+      <CardFooter className="justify-between border-t border-border/70 bg-secondary/55 px-5 py-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {progress.percent === 100 ? (
             <Sparkles className="h-4 w-4 text-primary" />
@@ -155,7 +155,7 @@ export function ProjectCard({
           </span>
         </div>
 
-        <Button variant="outline" className="rounded-full">
+        <Button variant="outline">
           Continue
           <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Button>

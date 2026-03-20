@@ -1,6 +1,6 @@
-# Archway
+# Previo
 
-**Archway** is a local-first architecture workspace for turning rough product ideas into structured implementation assets before you start coding.
+**Previo** is a local-first architecture workspace for turning rough product ideas into structured implementation assets before you start coding.
 
 It helps you move from:
 
@@ -15,9 +15,9 @@ It helps you move from:
 
 All inside one visual workspace.
 
-## What Archway is for
+## What Previo is for
 
-Archway is designed for the pre-coding phase of a project:
+Previo is designed for the pre-coding phase of a project:
 
 - clarifying project goals
 - documenting scope
@@ -27,7 +27,7 @@ Archway is designed for the pre-coding phase of a project:
 - generating task breakdowns
 - exporting architecture documentation
 
-Instead of treating architecture notes, diagrams, and task planning as separate tools, Archway keeps them connected in one graph-based workflow.
+Instead of treating architecture notes, diagrams, and task planning as separate tools, Previo keeps them connected in one graph-based workflow.
 
 ## Core product features
 
@@ -57,7 +57,7 @@ You can:
 
 ### 2. Guided editors as source of truth
 
-For supported nodes, Archway provides structured editors instead of relying only on freeform notes.
+For supported nodes, Previo provides structured editors instead of relying only on freeform notes.
 
 Examples:
 
@@ -81,7 +81,7 @@ The guided data drives:
 
 ### 3. Mermaid-assisted diagram workflow
 
-Archway supports Mermaid-backed diagram work for architecture nodes.
+Previo supports Mermaid-backed diagram work for architecture nodes.
 
 You can work with:
 
@@ -99,7 +99,7 @@ This is useful for nodes like:
 
 ### 4. SQL-aware ERD workflow
 
-The ERD flow is not just visual. Archway also supports schema-oriented thinking through:
+The ERD flow is not just visual. Previo also supports schema-oriented thinking through:
 
 - entities
 - attributes
@@ -111,7 +111,7 @@ This makes the ERD node useful both for product planning and implementation hand
 
 ### 5. Cross-node validation
 
-Archway checks consistency between nodes and surfaces validation issues such as:
+Previo checks consistency between nodes and surfaces validation issues such as:
 
 - missing requirements
 - target users with no user stories
@@ -132,7 +132,7 @@ This helps you spot architecture gaps before implementation starts.
 
 ### 6. Task Board with generated implementation tasks
 
-Archway can generate project tasks from structured node content.
+Previo can generate project tasks from structured node content.
 
 Examples of task generation sources:
 
@@ -171,7 +171,7 @@ This is useful as a final review surface before coding or handoff.
 
 ### 8. Export support
 
-Archway includes export flows for architecture and planning artifacts.
+Previo includes export flows for architecture and planning artifacts.
 
 Available exports in the app include:
 
@@ -185,7 +185,7 @@ Available exports in the app include:
 
 ### 9. Local-first project storage
 
-Archway stores workspace data locally in the browser using IndexedDB via Dexie.
+Previo stores workspace data locally in the browser using IndexedDB via Dexie.
 
 That means:
 
@@ -196,7 +196,7 @@ That means:
 
 ## Project templates
 
-Archway currently supports two workspace modes.
+Previo currently supports two workspace modes.
 
 ### Quick Start
 
@@ -418,7 +418,7 @@ Before implementation, use the `Summary` node to review:
 - API endpoint visibility
 - readiness to build
 
-## How to use Archway
+## How to use Previo
 
 ### Create a new project
 
@@ -479,7 +479,7 @@ After enough structure exists, open `Task Board` to:
 
 ## Typical use cases
 
-Archway works well for:
+Previo works well for:
 
 - solo founders planning MVPs
 - freelancers preparing client builds
@@ -490,7 +490,7 @@ Archway works well for:
 
 ## Tech stack
 
-From the current app setup, Archway is built with:
+From the current app setup, Previo is built with:
 
 - Next.js
 - React
@@ -536,7 +536,7 @@ npm run lint
 
 ## Product mindset
 
-Archway is most effective when you treat it as:
+Previo is most effective when you treat it as:
 
 - a pre-coding workspace
 - a thinking-to-building bridge
@@ -567,7 +567,7 @@ If you are unsure where to spend effort:
 
 ## In short
 
-Archway helps you turn architecture from scattered notes into a connected working system of:
+Previo helps you turn architecture from scattered notes into a connected working system of:
 
 - structured planning
 - visual design

@@ -1,6 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
-import type { LanguageModelV1 } from "ai";
+import type { LanguageModel } from "ai";
 
 /**
  * Returns the configured AI model based on AI_PROVIDER env var.
@@ -11,7 +11,7 @@ import type { LanguageModelV1 } from "ai";
  *   ANTHROPIC_API_KEY=...         ANTHROPIC_MODEL=claude-sonnet-4-6 (optional)
  *   GOOGLE_GENERATIVE_AI_API_KEY=... GOOGLE_MODEL=gemini-2.0-flash (optional)
  */
-export function getModel(): LanguageModelV1 {
+export function getModel(): LanguageModel {
   const provider = process.env.AI_PROVIDER ?? "anthropic";
 
   if (provider === "google") {

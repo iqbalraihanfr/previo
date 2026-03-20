@@ -1,58 +1,17 @@
 import { generateText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
+import { parseModelObject } from "@/lib/ai/json";
 import { getModel } from "@/lib/ai/model";
+import { PARSE_SQL_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import type { ERDFields } from "@/components/editors/erd/hooks/useERDLogic";
-
-const SYSTEM_PROMPT = `You are a database architect. Parse the provided SQL CREATE TABLE statements and extract the schema into structured ERD format.
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "entities": [
-    {
-      "id": "abc12345",
-      "name": "ENTITY_NAME",
-      "description": "",
-      "attributes": [
-        {
-          "name": "column_name",
-          "type": "VARCHAR|INT|TEXT|BOOLEAN|TIMESTAMP|DECIMAL|UUID|etc",
-          "isPrimaryKey": false,
-          "isForeignKey": false,
-          "isUnique": false,
-          "isNullable": true,
-          "isRequired": false,
-          "isIndex": false,
-          "description": ""
-        }
-      ]
-    }
-  ],
-  "relationships": [
-    {
-      "id": "def67890",
-      "from": "TABLE_A",
-      "to": "TABLE_B",
-      "type": "one-to-many",
-      "label": "has"
-    }
-  ]
-}
-
-Rules:
-- Entity names MUST be UPPERCASE (e.g. USERS, ORDERS, PRODUCTS)
-- Attribute names must be snake_case
-- Infer relationships from FOREIGN KEY constraints and column naming patterns (e.g. user_id → FK to USERS)
-- Relationship types: "one-to-one", "one-to-many", "many-to-one", "many-to-many"
-- Use "one-to-many" as default for FK relationships unless context clearly suggests otherwise
-- Generate 8-char alphanumeric ids (e.g. "a1b2c3d4")
-- If no SQL is provided or it's invalid, return { "entities": [], "relationships": [] }
-- Return ONLY valid JSON — no markdown, no code blocks, no explanation`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { sql } = (await req.json()) as { sql?: string };
+    const body = (await req.json()) as { sql?: unknown };
+    const sql =
+      typeof body.sql === "string" && body.sql.trim() ? body.sql.trim() : "";
 
-    if (!sql?.trim()) {
+    if (!sql) {
       return NextResponse.json(
         { error: "No SQL provided" },
         { status: 400 }
@@ -61,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const { text: raw } = await generateText({
       model: getModel(),
-      system: SYSTEM_PROMPT,
+      system: PARSE_SQL_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
@@ -70,7 +29,7 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const fields = JSON.parse(raw.trim()) as ERDFields;
+    const fields = parseModelObject<ERDFields>(raw);
     return NextResponse.json({ fields });
   } catch (err) {
     console.error("[parse-sql]", err);

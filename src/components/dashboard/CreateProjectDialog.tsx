@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Zap, BookOpen, Plus } from "lucide-react";
+import { Zap, BookOpen, type LucideIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ export type TemplateConfig = {
   label: string;
   shortLabel: string;
   description: string;
-  icon: any;
+  icon: LucideIcon;
   badge?: string;
   accentClass: string;
   cardClass: string;
@@ -150,7 +150,7 @@ export function CreateProjectDialog({
                         type="button"
                         onClick={() => onTemplateChange(key)}
                         className={[
-                          "rounded-2xl border p-4 text-left transition-all",
+                          "rounded-[12px] border p-5 text-left transition-all",
                           isSelected
                             ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                             : template.cardClass,
@@ -161,7 +161,7 @@ export function CreateProjectDialog({
                             <div className="flex items-center gap-3">
                               <div
                                 className={[
-                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]",
                                   isSelected
                                     ? "bg-primary/10 text-primary"
                                     : "bg-muted text-muted-foreground",
@@ -196,7 +196,7 @@ export function CreateProjectDialog({
                           </div>
 
                           {isSelected && (
-                            <Badge className="w-fit rounded-full px-3 py-1 text-readable-xs">
+                            <Badge className="w-fit px-3 py-1 text-readable-xs">
                               Selected
                             </Badge>
                           )}
@@ -206,7 +206,7 @@ export function CreateProjectDialog({
                   })}
                 </div>
 
-                <div className="rounded-2xl border border-border/70 bg-muted/30 p-5">
+                <div className="rounded-[12px] border border-border/70 bg-secondary/45 p-5">
                   <div className="flex items-center gap-2 font-medium">
                     <ActiveTemplateIcon className="h-4 w-4 text-primary" />
                     <h3 className="font-semibold">{activeTemplate.label}</h3>
@@ -217,7 +217,7 @@ export function CreateProjectDialog({
                   </p>
 
                   {activeTemplate.availability === "experimental" && (
-                    <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-3">
+                    <div className="mt-4 rounded-[12px] border border-amber-500/25 bg-amber-500/10 px-3 py-3">
                       <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
                         Experimental template
                       </p>
@@ -238,7 +238,7 @@ export function CreateProjectDialog({
                           <Badge
                             key={`${node.type}-${index}`}
                             variant="secondary"
-                            className="rounded-full bg-background border border-border/60 px-2.5 py-1 text-readable-xs font-medium"
+                            className="border border-border/60 bg-background px-2.5 py-1 text-readable-xs font-medium"
                           >
                             {node.label}
                           </Badge>
