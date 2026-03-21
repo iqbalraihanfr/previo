@@ -193,6 +193,11 @@ export function TaskItem({
                 </p>
                 <p className="mt-2 text-sm font-medium text-foreground">{provenance.title}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{provenance.sourceLabel}</p>
+                {provenance.sourceItemLabel && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Source item: {provenance.sourceItemLabel}
+                  </p>
+                )}
               </div>
 
               <div className="rounded-xl border border-border/50 bg-background/80 px-3 py-3">
@@ -204,6 +209,15 @@ export function TaskItem({
                   <p className="mt-1 text-xs text-muted-foreground">
                     Related brief scope: {provenance.relatedBriefScope}
                   </p>
+                )}
+                {provenance.upstreamPath && provenance.upstreamPath.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {provenance.upstreamPath.map((step) => (
+                      <p key={step} className="text-xs text-muted-foreground">
+                        {step}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

@@ -409,6 +409,8 @@ export function buildSummaryFraming({
   generatedNodes,
   manualNodes,
   overriddenNodes,
+  readinessStatusLabel,
+  readinessStatusSummary,
   topBlockers,
   topTaskSources,
 }: {
@@ -429,6 +431,8 @@ export function buildSummaryFraming({
   generatedNodes: number;
   manualNodes: number;
   overriddenNodes: number;
+  readinessStatusLabel: string;
+  readinessStatusSummary: string;
   topBlockers: string[];
   topTaskSources: string[];
 }): SummaryFraming {
@@ -443,6 +447,7 @@ export function buildSummaryFraming({
       : "No cross-artifact trace checks are available yet";
 
   const executiveSnapshot = [
+    `${readinessStatusLabel}: ${readinessStatusSummary}`,
     `${deliveryModeLabel} delivery is tracking ${formatCountLabel(nodesDone, "node")} done and ${formatCountLabel(tasksDone, "task")} complete out of ${totalTasks}.`,
     `${coverageSummary}.`,
     warningCount > 0

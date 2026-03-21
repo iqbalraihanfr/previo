@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { db, NodeData, TaskData, ValidationWarning } from "@/lib/db";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import { buildProjectReadinessModel } from "@/lib/readiness";
+import { resolveTaskProvenance } from "@/components/editors/task-board/provenance";
 import {
   computeCoverage,
   buildSummaryFraming,
@@ -134,17 +135,62 @@ export function useSummary(projectId: string) {
     );
     const topTaskSources = Object.entries(
       snapshot.tasks.reduce<Record<string, number>>((accumulator, task) => {
-        const sourceNode = snapshot.allProjectNodes.find(
-          (node) => node.id === task.source_node_id,
-        );
-        const key = sourceNode?.label ?? (task.task_origin === "manual" ? "Manual task" : "Imported backlog");
+        let key =
+          task.task_origin === "manual"
+            ? "Manual Tasks"
+            : task.task_origin === "imported_backlog"
+              ? "Imported Backlog"
+              : "Generated Tasks";
+
+        if (task.task_origin === "generated") {
+          const sourceNode = snapshot.allProjectNodes.find(
+            (node) => node.id === task.source_node_id,
+          );
+          const provenance = resolveTaskProvenance({
+            task,
+            nodes: snapshot.allProjectNodes,
+            contents: Object.values(snapshot.contents),
+          });
+
+          key =
+            sourceNode?.type === "requirements"
+              ? "Requirements"
+              : sourceNode?.type === "user_stories"
+                ? "User Stories"
+                : sourceNode?.type === "use_cases"
+                  ? "Use Cases"
+                  : sourceNode?.type === "flowchart"
+                    ? "Flowchart"
+                    : sourceNode?.type === "sequence"
+                      ? "Sequence"
+                      : sourceNode?.type === "erd"
+                        ? "ERD"
+                        : sourceNode?.type === "dfd"
+                          ? "DFD"
+                          : provenance?.title ?? sourceNode?.label ?? "Generated Tasks";
+        }
+
         accumulator[key] = (accumulator[key] ?? 0) + 1;
         return accumulator;
       }, {}),
     )
       .sort((left, right) => right[1] - left[1])
       .slice(0, 3)
-      .map(([label, count]) => `${label} contributes ${count} task(s) to the current plan.`);
+      .map(([label, count]) => {
+        if (label === "Sequence") {
+          return `Sequence contributes ${count} integration and API task(s).`;
+        }
+        if (label === "ERD") {
+          return `ERD contributes ${count} schema and relationship task(s).`;
+        }
+        if (label === "Flowchart") {
+          return `Flowchart contributes ${count} process implementation task(s).`;
+        }
+        if (label === "DFD") {
+          return `DFD contributes ${count} backend and integration task(s).`;
+        }
+        return `${label} contributes ${count} task(s) to the current plan.`;
+      });
     const framing = buildSummaryFraming({
       deliveryModeLabel:
         DELIVERY_MODE_LABELS[
@@ -166,6 +212,8 @@ export function useSummary(projectId: string) {
       generatedNodes: provenanceSummary.generated,
       manualNodes: provenanceSummary.manual,
       overriddenNodes: provenanceSummary.overridden,
+      readinessStatusLabel: readiness.statusLabel,
+      readinessStatusSummary: readiness.statusSummary,
       topBlockers: readiness.blockers.slice(0, 3).map((issue) => issue.message),
       topTaskSources,
     });
