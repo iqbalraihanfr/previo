@@ -62,11 +62,80 @@ export class ProjectService {
 
     const seededNodes: { node: NodeData; content: NodeContent }[] = [];
 
+    const template = getWorkflowDefinition(templateKey);
+
+    const allNodes: NodeData[] = [];
+    const allContents: NodeContent[] = [];
+
+    for (let i = 0; i < template.nodes.length; i++) {
+      const nodeTpl = template.nodes[i];
+      const nodeId = crypto.randomUUID();
+
+      let structuredFields: Record<string, unknown> = {};
+      let mermaidManual = "";
+      let hasContent = false;
+
+      if (starterSeed) {
+        if (nodeTpl.type === "project_brief") {
+          structuredFields = { ...starterSeed.brief, name };
+          hasContent = Object.keys(starterSeed.brief).length > 0;
+        } else if (nodeTpl.type === "requirements" && starterSeed.requirements) {
+          structuredFields = starterSeed.requirements;
+          hasContent = true;
+        } else if (nodeTpl.type === "erd" && starterSeed.erd) {
+          structuredFields = starterSeed.erd;
+          hasContent = true;
+        } else if (nodeTpl.type === "flowchart" && starterSeed.mermaid?.flowchart) {
+          mermaidManual = starterSeed.mermaid.flowchart;
+          hasContent = true;
+        } else if (nodeTpl.type === "sequence" && starterSeed.mermaid?.sequence) {
+          mermaidManual = starterSeed.mermaid.sequence;
+          hasContent = true;
+        } else if (nodeTpl.type === "dfd" && starterSeed.mermaid?.dfd) {
+          mermaidManual = starterSeed.mermaid.dfd;
+          hasContent = true;
+        }
+      } else if (nodeTpl.type === "project_brief" && initialBriefContent) {
+        structuredFields = { ...initialBriefContent, name };
+        hasContent = true;
+      }
+
+      const nodeStatus: NodeData["status"] = hasContent ? "In Progress" : "Empty";
+
+      const nodeData: NodeData = {
+        id: nodeId,
+        project_id: projectId,
+        type: nodeTpl.type,
+        label: nodeTpl.label,
+        status: nodeStatus,
+        position_x: nodeTpl.x || 0,
+        position_y: nodeTpl.y || 0,
+        sort_order: i,
+        generation_status: "none",
+        override_status: "none",
+        updated_at: now,
+      };
+      allNodes.push(nodeData);
+
+      const nodeContent: NodeContent = {
+        id: crypto.randomUUID(),
+        node_id: nodeId,
+        structured_fields: structuredFields,
+        mermaid_auto: MERMAID_TEMPLATES[nodeTpl.type] || "",
+        mermaid_manual: mermaidManual,
+        updated_at: now,
+      };
+      allContents.push(nodeContent);
+
+      if (hasContent && TASK_GENERATING_TYPES.has(nodeTpl.type) && Object.keys(structuredFields).length > 0) {
+        seededNodes.push({ node: nodeData, content: nodeContent });
+      }
+    }
+
     await db.transaction(
       "rw",
       [db.projects, db.nodes, db.nodeContents],
       async () => {
-        // 1. Create project
         await ProjectRepository.create({
           id: projectId,
           name,
@@ -79,86 +148,8 @@ export class ProjectService {
           created_at: now,
           updated_at: now,
         });
-
-        const template = getWorkflowDefinition(templateKey);
-
-        // 2. Add nodes
-        for (const nodeTpl of template.nodes) {
-          const nodeId = crypto.randomUUID();
-
-          let structuredFields: Record<string, unknown> = {};
-          let mermaidManual = "";
-          let hasContent = false;
-
-          if (starterSeed) {
-            if (nodeTpl.type === "project_brief") {
-              structuredFields = { ...starterSeed.brief, name };
-              hasContent = Object.keys(starterSeed.brief).length > 0;
-            } else if (nodeTpl.type === "requirements" && starterSeed.requirements) {
-              structuredFields = starterSeed.requirements;
-              hasContent = true;
-            } else if (nodeTpl.type === "erd" && starterSeed.erd) {
-              structuredFields = starterSeed.erd;
-              hasContent = true;
-            } else if (nodeTpl.type === "flowchart" && starterSeed.mermaid?.flowchart) {
-              mermaidManual = starterSeed.mermaid.flowchart;
-              hasContent = true;
-            } else if (nodeTpl.type === "sequence" && starterSeed.mermaid?.sequence) {
-              mermaidManual = starterSeed.mermaid.sequence;
-              hasContent = true;
-            } else if (nodeTpl.type === "dfd" && starterSeed.mermaid?.dfd) {
-              mermaidManual = starterSeed.mermaid.dfd;
-              hasContent = true;
-            }
-          } else if (nodeTpl.type === "project_brief" && initialBriefContent) {
-            structuredFields = { ...initialBriefContent, name };
-            hasContent = true;
-          }
-
-          const nodeStatus: NodeData["status"] = hasContent ? "In Progress" : "Empty";
-
-          await NodeRepository.create({
-            id: nodeId,
-            project_id: projectId,
-            type: nodeTpl.type,
-            label: nodeTpl.label,
-            status: nodeStatus,
-            position_x: nodeTpl.x || 0,
-            position_y: nodeTpl.y || 0,
-            sort_order: template.nodes.indexOf(nodeTpl),
-            generation_status: "none",
-            override_status: "none",
-            updated_at: now,
-          });
-
-          const nodeContent: NodeContent = {
-            id: crypto.randomUUID(),
-            node_id: nodeId,
-            structured_fields: structuredFields,
-            mermaid_auto: MERMAID_TEMPLATES[nodeTpl.type] || "",
-            mermaid_manual: mermaidManual,
-            updated_at: now,
-          };
-
-          await NodeContentRepository.create(nodeContent);
-
-          if (hasContent && TASK_GENERATING_TYPES.has(nodeTpl.type) && Object.keys(structuredFields).length > 0) {
-            const nodeData: NodeData = {
-              id: nodeId,
-              project_id: projectId,
-              type: nodeTpl.type,
-              label: nodeTpl.label,
-              status: nodeStatus,
-              position_x: nodeTpl.x || 0,
-              position_y: nodeTpl.y || 0,
-              sort_order: template.nodes.indexOf(nodeTpl),
-              generation_status: "none",
-              override_status: "none",
-              updated_at: now,
-            };
-            seededNodes.push({ node: nodeData, content: nodeContent });
-          }
-        }
+        await db.nodes.bulkAdd(allNodes);
+        await db.nodeContents.bulkAdd(allContents);
       },
     );
 

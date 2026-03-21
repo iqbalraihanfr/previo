@@ -126,6 +126,7 @@ interface CreateProjectDialogProps {
   deliveryMode: DeliveryMode;
   onDeliveryModeChange: (value: DeliveryMode) => void;
   onCreate: () => void;
+  isCreating?: boolean;
 }
 
 const STEP_ORDER = CREATE_PROJECT_STEPS.map((step) => step.key);
@@ -146,6 +147,7 @@ export function CreateProjectDialog({
   deliveryMode,
   onDeliveryModeChange,
   onCreate,
+  isCreating = false,
 }: CreateProjectDialogProps) {
   const [activeStep, setActiveStep] = useState<(typeof STEP_ORDER)[number]>("basics");
 
@@ -564,10 +566,10 @@ export function CreateProjectDialog({
               ) : (
                 <Button
                   onClick={handleCreate}
-                  disabled={!projectName.trim()}
+                  disabled={!projectName.trim() || isCreating}
                   data-testid="create-workspace-submit"
                 >
-                  Create workspace
+                  {isCreating ? "Creating workspace…" : "Create workspace"}
                 </Button>
               )}
             </div>

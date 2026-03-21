@@ -9,6 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import dynamic from "next/dynamic";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -30,19 +31,29 @@ import type { NodeData } from "@/lib/db";
 import { ArchwayNode } from "@/components/ArchwayNode";
 import { ArchwayEdge } from "@/components/ArchwayEdge";
 import { Button } from "@/components/ui/button";
-import { NodeEditorPanel } from "@/components/editors/NodeEditorPanel";
-import { ValidationSummaryPanel } from "@/components/editors/ValidationSummaryPanel";
 import { WorkspaceCommandDialog } from "@/components/layout/WorkspaceCommandDialog";
 import { WorkspaceHelpDialog } from "@/components/layout/WorkspaceHelpDialog";
 import { updateNodePosition } from "@/lib/workspaceEngine";
 import { WorkspaceHeader } from "@/features/workspace/components/WorkspaceHeader";
 import { WorkspaceOverlays } from "@/features/workspace/components/WorkspaceOverlays";
 import { ProjectNotesPanel } from "@/features/workspace/components/ProjectNotesPanel";
-import { WorkspaceTraceabilityPanel } from "@/components/layout/WorkspaceTraceabilityPanel";
 import { useExcalidrawControls } from "@/features/workspace/hooks/useExcalidrawControls";
 import { useWorkspaceData } from "@/features/workspace/hooks/useWorkspaceData";
 import { buildCommandNodes } from "@/features/workspace/selectors";
 import { buildCanonicalFlowEdges } from "@/features/workspace/workflowGraph";
+
+const NodeEditorPanel = dynamic(
+  () => import("@/components/editors/NodeEditorPanel").then((m) => m.NodeEditorPanel),
+  { ssr: false },
+);
+const ValidationSummaryPanel = dynamic(
+  () => import("@/components/editors/ValidationSummaryPanel").then((m) => m.ValidationSummaryPanel),
+  { ssr: false },
+);
+const WorkspaceTraceabilityPanel = dynamic(
+  () => import("@/components/layout/WorkspaceTraceabilityPanel").then((m) => m.WorkspaceTraceabilityPanel),
+  { ssr: false },
+);
 
 const WORKSPACE_ONBOARDING_KEY = "archway-workspace-onboarding-dismissed";
 const EDITOR_WIDTH_KEY = "archway-editor-width";
@@ -419,6 +430,8 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
           {showValidationPanel && (
             <div className="absolute bottom-3 left-3 top-3 z-30 w-[min(420px,calc(100vw-1.5rem))] max-w-full md:left-4 md:w-100">
               <ValidationSummaryPanel
+                nodes={dbNodes}
+                contents={dbContents}
                 warnings={dbWarnings}
                 onCloseAction={() => setShowValidationPanel(false)}
                 onNodeNavigateAction={handleValidationNavigate}
@@ -590,6 +603,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
                 contents={dbContents}
                 sourceArtifacts={sourceArtifacts}
                 onCloseAction={() => setShowTraceabilityPanel(false)}
+                onNodeNavigateAction={handleValidationNavigate}
               />
             </div>
           )}

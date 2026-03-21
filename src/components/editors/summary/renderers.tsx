@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import mermaid from "mermaid";
 import type { NodeData } from "@/lib/db";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 
@@ -29,11 +28,20 @@ export const STATUS_BADGE_CLASS: Record<NodeData["status"], string> = {
   Empty: "bg-muted text-muted-foreground",
 };
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  securityLevel: "strict",
-});
+let mermaidInstance: typeof import("mermaid").default | null = null;
+
+async function getMermaid() {
+  if (!mermaidInstance) {
+    const m = await import("mermaid");
+    mermaidInstance = m.default;
+    mermaidInstance.initialize({
+      startOnLoad: false,
+      theme: "dark",
+      securityLevel: "strict",
+    });
+  }
+  return mermaidInstance;
+}
 
 export function SummarySection({
   title,
@@ -69,6 +77,8 @@ export function MermaidPreview({ syntax }: { syntax: string }) {
       }
 
       try {
+        const mermaid = await getMermaid();
+        if (isCancelled) return;
         const id = `summary-mermaid-${crypto.randomUUID()}`;
         const rendered = await mermaid.render(id, syntax);
 

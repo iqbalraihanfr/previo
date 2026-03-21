@@ -51,6 +51,7 @@ export function DashboardScreen() {
     useState<StarterContentIntensity>("none");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("agile");
 
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [deleteProject, setDeleteProject] = useState<DeleteProjectState>(null);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
@@ -60,35 +61,42 @@ export function DashboardScreen() {
   };
 
   const handleCreateProject = async () => {
-    if (!newProjectName.trim()) return;
+    if (!newProjectName.trim() || isCreatingProject) return;
 
-    const projectId = await ProjectService.createProject({
-      name: newProjectName.trim(),
-      description: newProjectDesc.trim(),
-      templateKey: selectedTemplate,
-      deliveryMode,
-      domain: selectedDomain,
-      starterContentIntensity: selectedStarterContentIntensity,
-    });
-    const destination = `/workspace/${projectId}`;
+    setIsCreatingProject(true);
+    try {
+      const projectId = await ProjectService.createProject({
+        name: newProjectName.trim(),
+        description: newProjectDesc.trim(),
+        templateKey: selectedTemplate,
+        deliveryMode,
+        domain: selectedDomain,
+        starterContentIntensity: selectedStarterContentIntensity,
+      });
+      const destination = `/workspace/${projectId}`;
 
-    setIsCreateOpen(false);
-    setNewProjectName("");
-    setNewProjectDesc("");
-    setSelectedTemplate("quick");
-    setSelectedDomain("general");
-    setSelectedStarterContentIntensity("none");
-    setDeliveryMode("agile");
+      setIsCreateOpen(false);
+      setNewProjectName("");
+      setNewProjectDesc("");
+      setSelectedTemplate("quick");
+      setSelectedDomain("general");
+      setSelectedStarterContentIntensity("none");
+      setDeliveryMode("agile");
 
-    startTransition(() => {
-      router.push(destination);
-    });
+      startTransition(() => {
+        router.push(destination);
+      });
 
-    window.setTimeout(() => {
-      if (window.location.pathname === "/") {
-        window.location.assign(destination);
-      }
-    }, 300);
+      window.setTimeout(() => {
+        if (window.location.pathname === "/") {
+          window.location.assign(destination);
+        }
+      }, 300);
+    } catch (error) {
+      console.error("Failed to create project:", error);
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   const requestDeleteProject = (
@@ -289,6 +297,7 @@ export function DashboardScreen() {
         deliveryMode={deliveryMode}
         onDeliveryModeChange={setDeliveryMode}
         onCreate={handleCreateProject}
+        isCreating={isCreatingProject}
       />
 
       <ConfirmDialog

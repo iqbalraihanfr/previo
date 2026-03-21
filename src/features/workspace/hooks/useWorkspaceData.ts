@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { db, type NodeContent } from "@/lib/db";
 import {
   buildWorkspaceStats,
   getRecommendedNextNode,
@@ -18,7 +18,15 @@ export function useWorkspaceData(projectId: string) {
     [projectId],
     [],
   );
-  const dbContents = useLiveQuery(() => db.nodeContents.toArray(), [], []);
+  const nodeIds = useMemo(() => dbNodes.map((n) => n.id), [dbNodes]);
+  const dbContents = useLiveQuery(
+    () =>
+      nodeIds.length > 0
+        ? db.nodeContents.where("node_id").anyOf(nodeIds).toArray()
+        : Promise.resolve([] as NodeContent[]),
+    [nodeIds],
+    [],
+  );
   const sourceArtifacts = useLiveQuery(
     () => db.sourceArtifacts.where({ project_id: projectId }).toArray(),
     [projectId],

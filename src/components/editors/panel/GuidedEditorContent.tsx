@@ -1,11 +1,4 @@
-import { ProjectBriefEditor } from "@/components/editors/ProjectBriefEditor";
-import { RequirementEditor } from "@/components/editors/RequirementEditor";
-import { UserStoryEditor } from "@/components/editors/UserStoryEditor";
-import { UseCaseEditor } from "@/components/editors/UseCaseEditor";
-import { ERDEditor } from "@/components/editors/ERDEditor";
-import { SequenceEditor } from "@/components/editors/SequenceEditor";
-import { FlowchartEditor } from "@/components/editors/FlowchartEditor";
-import { DFDEditor } from "@/components/editors/DFDEditor";
+import dynamic from "next/dynamic";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 import type { RequirementFields } from "@/components/editors/requirement/hooks/useRequirementLogic";
 import type { UserStoryFields } from "@/components/editors/userstory/hooks/useUserStoryLogic";
@@ -14,6 +7,39 @@ import type { ERDFields } from "@/components/editors/erd/hooks/useERDLogic";
 import type { SequenceFields } from "@/components/editors/sequence/hooks/useSequenceLogic";
 import type { FlowchartFields } from "@/components/editors/flowchart/hooks/useFlowchartLogic";
 import type { DFDFields } from "@/components/editors/dfd/hooks/useDFDLogic";
+
+const ProjectBriefEditor = dynamic(
+  () => import("@/components/editors/ProjectBriefEditor").then((m) => m.ProjectBriefEditor),
+  { ssr: false },
+);
+const RequirementEditor = dynamic(
+  () => import("@/components/editors/RequirementEditor").then((m) => m.RequirementEditor),
+  { ssr: false },
+);
+const UserStoryEditor = dynamic(
+  () => import("@/components/editors/UserStoryEditor").then((m) => m.UserStoryEditor),
+  { ssr: false },
+);
+const UseCaseEditor = dynamic(
+  () => import("@/components/editors/UseCaseEditor").then((m) => m.UseCaseEditor),
+  { ssr: false },
+);
+const ERDEditor = dynamic(
+  () => import("@/components/editors/ERDEditor").then((m) => m.ERDEditor),
+  { ssr: false },
+);
+const SequenceEditor = dynamic(
+  () => import("@/components/editors/SequenceEditor").then((m) => m.SequenceEditor),
+  { ssr: false },
+);
+const FlowchartEditor = dynamic(
+  () => import("@/components/editors/FlowchartEditor").then((m) => m.FlowchartEditor),
+  { ssr: false },
+);
+const DFDEditor = dynamic(
+  () => import("@/components/editors/DFDEditor").then((m) => m.DFDEditor),
+  { ssr: false },
+);
 
 export function GuidedEditorContent({
   type,
