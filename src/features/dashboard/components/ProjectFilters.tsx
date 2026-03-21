@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -57,7 +56,9 @@ export function ProjectFilters({
             }
           />
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Project type</DropdownMenuLabel>
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              Project type
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup
               value={filterBy}
@@ -86,7 +87,9 @@ export function ProjectFilters({
             }
           />
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Sort projects</DropdownMenuLabel>
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              Sort projects
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup
               value={sortBy}

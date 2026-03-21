@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { NodeData, EdgeData } from './db';
+import { NodeData, EdgeData } from '@/lib/db';
 
 interface WorkspaceState {
   activeProjectId: string | null;

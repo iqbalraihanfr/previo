@@ -29,7 +29,10 @@ export function WorkspaceOverlays({
   return (
     <>
       {showOnboarding && (
-        <div className="pointer-events-none absolute left-3 top-3 z-20 w-[min(460px,calc(100vw-1.5rem))] max-w-full md:left-4 md:top-4">
+        <div
+          className="pointer-events-none absolute left-3 top-3 z-20 w-[min(460px,calc(100vw-1.5rem))] max-w-full md:left-4 md:top-4"
+          data-testid="workspace-onboarding"
+        >
           <div className="onboarding-card pointer-events-auto rounded-2xl p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-3">
@@ -50,7 +53,7 @@ export function WorkspaceOverlays({
                   </h2>
                   <p className="mt-1 text-sm leading-7 text-muted-foreground">
                     Click a node to edit it, drag nodes to reorganize your flow,
-                    and use <span className="font-medium text-foreground">Space + drag</span> to pan. You can use the Guided tab as the main source of truth, jump to the next unfinished node, and reopen help anytime from the header.
+                    and use <span className="font-medium text-foreground">Space + drag</span> to pan. Use Import, Generate, or Structured manual depending on the node, keep free notes secondary, and reopen help anytime from the header.
                   </p>
                 </div>
 
@@ -98,6 +101,7 @@ export function WorkspaceOverlays({
                   size="sm"
                   className="rounded-full"
                   onClick={onDismissOnboarding}
+                  data-testid="dismiss-workspace-onboarding"
                 >
                   Got it
                 </Button>
@@ -181,6 +185,7 @@ export function WorkspaceOverlays({
                     size="sm"
                     className="rounded-full"
                     onClick={onJumpNext}
+                    data-testid="overlay-open-next-node"
                   >
                     Open next node
                   </Button>

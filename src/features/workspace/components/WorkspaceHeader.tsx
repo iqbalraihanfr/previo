@@ -23,12 +23,13 @@ import { ModeToggle } from "@/components/mode-toggle";
 
 import type { Project, NodeData, NodeContent } from "@/lib/db";
 import { exportProjectToMarkdown, exportProjectToPDF } from "@/lib/exportEngine";
+import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
 
 import {
   type ValidationTone,
   getMetricPillClass,
   formatRelativeProjectState,
-} from "../../utils";
+} from "@/features/workspace/utils";
 
 interface WorkspaceHeaderProps {
   project: Project;
@@ -37,9 +38,6 @@ interface WorkspaceHeaderProps {
   doneCount: number;
   progressPercent: number;
   recommendedNextNode: NodeData | null;
-  errorCount: number;
-  warningCount: number;
-  infoCount: number;
   selectedNodeData: NodeData | null;
   editorCollapsed: boolean;
   validationTone: ValidationTone;
@@ -59,9 +57,6 @@ export function WorkspaceHeader({
   doneCount,
   progressPercent,
   recommendedNextNode,
-  errorCount,
-  warningCount,
-  infoCount,
   selectedNodeData,
   editorCollapsed,
   validationTone,
@@ -77,7 +72,10 @@ export function WorkspaceHeader({
   const projectProgressMeta = formatRelativeProjectState(doneCount, dbNodes.length);
 
   return (
-    <header className="workspace-header z-20 border-b border-border/70 px-4 py-3 sm:px-5">
+    <header
+      className="workspace-header z-20 border-b border-border/70 px-4 py-3 sm:px-5"
+      data-testid="workspace-header"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <Button
@@ -97,6 +95,9 @@ export function WorkspaceHeader({
               </h1>
               <span className={getMetricPillClass(projectProgressMeta.tone)}>
                 {projectProgressMeta.label}
+              </span>
+              <span className="metric-pill metric-pill--info">
+                {DELIVERY_MODE_LABELS[project.delivery_mode]}
               </span>
               {recommendedNextNode && (
                 <span className="metric-pill metric-pill--success">
@@ -142,6 +143,7 @@ export function WorkspaceHeader({
             className="h-9 rounded-full"
             onClick={onJumpNext}
             disabled={!recommendedNextNode}
+            data-testid="workspace-next-node"
           >
             <Sparkles className="mr-2 h-4 w-4" />
             Next Node
@@ -152,6 +154,7 @@ export function WorkspaceHeader({
             size="sm"
             className="h-9 rounded-full"
             onClick={onShowCommand}
+            data-testid="workspace-command-dialog"
           >
             <Command className="mr-2 h-4 w-4" />
             Search / Jump
@@ -162,6 +165,7 @@ export function WorkspaceHeader({
             size="sm"
             className="h-9 rounded-full"
             onClick={onFitView}
+            data-testid="workspace-fit-view"
           >
             <Maximize className="mr-2 h-4 w-4" />
             Fit View
@@ -172,6 +176,7 @@ export function WorkspaceHeader({
             size="sm"
             className="h-9 rounded-full"
             onClick={onShowHelp}
+            data-testid="workspace-help"
           >
             <HelpCircle className="mr-2 h-4 w-4" />
             Help
@@ -182,6 +187,7 @@ export function WorkspaceHeader({
             size="sm"
             className="h-9 rounded-full"
             onClick={onToggleValidation}
+            data-testid="workspace-validation"
           >
             {validationTone === "danger" ? (
               <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
@@ -247,7 +253,12 @@ export function WorkspaceHeader({
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button variant="outline" size="sm" className="h-9 rounded-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-full"
+                  data-testid="workspace-export-trigger"
+                >
                   <Download className="mr-2 h-4 w-4" />
                   Export
                 </Button>
@@ -256,11 +267,13 @@ export function WorkspaceHeader({
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() => exportProjectToMarkdown(project, dbNodes, dbContents)}
+                data-testid="workspace-export-markdown"
               >
                 Export Markdown
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => exportProjectToPDF(project, dbNodes, dbContents)}
+                data-testid="workspace-export-pdf"
               >
                 Export PDF
               </DropdownMenuItem>

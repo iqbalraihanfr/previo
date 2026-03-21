@@ -3,11 +3,14 @@
 import React from "react";
 import { Folders, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  formatDateTime,
+  type ProjectCardViewModel,
+} from "@/features/dashboard/selectors";
 import { ProjectCard } from "./ProjectCard";
-import { formatDateTime } from "./useDashboardData";
 
 interface ProjectGridProps {
-  projectCards: any[];
+  projectCards: ProjectCardViewModel[];
   onProjectClick: (id: string) => void;
   onDeleteRequest: (id: string, name: string, event: React.MouseEvent) => void;
   onResetFilters: () => void;
@@ -60,7 +63,10 @@ export function ProjectGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div
+      className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+      data-testid="project-grid"
+    >
       {projectCards.map((item) => (
         <ProjectCard
           key={item.project.id}
