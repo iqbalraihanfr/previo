@@ -110,8 +110,10 @@ export function SummaryNodeEditor({
               <SummaryFraming
                 executiveSnapshot={framing.executiveSnapshot}
                 readinessGaps={framing.readinessGaps}
+                topBlockers={framing.topBlockers}
                 recommendedNextActions={framing.recommendedNextActions}
                 traceabilityHighlights={framing.traceabilityHighlights}
+                implementationProvenance={framing.implementationProvenance}
               />
 
               <SummaryStats

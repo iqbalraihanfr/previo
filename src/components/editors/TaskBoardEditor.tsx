@@ -73,6 +73,7 @@ export function TaskBoardEditor({
     nodes,
     tasks,
     reconciliation,
+    taskProvenance,
     deliveryMode,
     deliveryModeLabel,
     deliveryPlan,
@@ -357,6 +358,7 @@ export function TaskBoardEditor({
                       <TaskItem
                         key={task.id}
                         task={task}
+                        provenance={taskProvenance[task.id]}
                         sourceNodeLabel={
                           task.source_node_id
                             ? (nodes.find((sn) => sn.id === task.source_node_id)?.label ?? "Unknown")

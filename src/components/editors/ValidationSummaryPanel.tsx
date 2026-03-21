@@ -5,10 +5,7 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
-  Filter,
   Info,
   Search,
   X,
@@ -16,102 +13,16 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ValidationWarning } from "@/lib/db";
+import type { NodeContent, NodeData, ValidationWarning } from "@/lib/db";
+import { buildProjectReadinessModel, type ReadinessIssue } from "@/lib/readiness";
 
 type ValidationSummaryPanelProps = {
+  nodes: NodeData[];
+  contents: NodeContent[];
   warnings: ValidationWarning[];
   onCloseAction: () => void;
   onNodeNavigateAction: (nodeId: string) => void;
 };
-
-type SeverityFilter = "all" | "error" | "warning" | "info";
-type ScopeFilter = "all" | "current-node-target" | "cross-node-only";
-
-const NODE_TYPE_LABELS: Record<string, string> = {
-  project_brief: "Project Brief",
-  requirements: "Requirements",
-  user_stories: "User Stories",
-  use_cases: "Use Cases",
-  flowchart: "Flowchart",
-  dfd: "DFD",
-  erd: "ERD",
-  sequence: "Sequence",
-  task_board: "Task Board",
-  summary: "Summary",
-};
-
-function getSeverityClasses(tone: "error" | "warning" | "info" | "success") {
-  if (tone === "error") {
-    return {
-      wrapper: "border-destructive/20 bg-destructive/10 text-destructive",
-      iconWrap: "bg-destructive/15 text-destructive",
-      title: "text-destructive",
-    };
-  }
-
-  if (tone === "warning") {
-    return {
-      wrapper:
-        "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
-      iconWrap: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
-      title: "text-yellow-700 dark:text-yellow-400",
-    };
-  }
-
-  if (tone === "info") {
-    return {
-      wrapper:
-        "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400",
-      iconWrap: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-      title: "text-blue-700 dark:text-blue-400",
-    };
-  }
-
-  return {
-    wrapper:
-      "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400",
-    iconWrap: "bg-green-500/15 text-green-700 dark:text-green-400",
-    title: "text-green-700 dark:text-green-400",
-  };
-}
-
-function SeverityIcon({
-  severity,
-  className,
-}: {
-  severity: "error" | "warning" | "info" | "success";
-  className?: string;
-}) {
-  if (severity === "error") return <AlertCircle className={className} />;
-  if (severity === "warning") return <AlertTriangle className={className} />;
-  if (severity === "info") return <Info className={className} />;
-  return <CheckCircle2 className={className} />;
-}
-
-function getTargetLabel(targetNodeType?: string) {
-  if (!targetNodeType) return "Current node";
-  return NODE_TYPE_LABELS[targetNodeType] ?? targetNodeType;
-}
-
-function getActionLabel(warning: ValidationWarning) {
-  const target = getTargetLabel(warning.target_node_type);
-
-  if (warning.rule_id?.startsWith("REQ")) {
-    return `Open Requirements`;
-  }
-
-  if (warning.target_node_type) {
-    return `Open ${target}`;
-  }
-
-  return "Open source node";
-}
-
-function getIssueCategory(warning: ValidationWarning) {
-  if (warning.rule_id?.startsWith("REQ")) return "Missing required content";
-  if (warning.rule_id?.startsWith("CV")) return "Cross-node consistency";
-  return "Validation issue";
-}
 
 function SeveritySummaryCard({
   label,
@@ -124,10 +35,17 @@ function SeveritySummaryCard({
   tone: "error" | "warning" | "info" | "success";
   icon: React.ReactNode;
 }) {
-  const toneClasses = getSeverityClasses(tone);
+  const toneClass =
+    tone === "error"
+      ? "border-destructive/20 bg-destructive/10 text-destructive"
+      : tone === "warning"
+        ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+        : tone === "info"
+          ? "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+          : "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400";
 
   return (
-    <div className={`rounded-2xl border px-3 py-3 ${toneClasses.wrapper}`}>
+    <div className={`rounded-2xl border px-3 py-3 ${toneClass}`}>
       <div className="flex items-center gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background/75">
           {icon}
@@ -143,101 +61,58 @@ function SeveritySummaryCard({
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  testId,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  testId?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-testid={testId}
-      className={[
-        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-        active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border/70 bg-background/70 text-muted-foreground hover:border-primary/25 hover:text-foreground",
-      ].join(" ")}
-    >
-      {children}
-    </button>
-  );
-}
-
 function IssueCard({
-  warning,
+  issue,
   onNodeNavigateAction,
 }: {
-  warning: ValidationWarning;
+  issue: ReadinessIssue;
   onNodeNavigateAction: (nodeId: string) => void;
 }) {
-  const toneClasses = getSeverityClasses(warning.severity);
-  const issueCategory = getIssueCategory(warning);
-  const targetLabel = getTargetLabel(warning.target_node_type);
-  const actionLabel = getActionLabel(warning);
-  const isCrossNode = Boolean(warning.target_node_type);
+  const toneClass =
+    issue.category === "blocking"
+      ? "border-destructive/20 bg-destructive/10 text-destructive"
+      : issue.category === "coverage_gap"
+        ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+        : "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400";
+
+  const categoryLabel =
+    issue.category === "blocking"
+      ? "Blocking"
+      : issue.category === "coverage_gap"
+        ? "Coverage Gap"
+        : "Quality Warning";
 
   return (
-    <div
-      className={`rounded-2xl border p-4 shadow-sm transition-colors ${toneClasses.wrapper}`}
-      data-testid={`validation-issue-${warning.severity}`}
-    >
+    <div className={`rounded-2xl border p-4 shadow-sm ${toneClass}`}>
       <div className="flex items-start gap-3">
-        <div
-          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${toneClasses.iconWrap}`}
-        >
-          <SeverityIcon severity={warning.severity} className="h-4 w-4" />
+        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background/75">
+          {issue.category === "blocking" ? (
+            <AlertCircle className="h-4 w-4" />
+          ) : issue.category === "coverage_gap" ? (
+            <AlertTriangle className="h-4 w-4" />
+          ) : (
+            <Info className="h-4 w-4" />
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className={`text-sm font-semibold ${toneClasses.title}`}>
-              {warning.message}
-            </p>
+            <p className="text-sm font-semibold">{issue.title}</p>
             <span className="rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              {warning.severity}
+              {categoryLabel}
             </span>
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full bg-background/75 px-2 py-1 font-medium">
-              {issueCategory}
-            </span>
-            <span className="rounded-full bg-background/75 px-2 py-1">
-              Scope: {isCrossNode ? "Cross-node" : "Current node"}
-            </span>
-            <span className="rounded-full bg-background/75 px-2 py-1">
-              Target: {targetLabel}
-            </span>
-            {warning.rule_id && (
-              <span className="rounded-full bg-background/75 px-2 py-1 font-mono">
-                Rule: {warning.rule_id}
-              </span>
-            )}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Use the action below to jump back into the related node and
-              resolve this issue.
-            </p>
-
+          <p className="mt-2 text-sm leading-6 opacity-90">{issue.message}</p>
+          <div className="mt-4 flex items-center justify-end">
             <Button
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => onNodeNavigateAction(warning.source_node_id)}
-              data-testid={`validation-open-node-${warning.source_node_id}`}
+              onClick={() => onNodeNavigateAction(issue.sourceNodeId)}
+              data-testid={`validation-open-node-${issue.sourceNodeId}`}
             >
               <ExternalLink className="mr-2 h-3.5 w-3.5" />
-              {actionLabel}
+              Open source node
             </Button>
           </div>
         </div>
@@ -247,99 +122,55 @@ function IssueCard({
 }
 
 export function ValidationSummaryPanel({
+  nodes,
+  contents,
   warnings,
   onCloseAction,
   onNodeNavigateAction,
 }: ValidationSummaryPanelProps) {
-  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
-  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (severityFilter !== "all") count++;
-    if (scopeFilter !== "all") count++;
-    return count;
-  }, [severityFilter, scopeFilter]);
-
-  const errors = useMemo(
-    () => warnings.filter((warning) => warning.severity === "error"),
-    [warnings],
-  );
-  const warns = useMemo(
-    () => warnings.filter((warning) => warning.severity === "warning"),
-    [warnings],
-  );
-  const infos = useMemo(
-    () => warnings.filter((warning) => warning.severity === "info"),
-    [warnings],
+  const readiness = useMemo(
+    () => buildProjectReadinessModel({ nodes, contents, warnings }),
+    [contents, nodes, warnings],
   );
 
-  const filteredWarnings = useMemo(() => {
+  const filteredIssues = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    return warnings.filter((warning) => {
-      const matchesSeverity =
-        severityFilter === "all" || warning.severity === severityFilter;
-
-      const matchesScope =
-        scopeFilter === "all"
-          ? true
-          : scopeFilter === "current-node-target"
-            ? !warning.target_node_type
-            : Boolean(warning.target_node_type);
-
-      const matchesSearch =
-        normalizedQuery.length === 0 ||
-        warning.message.toLowerCase().includes(normalizedQuery) ||
-        warning.rule_id?.toLowerCase().includes(normalizedQuery) ||
-        warning.target_node_type?.toLowerCase().includes(normalizedQuery) ||
-        getIssueCategory(warning).toLowerCase().includes(normalizedQuery) ||
-        getTargetLabel(warning.target_node_type)
-          .toLowerCase()
-          .includes(normalizedQuery);
-
-      return matchesSeverity && matchesScope && matchesSearch;
-    });
-  }, [scopeFilter, searchQuery, severityFilter, warnings]);
-
-  const groupedSections = useMemo(() => {
-    const groups = [
-      {
-        key: "errors",
-        title: "Errors",
-        severity: "error" as const,
-        items: filteredWarnings.filter(
-          (warning) => warning.severity === "error",
-        ),
-        toneClass: "text-destructive",
-      },
-      {
-        key: "warnings",
-        title: "Warnings",
-        severity: "warning" as const,
-        items: filteredWarnings.filter(
-          (warning) => warning.severity === "warning",
-        ),
-        toneClass: "text-yellow-700 dark:text-yellow-400",
-      },
-      {
-        key: "infos",
-        title: "Info",
-        severity: "info" as const,
-        items: filteredWarnings.filter(
-          (warning) => warning.severity === "info",
-        ),
-        toneClass: "text-blue-700 dark:text-blue-400",
-      },
+    const allIssues = [
+      ...readiness.blockers,
+      ...readiness.coverageGaps,
+      ...readiness.qualityWarnings,
     ];
 
-    return groups.filter((section) => section.items.length > 0);
-  }, [filteredWarnings]);
+    return allIssues.filter((issue) => {
+      if (normalizedQuery.length === 0) return true;
+      return (
+        issue.title.toLowerCase().includes(normalizedQuery) ||
+        issue.message.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [readiness.blockers, readiness.coverageGaps, readiness.qualityWarnings, searchQuery]);
 
-  const hasIssues = warnings.length > 0;
-  const hasFilteredResults = filteredWarnings.length > 0;
+  const sections = [
+    {
+      id: "blocking",
+      title: "Blocking",
+      items: filteredIssues.filter((issue) => issue.category === "blocking"),
+      toneClass: "text-destructive",
+    },
+    {
+      id: "coverage",
+      title: "Coverage gap",
+      items: filteredIssues.filter((issue) => issue.category === "coverage_gap"),
+      toneClass: "text-yellow-700 dark:text-yellow-400",
+    },
+    {
+      id: "quality",
+      title: "Quality warning",
+      items: filteredIssues.filter((issue) => issue.category === "quality_warning"),
+      toneClass: "text-blue-700 dark:text-blue-400",
+    },
+  ].filter((section) => section.items.length > 0);
 
   return (
     <aside
@@ -355,35 +186,30 @@ export function ValidationSummaryPanel({
               </div>
               <div>
                 <h2 className="text-base font-semibold text-foreground">
-                  Validation Summary
+                  Readiness Summary
                 </h2>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Review, filter, and jump straight to node-level issues before
-                  export or implementation.
+                  {readiness.statusLabel}. Fix blockers first, then coverage gaps.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                {warnings.length} total issue(s)
-              </span>
-              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                {errors.length} errors
-              </span>
-              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                {warns.length} warnings
-              </span>
-              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                {infos.length} info
-              </span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search blockers or coverage gaps"
+                className="h-10 rounded-full pl-9"
+                data-testid="validation-search"
+              />
             </div>
           </div>
 
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0 rounded-full"
+            className="h-10 w-10 rounded-full"
             onClick={onCloseAction}
             aria-label="Close validation panel"
           >
@@ -391,217 +217,69 @@ export function ValidationSummaryPanel({
           </Button>
         </div>
 
-        <div className="mt-4 space-y-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search issues, rules, targets..."
-              className="h-10 rounded-2xl pl-10 text-sm"
-              data-testid="validation-search"
-            />
-          </div>
-
-          <div className="rounded-2xl border border-border/70 bg-background/50 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground hover:bg-muted/30 transition-colors"
-              data-testid="validation-filter-toggle"
-            >
-              <div className="flex items-center gap-2">
-                <Filter className="h-3.5 w-3.5" />
-                Filters
-                {activeFilterCount > 0 && !showFilters && (
-                  <span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </div>
-              {showFilters ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </button>
-
-            {showFilters && (
-              <div className="space-y-4 p-3 pt-1 border-t border-border/50 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div>
-                  <p className="mb-2 text-readable-xs font-medium text-foreground">
-                    Severity
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <FilterChip
-                      active={severityFilter === "all"}
-                      onClick={() => setSeverityFilter("all")}
-                      testId="validation-filter-severity-all"
-                    >
-                      All
-                    </FilterChip>
-                    <FilterChip
-                      active={severityFilter === "error"}
-                      onClick={() => setSeverityFilter("error")}
-                      testId="validation-filter-severity-error"
-                    >
-                      Errors
-                    </FilterChip>
-                    <FilterChip
-                      active={severityFilter === "warning"}
-                      onClick={() => setSeverityFilter("warning")}
-                      testId="validation-filter-severity-warning"
-                    >
-                      Warnings
-                    </FilterChip>
-                    <FilterChip
-                      active={severityFilter === "info"}
-                      onClick={() => setSeverityFilter("info")}
-                      testId="validation-filter-severity-info"
-                    >
-                      Info
-                    </FilterChip>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-readable-xs font-medium text-foreground">
-                    Scope
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <FilterChip
-                      active={scopeFilter === "all"}
-                      onClick={() => setScopeFilter("all")}
-                      testId="validation-filter-scope-all"
-                    >
-                      All issues
-                    </FilterChip>
-                    <FilterChip
-                      active={scopeFilter === "cross-node-only"}
-                      onClick={() => setScopeFilter("cross-node-only")}
-                      testId="validation-filter-scope-cross-node"
-                    >
-                      Cross-node only
-                    </FilterChip>
-                    <FilterChip
-                      active={scopeFilter === "current-node-target"}
-                      onClick={() => setScopeFilter("current-node-target")}
-                      testId="validation-filter-scope-current-node"
-                    >
-                      Current-node only
-                    </FilterChip>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <SeveritySummaryCard
+            label="Blocking"
+            count={readiness.blockers.length}
+            tone="error"
+            icon={<AlertCircle className="h-4 w-4" />}
+          />
+          <SeveritySummaryCard
+            label="Coverage gap"
+            count={readiness.coverageGaps.length}
+            tone="warning"
+            icon={<AlertTriangle className="h-4 w-4" />}
+          />
+          <SeveritySummaryCard
+            label="Quality"
+            count={readiness.qualityWarnings.length}
+            tone="info"
+            icon={<Info className="h-4 w-4" />}
+          />
+          <SeveritySummaryCard
+            label="Warnings"
+            count={warnings.length}
+            tone="success"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+          />
         </div>
       </div>
 
-      <div className="workspace-scroll flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-        {!hasIssues ? (
-          <div className="flex h-full min-h-70 flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-background/60 px-6 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
-              <CheckCircle2 className="h-7 w-7" />
+      <div className="workspace-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+        {sections.length === 0 ? (
+          <div className="rounded-2xl border border-green-500/15 bg-green-500/5 px-4 py-5 text-sm text-green-700 dark:text-green-400">
+            <div className="flex items-center gap-2 font-medium">
+              <CheckCircle2 className="h-4 w-4" />
+              No readiness issues found.
             </div>
-            <h3 className="text-lg font-semibold text-foreground">All clear</h3>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-              No cross-validation issues were found. Your current documentation
-              flow looks consistent.
-            </p>
-          </div>
-        ) : !hasFilteredResults ? (
-          <div className="flex h-full min-h-70 flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-background/60 px-6 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Search className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground">
-              No matching issues
-            </h3>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-              Try a different keyword or relax the active filters to see more
-              validation results.
+            <p className="mt-2 text-sm leading-6 opacity-80">
+              The project is ready for the next level of implementation review.
             </p>
           </div>
         ) : (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <SeveritySummaryCard
-                label="Errors"
-                count={
-                  filteredWarnings.filter((item) => item.severity === "error")
-                    .length
-                }
-                tone="error"
-                icon={<AlertCircle className="h-4 w-4" />}
-              />
-              <SeveritySummaryCard
-                label="Warnings"
-                count={
-                  filteredWarnings.filter((item) => item.severity === "warning")
-                    .length
-                }
-                tone="warning"
-                icon={<AlertTriangle className="h-4 w-4" />}
-              />
-              <SeveritySummaryCard
-                label="Info"
-                count={
-                  filteredWarnings.filter((item) => item.severity === "info")
-                    .length
-                }
-                tone="info"
-                icon={<Info className="h-4 w-4" />}
-              />
-            </div>
+          <div className="space-y-6">
+            {sections.map((section) => (
+              <section key={section.id} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-sm font-semibold ${section.toneClass}`}>
+                    {section.title}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {section.items.length} item(s)
+                  </span>
+                </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-muted/20 px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing{" "}
-                <span className="font-semibold text-foreground">
-                  {filteredWarnings.length}
-                </span>{" "}
-                actionable issue(s).
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-readable-xs text-muted-foreground">
-                <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                  Sorted by severity
-                </span>
-                <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-                  Node-aware actions enabled
-                </span>
-              </div>
-            </div>
-
-            {groupedSections.map((section) => {
-              return (
-                <section key={section.key} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`flex items-center gap-2 ${section.toneClass}`}
-                    >
-                      <SeverityIcon
-                        severity={section.severity}
-                        className="h-4 w-4"
-                      />
-                      <h3 className="text-sm font-semibold">
-                        {section.title} ({section.items.length})
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                  {section.items.map((warning) => (
-                      <IssueCard
-                        key={warning.id}
-                        warning={warning}
-                        onNodeNavigateAction={onNodeNavigateAction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+                <div className="space-y-3">
+                  {section.items.map((issue) => (
+                    <IssueCard
+                      key={issue.id}
+                      issue={issue}
+                      onNodeNavigateAction={onNodeNavigateAction}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>
