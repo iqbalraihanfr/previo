@@ -23,7 +23,7 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      'mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && PORT=3000 HOSTNAME=127.0.0.1 node .next/standalone/server.js',
+      'mkdir -p .next/standalone/.next && rm -rf .next/standalone/.next/static && cp -R .next/static .next/standalone/.next/static && PORT=3000 HOSTNAME=127.0.0.1 node .next/standalone/server.js',
     url: 'http://127.0.0.1:3000',
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
