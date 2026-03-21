@@ -5,10 +5,11 @@ import {
   CheckCircle2,
   Command,
   Download,
+  GitBranch,
   HelpCircle,
   Maximize,
+  NotebookPen,
   PanelRight,
-  Plus,
   Sparkles,
 } from "lucide-react";
 
@@ -35,18 +36,21 @@ interface WorkspaceHeaderProps {
   project: Project;
   dbNodes: NodeData[];
   dbContents: NodeContent[];
+  showTraceabilityPanel: boolean;
   doneCount: number;
   progressPercent: number;
   recommendedNextNode: NodeData | null;
   selectedNodeData: NodeData | null;
   editorCollapsed: boolean;
   validationTone: ValidationTone;
+  showProjectNotes: boolean;
   onJumpNext: () => void;
   onShowCommand: () => void;
   onFitView: () => void;
   onShowHelp: () => void;
+  onToggleTraceability: () => void;
   onToggleValidation: () => void;
-  onAddNode: (type: string, label: string) => void;
+  onToggleProjectNotes: () => void;
   onToggleEditor: () => void;
 }
 
@@ -54,18 +58,21 @@ export function WorkspaceHeader({
   project,
   dbNodes,
   dbContents,
+  showTraceabilityPanel,
   doneCount,
   progressPercent,
   recommendedNextNode,
   selectedNodeData,
   editorCollapsed,
   validationTone,
+  showProjectNotes,
   onJumpNext,
   onShowCommand,
   onFitView,
   onShowHelp,
+  onToggleTraceability,
   onToggleValidation,
-  onAddNode,
+  onToggleProjectNotes,
   onToggleEditor,
 }: WorkspaceHeaderProps) {
   const router = useRouter();
@@ -199,56 +206,27 @@ export function WorkspaceHeader({
             Validation
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="outline" size="sm" className="h-9 rounded-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Node
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              {(() => {
-                const existingTypes = new Set(dbNodes.map((node) => node.type));
-                const addableNodes: { type: string; label: string }[] = [
-                  { type: "project_brief", label: "Project Brief" },
-                  { type: "requirements", label: "Requirements" },
-                  { type: "user_stories", label: "User Stories" },
-                  { type: "use_cases", label: "Use Cases" },
-                  { type: "flowchart", label: "Flowchart" },
-                  { type: "dfd", label: "DFD" },
-                  { type: "erd", label: "ERD" },
-                  { type: "sequence", label: "Sequence Diagram" },
-                  { type: "task_board", label: "Task Board" },
-                  { type: "summary", label: "Summary" },
-                ];
+          <Button
+            variant={showTraceabilityPanel ? "default" : "outline"}
+            size="sm"
+            className="h-9 rounded-full"
+            onClick={onToggleTraceability}
+            data-testid="workspace-traceability"
+          >
+            <GitBranch className="mr-2 h-4 w-4" />
+            Traceability
+          </Button>
 
-                const available = addableNodes.filter(
-                  (node) => !existingTypes.has(node.type),
-                );
-
-                return (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => onAddNode("custom", "Custom Notes")}
-                    >
-                      Blank Notes
-                    </DropdownMenuItem>
-                    {available.length > 0 &&
-                      available.map((node) => (
-                        <DropdownMenuItem
-                          key={node.type}
-                          onClick={() => onAddNode(node.type, node.label)}
-                        >
-                          {node.label}
-                        </DropdownMenuItem>
-                      ))}
-                  </>
-                );
-              })()}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant={showProjectNotes ? "default" : "outline"}
+            size="sm"
+            className="h-9 rounded-full"
+            onClick={onToggleProjectNotes}
+            data-testid="workspace-project-notes"
+          >
+            <NotebookPen className="mr-2 h-4 w-4" />
+            Project Notes
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger

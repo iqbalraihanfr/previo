@@ -18,12 +18,12 @@ export function useWorkspaceData(projectId: string) {
     [projectId],
     [],
   );
-  const dbEdges = useLiveQuery(
-    () => db.edges.where({ project_id: projectId }).toArray(),
+  const dbContents = useLiveQuery(() => db.nodeContents.toArray(), [], []);
+  const sourceArtifacts = useLiveQuery(
+    () => db.sourceArtifacts.where({ project_id: projectId }).toArray(),
     [projectId],
     [],
   );
-  const dbContents = useLiveQuery(() => db.nodeContents.toArray(), [], []);
   const dbWarnings = useLiveQuery(
     () => db.validationWarnings.where({ project_id: projectId }).toArray(),
     [projectId],
@@ -45,8 +45,8 @@ export function useWorkspaceData(projectId: string) {
   return {
     project,
     dbNodes,
-    dbEdges,
     dbContents,
+    sourceArtifacts,
     dbWarnings,
     sortedNodes,
     recommendedNextNode,

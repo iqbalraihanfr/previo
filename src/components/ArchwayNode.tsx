@@ -13,7 +13,6 @@ import {
   Network,
   ScrollText,
   Sparkles,
-  StickyNote,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,7 +33,6 @@ const TYPE_LABELS: Record<string, string> = {
   sequence: "Sequence",
   task_board: "Task Board",
   summary: "Summary",
-  custom: "Notes",
 };
 
 export const ArchwayNode = memo(
@@ -68,8 +66,6 @@ export const ArchwayNode = memo(
           return <FolderKanban className="h-5 w-5" />;
         case "summary":
           return <ListTodo className="h-5 w-5" />;
-        case "custom":
-          return <StickyNote className="h-5 w-5" />;
         default:
           return <FileText className="h-5 w-5" />;
       }
@@ -98,7 +94,7 @@ export const ArchwayNode = memo(
         case "summary":
           return "bg-[var(--node-summary)]";
         default:
-          return "bg-[var(--node-custom)]";
+          return "bg-[var(--node-brief)]";
       }
     };
 
@@ -125,7 +121,7 @@ export const ArchwayNode = memo(
         case "summary":
           return "Delivery review";
         default:
-          return "Working notes";
+          return "Supporting record";
       }
     };
 

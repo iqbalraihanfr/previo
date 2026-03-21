@@ -12,7 +12,6 @@ export const STANDARD_NODE_ORDER = [
   "sequence",
   "task_board",
   "summary",
-  "custom",
 ] as const;
 
 export function sortWorkspaceNodes(nodes: NodeData[]) {

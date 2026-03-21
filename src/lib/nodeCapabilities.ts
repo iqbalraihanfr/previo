@@ -103,14 +103,6 @@ export const NODE_CAPABILITIES: Record<string, NodeCapability> = {
     supportsManualStructured: false,
     isDerived: true,
   },
-  custom: {
-    classification: "capture_first",
-    supportedImports: ["manual_structured"],
-    supportsGenerate: false,
-    manualEntryMode: "primary",
-    supportsManualStructured: true,
-    isDerived: false,
-  },
 };
 
 export function getNodeCapability(nodeType: string): NodeCapability {

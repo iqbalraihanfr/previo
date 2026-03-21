@@ -71,7 +71,6 @@ const TYPE_LABELS: Record<string, string> = {
   sequence: "Sequence",
   task_board: "Task Board",
   summary: "Summary",
-  custom: "Notes",
 };
 
 function matchesQuery(haystack: string[], query: string) {

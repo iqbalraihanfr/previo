@@ -18,8 +18,6 @@ import {
   type Edge as FlowEdge,
   useNodesState,
   useEdgesState,
-  type Connection,
-  addEdge,
   BackgroundVariant,
   MiniMap,
   MarkerType,
@@ -34,32 +32,28 @@ import { ArchwayEdge } from "@/components/ArchwayEdge";
 import { Button } from "@/components/ui/button";
 import { NodeEditorPanel } from "@/components/editors/NodeEditorPanel";
 import { ValidationSummaryPanel } from "@/components/editors/ValidationSummaryPanel";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WorkspaceCommandDialog } from "@/components/layout/WorkspaceCommandDialog";
 import { WorkspaceHelpDialog } from "@/components/layout/WorkspaceHelpDialog";
 import { updateNodePosition } from "@/lib/workspaceEngine";
 import { WorkspaceHeader } from "@/features/workspace/components/WorkspaceHeader";
 import { WorkspaceOverlays } from "@/features/workspace/components/WorkspaceOverlays";
+import { ProjectNotesPanel } from "@/features/workspace/components/ProjectNotesPanel";
+import { WorkspaceTraceabilityPanel } from "@/components/layout/WorkspaceTraceabilityPanel";
 import { useExcalidrawControls } from "@/features/workspace/hooks/useExcalidrawControls";
-import { useWorkspaceActions } from "@/features/workspace/hooks/useWorkspaceActions";
 import { useWorkspaceData } from "@/features/workspace/hooks/useWorkspaceData";
 import { buildCommandNodes } from "@/features/workspace/selectors";
+import { buildCanonicalFlowEdges } from "@/features/workspace/workflowGraph";
 
 const WORKSPACE_ONBOARDING_KEY = "archway-workspace-onboarding-dismissed";
 const EDITOR_WIDTH_KEY = "archway-editor-width";
-
-type DeleteNodeState = {
-  id: string;
-  label: string;
-} | null;
 
 function WorkspaceCanvas({ projectId }: { projectId: string }) {
   const reactFlow = useReactFlow();
   const {
     project,
     dbNodes,
-    dbEdges,
     dbContents,
+    sourceArtifacts,
     dbWarnings,
     sortedNodes,
     recommendedNextNode,
@@ -69,31 +63,30 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   } = useWorkspaceData(projectId);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
+  const [edges, setEdges] = useEdgesState<FlowEdge>([]);
 
   const [selectedNodeData, setSelectedNodeData] = useState<NodeData | null>(
     null,
   );
   const [showValidationPanel, setShowValidationPanel] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(WORKSPACE_ONBOARDING_KEY) !== "true";
+  });
   const [editorCollapsed, setEditorCollapsed] = useState(false);
-  const [editorWidth, setEditorWidth] = useState(640);
+  const [editorWidth, setEditorWidth] = useState(() => {
+    if (typeof window === "undefined") return 640;
+    const savedWidth = window.localStorage.getItem(EDITOR_WIDTH_KEY);
+    return savedWidth ? parseInt(savedWidth, 10) : 640;
+  });
   const [isResizing, setIsResizing] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
-  const [deleteNodeState, setDeleteNodeState] = useState<DeleteNodeState>(null);
-  const [isDeletingNode, setIsDeletingNode] = useState(false);
+  const [showProjectNotes, setShowProjectNotes] = useState(false);
+  const [showTraceabilityPanel, setShowTraceabilityPanel] = useState(false);
 
   const flowWrapperRef = useRef<HTMLDivElement | null>(null);
   const excalidrawControls = useExcalidrawControls();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const savedWidth = window.localStorage.getItem(EDITOR_WIDTH_KEY);
-    if (savedWidth) {
-      setEditorWidth(parseInt(savedWidth, 10));
-    }
-  }, []);
 
   const saveWidth = useCallback((width: number) => {
     if (typeof window === "undefined") return;
@@ -149,18 +142,14 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
 
   const handleOpenNode = useCallback(
     (node: NodeData) => {
+      setShowProjectNotes(false);
+      setShowTraceabilityPanel(false);
       setSelectedNodeData(node);
       setEditorCollapsed(false);
       focusNodeInCanvas(node);
     },
     [focusNodeInCanvas],
   );
-
-  const { handleAddNode, handleDeleteNode, handleConnect } =
-    useWorkspaceActions({
-      projectId,
-      dbNodes,
-    });
 
   const nodeTypes = useMemo(
     () => ({
@@ -174,7 +163,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
       sequence: ArchwayNode,
       task_board: ArchwayNode,
       summary: ArchwayNode,
-      custom: ArchwayNode,
     }),
     [],
   );
@@ -226,17 +214,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const isDismissed =
-      window.localStorage.getItem(WORKSPACE_ONBOARDING_KEY) === "true";
-
-    if (showOnboarding !== !isDismissed) {
-      setShowOnboarding(!isDismissed);
-    }
-  }, [projectId, showOnboarding]);
-
-  useEffect(() => {
     if (dbNodes.length === 0) {
       setNodes([]);
       return;
@@ -263,70 +240,21 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   }, [dbNodes, dbWarnings, recommendedNextNode, setNodes]);
 
   useEffect(() => {
-    if (dbEdges.length === 0 || nodes.length === 0) {
+    if (!project || nodes.length === 0) {
       setEdges([]);
       return;
     }
 
-    const flowEdges: FlowEdge[] = dbEdges.map((edge) => {
-      let sourceHandle = "right";
-      let targetHandle = "left";
-
-      const sourceNode = nodes.find((node) => node.id === edge.source_node_id);
-      const targetNode = nodes.find((node) => node.id === edge.target_node_id);
-
-      if (sourceNode?.position && targetNode?.position) {
-        const dx = targetNode.position.x - sourceNode.position.x;
-        const dy = targetNode.position.y - sourceNode.position.y;
-
-        if (dy > 80 || dx < -50) {
-          sourceHandle = "bottom";
-          targetHandle = "top";
-        }
-      }
-
-      const sourceStatus =
-        dbNodes.find((node) => node.id === edge.source_node_id)?.status ??
-        "Empty";
-      const sourceType =
-        dbNodes.find((node) => node.id === edge.source_node_id)?.type ?? "custom";
-      const targetType =
-        dbNodes.find((node) => node.id === edge.target_node_id)?.type ?? "custom";
-
-      const relevantWarnings = dbWarnings.filter(
-        (warning) =>
-          warning.source_node_id === edge.source_node_id &&
-          warning.target_node_type === targetType,
-      );
-
-      const markerColor =
-        sourceStatus === "Done"
-          ? "#22c55e"
-          : sourceStatus === "In Progress"
-            ? "#f59e0b"
-            : "#94a3b8";
-
-      return {
-        id: edge.id,
-        source: edge.source_node_id,
-        target: edge.target_node_id,
-        sourceHandle,
-        targetHandle,
-        type: "archway",
-        animated: true,
-        data: { sourceStatus, sourceType, targetType, warnings: relevantWarnings },
-        markerEnd: {
-          type: MarkerType.Arrow,
-          width: 20,
-          height: 20,
-          color: markerColor,
-          strokeWidth: 2,
-        },
-      };
-    });
-
-    setEdges(flowEdges);
-  }, [dbEdges, dbNodes, dbWarnings, nodes, setEdges]);
+    setEdges(
+      buildCanonicalFlowEdges({
+        projectId: project.id,
+        templateType: project.template_type,
+        dbNodes,
+        dbWarnings,
+        nodes,
+      }),
+    );
+  }, [dbNodes, dbWarnings, nodes, project, setEdges]);
 
   const dismissOnboarding = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -360,17 +288,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     [],
   );
 
-  const onConnect = useCallback(
-    async (params: Connection) => {
-      setEdges((currentEdges) => addEdge(params, currentEdges));
-
-      if (params.source && params.target) {
-        await handleConnect(params.source, params.target);
-      }
-    },
-    [handleConnect, setEdges],
-  );
-
   const onNodeClick = useCallback(
     (_event: ReactMouseEvent, node: FlowNode) => {
       handleOpenNode(node.data as unknown as NodeData);
@@ -383,41 +300,19 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     setEditorCollapsed(false);
   }, []);
 
-  const requestDeleteNode = useCallback(
-    (nodeId: string) => {
-      const targetNode =
-        dbNodes.find((node) => node.id === nodeId) ??
-        (selectedNodeData?.id === nodeId ? selectedNodeData : null);
+  const handleToggleProjectNotes = useCallback(() => {
+    setSelectedNodeData(null);
+    setEditorCollapsed(false);
+    setShowTraceabilityPanel(false);
+    setShowProjectNotes((value) => !value);
+  }, []);
 
-      if (!targetNode) return;
-
-      setDeleteNodeState({
-        id: targetNode.id,
-        label: targetNode.label,
-      });
-    },
-    [dbNodes, selectedNodeData],
-  );
-
-  const confirmDeleteNode = useCallback(async () => {
-    if (!deleteNodeState) return;
-
-    setIsDeletingNode(true);
-
-    try {
-      const nodeId = deleteNodeState.id;
-
-      await handleDeleteNode(nodeId);
-
-      if (selectedNodeData?.id === nodeId) {
-        setSelectedNodeData(null);
-      }
-
-      setDeleteNodeState(null);
-    } finally {
-      setIsDeletingNode(false);
-    }
-  }, [deleteNodeState, handleDeleteNode, selectedNodeData]);
+  const handleToggleTraceability = useCallback(() => {
+    setSelectedNodeData(null);
+    setEditorCollapsed(false);
+    setShowProjectNotes(false);
+    setShowTraceabilityPanel((value) => !value);
+  }, []);
 
   const handleValidationNavigate = useCallback(
     (nodeId: string) => {
@@ -502,18 +397,21 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
           project={project}
           dbNodes={dbNodes}
           dbContents={dbContents}
+          showTraceabilityPanel={showTraceabilityPanel}
           doneCount={doneCount}
           progressPercent={progressPercent}
           recommendedNextNode={recommendedNextNode}
           selectedNodeData={selectedNodeData}
           editorCollapsed={editorCollapsed}
           validationTone={validationTone}
+          showProjectNotes={showProjectNotes}
           onJumpNext={handleJumpToRecommendedNode}
           onShowCommand={() => setShowCommandDialog(true)}
           onFitView={handleFitView}
           onShowHelp={() => setShowHelpDialog(true)}
+          onToggleTraceability={handleToggleTraceability}
           onToggleValidation={() => setShowValidationPanel((value) => !value)}
-          onAddNode={handleAddNode}
+          onToggleProjectNotes={handleToggleProjectNotes}
           onToggleEditor={() => setEditorCollapsed((value) => !value)}
         />
 
@@ -551,8 +449,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
               onNodeDragStop={onNodeDragStop}
               onNodeClick={onNodeClick}
               nodeTypes={nodeTypes}
@@ -627,7 +523,73 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
                 key={selectedNodeData.id}
                 node={selectedNodeData}
                 onCloseAction={handleEditorClose}
-                onDeleteAction={() => requestDeleteNode(selectedNodeData.id)}
+              />
+            </div>
+          )}
+
+          {showProjectNotes && !selectedNodeData && (
+            <div
+              data-testid="workspace-project-notes-shell"
+              className="workspace-panel relative z-20 h-full shrink-0 border-l border-border/70"
+              style={{
+                width:
+                  typeof window !== "undefined" && window.innerWidth >= 768
+                    ? `${editorWidth}px`
+                    : "100%",
+                maxWidth: "80vw",
+                minWidth: "320px",
+              }}
+            >
+              <div className="absolute left-0 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full bg-background shadow-sm"
+                  onClick={() => setShowProjectNotes(false)}
+                  aria-label="Close project notes panel"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <ProjectNotesPanel
+                project={project}
+                onCloseAction={() => setShowProjectNotes(false)}
+              />
+            </div>
+          )}
+
+          {showTraceabilityPanel && !selectedNodeData && !showProjectNotes && (
+            <div
+              data-testid="workspace-traceability-shell"
+              className="workspace-panel relative z-20 h-full shrink-0 border-l border-border/70"
+              style={{
+                width:
+                  typeof window !== "undefined" && window.innerWidth >= 768
+                    ? `${editorWidth}px`
+                    : "100%",
+                maxWidth: "80vw",
+                minWidth: "320px",
+              }}
+            >
+              <div className="absolute left-0 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full bg-background shadow-sm"
+                  onClick={() => setShowTraceabilityPanel(false)}
+                  aria-label="Close traceability panel"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <WorkspaceTraceabilityPanel
+                project={project}
+                nodes={dbNodes}
+                contents={dbContents}
+                sourceArtifacts={sourceArtifacts}
+                onCloseAction={() => setShowTraceabilityPanel(false)}
               />
             </div>
           )}
@@ -679,26 +641,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
         open={showHelpDialog}
         onOpenChange={setShowHelpDialog}
         checklist={helpChecklist}
-      />
-
-      <ConfirmDialog
-        open={Boolean(deleteNodeState)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteNodeState(null);
-          }
-        }}
-        title="Delete node"
-        description={
-          deleteNodeState
-            ? `Delete “${deleteNodeState.label}”? All node content and generated tasks connected to this node will be removed.`
-            : ""
-        }
-        confirmLabel="Delete node"
-        cancelLabel="Cancel"
-        variant="destructive"
-        loading={isDeletingNode}
-        onConfirm={confirmDeleteNode}
       />
     </div>
   );

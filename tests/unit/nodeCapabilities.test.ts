@@ -43,4 +43,8 @@ describe("node capabilities", () => {
       isDerived: false,
     });
   });
+
+  it("does not expose legacy custom nodes in the canonical runtime map", () => {
+    expect("custom" in NODE_CAPABILITIES).toBe(false);
+  });
 });

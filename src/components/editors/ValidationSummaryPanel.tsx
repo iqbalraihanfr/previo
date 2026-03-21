@@ -38,7 +38,6 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   sequence: "Sequence",
   task_board: "Task Board",
   summary: "Summary",
-  custom: "Notes",
 };
 
 function getSeverityClasses(tone: "error" | "warning" | "info" | "success") {

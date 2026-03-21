@@ -12,7 +12,7 @@ function createNode(overrides: Partial<NodeData>): NodeData {
   return {
     id: "node-1",
     project_id: "project-1",
-    type: "custom",
+    type: "project_brief",
     label: "Node",
     status: "Empty",
     position_x: 0,
