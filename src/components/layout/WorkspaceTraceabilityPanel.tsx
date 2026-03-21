@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { NodeContent, NodeData, Project, SourceArtifact } from "@/lib/db";
 import { buildWorkspaceTraceabilityModel } from "@/features/workspace/traceability";
+import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
 
 type WorkspaceTraceabilityPanelProps = {
   project: Project;
@@ -22,7 +23,7 @@ type WorkspaceTraceabilityPanelProps = {
   contents: NodeContent[];
   sourceArtifacts: SourceArtifact[];
   onCloseAction: () => void;
-  onNodeNavigateAction: (nodeId: string) => void;
+  onNodeNavigateAction: (intent: WorkspaceNavigationIntent) => void;
 };
 
 function formatTimestamp(value: string | null) {
@@ -205,9 +206,7 @@ export function WorkspaceTraceabilityPanel({
                               variant="outline"
                               size="sm"
                               className="rounded-full"
-                              onClick={() =>
-                                onNodeNavigateAction(row.navigationTarget.nodeId)
-                              }
+                              onClick={() => onNodeNavigateAction(row.navigationTarget)}
                               data-testid={`traceability-open-${row.navigationTarget.nodeId}`}
                             >
                               Open {row.navigationTarget.label}
@@ -215,6 +214,11 @@ export function WorkspaceTraceabilityPanel({
                           )}
                         </div>
                       </div>
+                      {row.navigationTarget.reason && (
+                        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                          {row.navigationTarget.reason}
+                        </p>
+                      )}
                     </div>
                   ))
                 )}

@@ -41,6 +41,7 @@ import { useExcalidrawControls } from "@/features/workspace/hooks/useExcalidrawC
 import { useWorkspaceData } from "@/features/workspace/hooks/useWorkspaceData";
 import { buildCommandNodes } from "@/features/workspace/selectors";
 import { buildCanonicalFlowEdges } from "@/features/workspace/workflowGraph";
+import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
 
 const NodeEditorPanel = dynamic(
   () => import("@/components/editors/NodeEditorPanel").then((m) => m.NodeEditorPanel),
@@ -95,6 +96,8 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   const [showCommandDialog, setShowCommandDialog] = useState(false);
   const [showProjectNotes, setShowProjectNotes] = useState(false);
   const [showTraceabilityPanel, setShowTraceabilityPanel] = useState(false);
+  const [navigationIntent, setNavigationIntent] =
+    useState<WorkspaceNavigationIntent | null>(null);
 
   const flowWrapperRef = useRef<HTMLDivElement | null>(null);
   const excalidrawControls = useExcalidrawControls();
@@ -152,9 +155,10 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   );
 
   const handleOpenNode = useCallback(
-    (node: NodeData) => {
+    (node: NodeData, intent?: WorkspaceNavigationIntent | null) => {
       setShowProjectNotes(false);
       setShowTraceabilityPanel(false);
+      setNavigationIntent(intent ?? null);
       setSelectedNodeData(node);
       setEditorCollapsed(false);
       focusNodeInCanvas(node);
@@ -278,7 +282,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     (nodeId: string) => {
       const targetNode = dbNodes.find((node) => node.id === nodeId);
       if (!targetNode) return;
-      handleOpenNode(targetNode);
+      handleOpenNode(targetNode, null);
     },
     [dbNodes, handleOpenNode],
   );
@@ -325,12 +329,11 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     setShowTraceabilityPanel((value) => !value);
   }, []);
 
-  const handleValidationNavigate = useCallback(
-    (nodeId: string) => {
-      const targetNode = dbNodes.find((node) => node.id === nodeId);
-      if (targetNode) {
-        handleOpenNode(targetNode);
-      }
+  const handleNavigateWithIntent = useCallback(
+    (intent: WorkspaceNavigationIntent) => {
+      const targetNode = dbNodes.find((node) => node.id === intent.nodeId);
+      if (!targetNode) return;
+      handleOpenNode(targetNode, intent);
     },
     [dbNodes, handleOpenNode],
   );
@@ -434,7 +437,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
                 contents={dbContents}
                 warnings={dbWarnings}
                 onCloseAction={() => setShowValidationPanel(false)}
-                onNodeNavigateAction={handleValidationNavigate}
+                onNodeNavigateAction={handleNavigateWithIntent}
               />
             </div>
           )}
@@ -535,6 +538,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
               <NodeEditorPanel
                 key={selectedNodeData.id}
                 node={selectedNodeData}
+                navigationIntent={navigationIntent}
                 onCloseAction={handleEditorClose}
               />
             </div>
@@ -603,7 +607,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
                 contents={dbContents}
                 sourceArtifacts={sourceArtifacts}
                 onCloseAction={() => setShowTraceabilityPanel(false)}
-                onNodeNavigateAction={handleValidationNavigate}
+                onNodeNavigateAction={handleNavigateWithIntent}
               />
             </div>
           )}

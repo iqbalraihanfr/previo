@@ -4,6 +4,7 @@ import {
   OVERRIDE_STATUS_LABELS,
   SOURCE_TYPE_LABELS,
 } from "@/lib/sourceArtifacts";
+import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
 
 type TraceabilitySectionRow = {
   sourceNodeId?: string;
@@ -14,10 +15,7 @@ type TraceabilitySectionRow = {
   targetLabels: string[];
   evidenceLabel: string;
   status: "linked" | "missing" | "unresolved";
-  navigationTarget: {
-    nodeId: string;
-    label: string;
-  };
+  navigationTarget: WorkspaceNavigationIntent;
 };
 
 type TraceabilitySection = {
@@ -227,10 +225,19 @@ export function buildWorkspaceTraceabilityModel(params: {
             : "No matching requirement yet",
       status,
       navigationTarget: matches.length > 0 && requirementEntry?.node
-        ? { nodeId: requirementEntry.node.id, label: requirementEntry.node.label }
+        ? {
+            nodeId: requirementEntry.node.id,
+            label: requirementEntry.node.label,
+            sectionId: "requirements-items",
+            itemLabel: matches[0]?.displayId ?? scope,
+            reason: `Check the requirement mapped to brief scope "${scope}".`,
+          }
         : {
             nodeId: briefEntry?.node.id ?? "",
             label: briefEntry?.node.label ?? "Project Brief",
+            sectionId: "project-brief-boundaries",
+            itemLabel: scope,
+            reason: `This brief scope still needs a linked functional requirement.`,
           },
     };
   });
@@ -274,10 +281,19 @@ export function buildWorkspaceTraceabilityModel(params: {
             : "No linked story yet",
       status,
       navigationTarget: matches.length > 0 && storyEntry?.node
-        ? { nodeId: storyEntry.node.id, label: storyEntry.node.label }
+        ? {
+            nodeId: storyEntry.node.id,
+            label: storyEntry.node.label,
+            sectionId: "user-stories-registry",
+            itemLabel: matches[0]?.displayId ?? displayId,
+            reason: `Review the story linked to ${displayId}.`,
+          }
         : {
-            nodeId: requirementEntry?.node.id ?? "",
-            label: requirementEntry?.node.label ?? "Requirements",
+            nodeId: storyEntry?.node.id ?? requirementEntry?.node.id ?? "",
+            label: storyEntry?.node.label ?? requirementEntry?.node.label ?? "Requirements",
+            sectionId: storyEntry?.node ? "user-stories-registry" : "requirements-items",
+            itemLabel: displayId,
+            reason: `${displayId} still needs a downstream user story.`,
           },
     };
   });
@@ -338,10 +354,19 @@ export function buildWorkspaceTraceabilityModel(params: {
             : "No linked use case yet",
       status,
       navigationTarget: matches.length > 0 && useCaseEntry?.node
-        ? { nodeId: useCaseEntry.node.id, label: useCaseEntry.node.label }
+        ? {
+            nodeId: useCaseEntry.node.id,
+            label: useCaseEntry.node.label,
+            sectionId: "use-cases-protocols",
+            itemLabel: matches[0]?.displayId ?? displayId,
+            reason: `Review the use case linked to ${displayId}.`,
+          }
         : {
-            nodeId: storyEntry?.node.id ?? "",
-            label: storyEntry?.node.label ?? "User Stories",
+            nodeId: useCaseEntry?.node.id ?? storyEntry?.node.id ?? "",
+            label: useCaseEntry?.node.label ?? storyEntry?.node.label ?? "User Stories",
+            sectionId: useCaseEntry?.node ? "use-cases-protocols" : "user-stories-registry",
+            itemLabel: displayId,
+            reason: `${displayId} still needs a downstream use case.`,
           },
     };
   });
@@ -398,12 +423,27 @@ export function buildWorkspaceTraceabilityModel(params: {
       status,
       navigationTarget:
         (hasFlowchartLink && flowchartEntry?.node
-          ? { nodeId: flowchartEntry.node.id, label: flowchartEntry.node.label }
+          ? {
+              nodeId: flowchartEntry.node.id,
+              label: flowchartEntry.node.label,
+              sectionId: "flowchart-flows",
+              itemLabel: displayId,
+              reason: `Review the flowchart coverage for ${displayId}.`,
+            }
           : hasSequenceLink && sequenceEntry?.node
-            ? { nodeId: sequenceEntry.node.id, label: sequenceEntry.node.label }
+            ? {
+                nodeId: sequenceEntry.node.id,
+                label: sequenceEntry.node.label,
+                sectionId: "sequence-overview",
+                itemLabel: displayId,
+                reason: `Review the sequence coverage for ${displayId}.`,
+              }
             : {
                 nodeId: useCaseEntry?.node.id ?? "",
                 label: useCaseEntry?.node.label ?? "Use Cases",
+                sectionId: "use-cases-protocols",
+                itemLabel: displayId,
+                reason: `${displayId} still needs flowchart or sequence coverage.`,
               }),
     };
   });
@@ -442,10 +482,18 @@ export function buildWorkspaceTraceabilityModel(params: {
             : "No matching DFD datastore yet",
       status,
       navigationTarget: dfdMatches.length > 0 && dfdEntry?.node
-        ? { nodeId: dfdEntry.node.id, label: dfdEntry.node.label }
+        ? {
+            nodeId: dfdEntry.node.id,
+            label: dfdEntry.node.label,
+            itemLabel: entityName,
+            reason: `Review the datastore mapped to ${entityName}.`,
+          }
         : {
-            nodeId: erdEntry?.node.id ?? "",
-            label: erdEntry?.node.label ?? "ERD",
+            nodeId: dfdEntry?.node.id ?? erdEntry?.node.id ?? "",
+            label: dfdEntry?.node.label ?? erdEntry?.node.label ?? "ERD",
+            sectionId: dfdEntry?.node ? undefined : "erd-entities",
+            itemLabel: entityName,
+            reason: `${entityName} still needs a mirrored DFD datastore.`,
           },
     };
   });

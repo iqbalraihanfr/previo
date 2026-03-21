@@ -15,13 +15,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NodeContent, NodeData, ValidationWarning } from "@/lib/db";
 import { buildProjectReadinessModel, type ReadinessIssue } from "@/lib/readiness";
+import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
 
 type ValidationSummaryPanelProps = {
   nodes: NodeData[];
   contents: NodeContent[];
   warnings: ValidationWarning[];
   onCloseAction: () => void;
-  onNodeNavigateAction: (nodeId: string) => void;
+  onNodeNavigateAction: (intent: WorkspaceNavigationIntent) => void;
 };
 
 function SeveritySummaryCard({
@@ -66,7 +67,7 @@ function IssueCard({
   onNodeNavigateAction,
 }: {
   issue: ReadinessIssue;
-  onNodeNavigateAction: (nodeId: string) => void;
+  onNodeNavigateAction: (intent: WorkspaceNavigationIntent) => void;
 }) {
   const toneClass =
     issue.category === "blocking"
@@ -103,12 +104,23 @@ function IssueCard({
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 opacity-90">{issue.message}</p>
+          {issue.resolutionHint && (
+            <p className="mt-2 text-xs leading-5 opacity-80">{issue.resolutionHint}</p>
+          )}
           <div className="mt-4 flex items-center justify-end">
             <Button
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => onNodeNavigateAction(issue.sourceNodeId)}
+              onClick={() =>
+                onNodeNavigateAction({
+                  nodeId: issue.sourceNodeId,
+                  label: issue.itemLabel ?? issue.title,
+                  sectionId: issue.sectionId,
+                  itemLabel: issue.itemLabel,
+                  reason: issue.resolutionHint ?? issue.message,
+                })
+              }
               data-testid={`validation-open-node-${issue.sourceNodeId}`}
             >
               <ExternalLink className="mr-2 h-3.5 w-3.5" />
@@ -189,7 +201,7 @@ export function ValidationSummaryPanel({
                   Readiness Summary
                 </h2>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {readiness.statusLabel}. Fix blockers first, then coverage gaps.
+                  {readiness.statusLabel}. {readiness.statusSummary}
                 </p>
               </div>
             </div>
@@ -242,6 +254,19 @@ export function ValidationSummaryPanel({
             tone="success"
             icon={<CheckCircle2 className="h-4 w-4" />}
           />
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Next actions
+          </p>
+          <div className="mt-2 space-y-1">
+            {readiness.nextActions.map((action) => (
+              <p key={action} className="text-sm leading-6 text-foreground/80">
+                {action}
+              </p>
+            ))}
+          </div>
         </div>
       </div>
 

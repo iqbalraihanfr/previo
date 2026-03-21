@@ -92,7 +92,8 @@ describe("project readiness model", () => {
       warnings,
     });
 
-    expect(model.statusLabel).toBe("Blocked");
+    expect(model.statusLabel).toBe("Not ready");
+    expect(model.status).toBe("not_ready");
     expect(model.blockers.some((issue) => issue.id === "brief-name")).toBe(true);
     expect(
       model.coverageGaps.some((issue) =>
