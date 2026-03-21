@@ -1,7 +1,9 @@
 "use client";
 
-import React from "react";
-import { Zap, BookOpen, type LucideIcon } from "lucide-react";
+import React, { useState } from "react";
+import { ArrowLeft, ArrowRight, BookOpen, Layers3, Zap } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,9 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -21,18 +22,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PROJECT_TEMPLATES } from "@/features/dashboard/projectTemplates";
-import { CONTENT_TEMPLATES, type ContentTemplateKey } from "@/lib/contentTemplates";
+import { PROJECT_TEMPLATES, type WorkflowTemplateKey } from "@/features/dashboard/projectTemplates";
+import {
+  PROJECT_DOMAIN_OPTIONS,
+  STARTER_INTENSITY_OPTIONS,
+} from "@/lib/projectStarters";
 import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
-import type { DeliveryMode } from "@/lib/db";
+import type {
+  DeliveryMode,
+  ProjectDomain,
+  StarterContentIntensity,
+} from "@/lib/db";
 
-export type TemplateKey = "quick" | "full";
+export type TemplateKey = WorkflowTemplateKey;
 
 export type TemplateConfig = {
   label: string;
   shortLabel: string;
   description: string;
-  icon: LucideIcon;
+  icon: typeof Zap;
   badge?: string;
   accentClass: string;
   cardClass: string;
@@ -70,6 +78,38 @@ export const TEMPLATES: Record<TemplateKey, TemplateConfig> = {
   },
 };
 
+export const CREATE_PROJECT_STEPS = [
+  {
+    key: "basics",
+    label: "Basics",
+    helperText: "Name and description",
+  },
+  {
+    key: "workflow",
+    label: "Workflow",
+    helperText: "Choose the canonical map",
+  },
+  {
+    key: "delivery",
+    label: "Delivery",
+    helperText: "Set the release framing",
+  },
+  {
+    key: "advanced",
+    label: "Advanced",
+    helperText: "Metadata and starter content",
+  },
+] as const;
+
+const DOMAIN_OPTIONS = [
+  {
+    value: "general" as const,
+    label: "General",
+    description: "Keep the project as neutral metadata with no domain bias.",
+  },
+  ...PROJECT_DOMAIN_OPTIONS,
+] as const;
+
 interface CreateProjectDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -79,12 +119,16 @@ interface CreateProjectDialogProps {
   onProjectDescChange: (value: string) => void;
   selectedTemplate: TemplateKey;
   onTemplateChange: (key: TemplateKey) => void;
-  selectedContentTemplate: ContentTemplateKey;
-  onContentTemplateChange: (key: ContentTemplateKey) => void;
+  selectedDomain: ProjectDomain;
+  onDomainChange: (key: ProjectDomain) => void;
+  selectedStarterContentIntensity: StarterContentIntensity;
+  onStarterContentIntensityChange: (key: StarterContentIntensity) => void;
   deliveryMode: DeliveryMode;
   onDeliveryModeChange: (value: DeliveryMode) => void;
   onCreate: () => void;
 }
+
+const STEP_ORDER = CREATE_PROJECT_STEPS.map((step) => step.key);
 
 export function CreateProjectDialog({
   isOpen,
@@ -95,64 +139,145 @@ export function CreateProjectDialog({
   onProjectDescChange,
   selectedTemplate,
   onTemplateChange,
-  selectedContentTemplate,
-  onContentTemplateChange,
+  selectedDomain,
+  onDomainChange,
+  selectedStarterContentIntensity,
+  onStarterContentIntensityChange,
   deliveryMode,
   onDeliveryModeChange,
   onCreate,
 }: CreateProjectDialogProps) {
+  const [activeStep, setActiveStep] = useState<(typeof STEP_ORDER)[number]>("basics");
+
+  const stepIndex = STEP_ORDER.indexOf(activeStep);
+  const isFirstStep = stepIndex === 0;
+  const isLastStep = stepIndex === STEP_ORDER.length - 1;
+  const activeStepConfig = CREATE_PROJECT_STEPS[stepIndex];
   const activeTemplate = TEMPLATES[selectedTemplate];
   const ActiveTemplateIcon = activeTemplate.icon;
+
+  const selectedDomainOption =
+    DOMAIN_OPTIONS.find((option) => option.value === selectedDomain) ??
+    DOMAIN_OPTIONS[0];
+  const selectedIntensityOption =
+    STARTER_INTENSITY_OPTIONS.find(
+      (option) => option.value === selectedStarterContentIntensity,
+    ) ?? STARTER_INTENSITY_OPTIONS[0];
+
+  const goToNextStep = () => {
+    const nextStep = STEP_ORDER[Math.min(stepIndex + 1, STEP_ORDER.length - 1)];
+    setActiveStep(nextStep);
+  };
+
+  const goToPreviousStep = () => {
+    const previousStep = STEP_ORDER[Math.max(stepIndex - 1, 0)];
+    setActiveStep(previousStep);
+  };
+
+  const handleCreate = () => {
+    if (!projectName.trim()) {
+      return;
+    }
+
+    onCreate();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-2xl lg:max-w-4xl"
+        className="flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl"
         data-testid="create-project-dialog"
       >
         <DialogHeader className="border-b px-6 py-4">
-          <DialogTitle>Create new project</DialogTitle>
-          <DialogDescription>
-            Start with the template that best matches your delivery style. Guided
-            mode remains your primary source of truth.
-          </DialogDescription>
+          <div className="flex flex-wrap items-center gap-2">
+            {CREATE_PROJECT_STEPS.map((step, index) => {
+              const isActive = step.key === activeStep;
+              const isCompleted = index < stepIndex;
+
+              return (
+                <button
+                  key={step.key}
+                  type="button"
+                  onClick={() => setActiveStep(step.key)}
+                  data-testid={`create-project-step-${step.key}`}
+                  className={[
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-left transition-colors",
+                    isActive
+                      ? "border-primary bg-primary/10 text-primary"
+                      : isCompleted
+                        ? "border-border/80 bg-muted/60 text-foreground"
+                        : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
+                  <span className="text-readable-2xs font-bold uppercase tracking-[0.16em]">
+                    {index + 1}
+                  </span>
+                  <span className="text-xs font-semibold">{step.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-4 space-y-1">
+            <DialogTitle>Create new project</DialogTitle>
+            <DialogDescription>
+              Build the workspace in four short passes. Workflow and delivery are
+              structural, while domain lives in advanced metadata.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <div className="grid gap-6">
-            <div className="grid gap-2">
-              <Label htmlFor="project-name">Project name</Label>
-              <Input
-                id="project-name"
-                placeholder="e.g. Toko Online, Portfolio, Internal HRIS"
-                value={projectName}
-                onChange={(event) => onProjectNameChange(event.target.value)}
-                autoFocus
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="project-description">
-                Description <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="project-description"
-                placeholder="Short context about the project"
-                value={projectDesc}
-                onChange={(event) => onProjectDescChange(event.target.value)}
-              />
-            </div>
-
-            <div className="grid gap-3">
-              <div className="space-y-1">
-                <Label>Choose a project template</Label>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  This selection is saved with the project so its identity stays
-                  consistent even after you add or remove nodes later.
+            <div className="flex items-start justify-between gap-4 rounded-[16px] border border-border/70 bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-readable-2xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Step {stepIndex + 1} of {CREATE_PROJECT_STEPS.length}
                 </p>
+                <h3 className="mt-1 text-base font-semibold text-foreground">
+                  {activeStepConfig.label}
+                </h3>
               </div>
+              <p className="max-w-sm text-right text-sm leading-6 text-muted-foreground">
+                {activeStepConfig.helperText}
+              </p>
+            </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            {activeStep === "basics" && (
+              <section
+                className="grid gap-4"
+                data-testid="create-project-panel-basics"
+              >
+                <div className="grid gap-2">
+                  <Label htmlFor="project-name">Project name</Label>
+                  <Input
+                    id="project-name"
+                    placeholder="e.g. Toko Online, Portfolio, Internal HRIS"
+                    value={projectName}
+                    onChange={(event) => onProjectNameChange(event.target.value)}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="project-description">
+                    Description{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="project-description"
+                    placeholder="Short context about the project"
+                    value={projectDesc}
+                    onChange={(event) => onProjectDescChange(event.target.value)}
+                  />
+                </div>
+              </section>
+            )}
+
+            {activeStep === "workflow" && (
+              <section
+                className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]"
+                data-testid="create-project-panel-workflow"
+              >
                 <div className="grid gap-3">
                   {(
                     Object.entries(TEMPLATES) as [TemplateKey, TemplateConfig][]
@@ -165,15 +290,15 @@ export function CreateProjectDialog({
                         key={key}
                         type="button"
                         onClick={() => onTemplateChange(key)}
-                        data-testid={`template-option-${key}`}
+                        data-testid={`workflow-option-${key}`}
                         className={[
-                          "rounded-[12px] border p-5 text-left transition-all",
+                          "rounded-[14px] border p-4 text-left transition-all",
                           isSelected
                             ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                             : template.cardClass,
                         ].join(" ")}
                       >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="space-y-2">
                             <div className="flex items-center gap-3">
                               <div
@@ -191,15 +316,9 @@ export function CreateProjectDialog({
                                   <span className="font-semibold">
                                     {template.label}
                                   </span>
-                                  {template.badge ? (
-                                    <span className={template.accentClass}>
-                                      {template.badge}
-                                    </span>
-                                  ) : (
-                                    <span className={template.accentClass}>
-                                      Stable
-                                    </span>
-                                  )}
+                                  <span className={template.accentClass}>
+                                    {template.badge ?? "Stable"}
+                                  </span>
                                 </div>
                                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                                   {template.helperText}
@@ -223,7 +342,7 @@ export function CreateProjectDialog({
                   })}
                 </div>
 
-                <div className="rounded-[12px] border border-border/70 bg-secondary/45 p-5">
+                <div className="rounded-[16px] border border-border/70 bg-secondary/45 p-5">
                   <div className="flex items-center gap-2 font-medium">
                     <ActiveTemplateIcon className="h-4 w-4 text-primary" />
                     <h3 className="font-semibold">{activeTemplate.label}</h3>
@@ -250,101 +369,209 @@ export function CreateProjectDialog({
                       Included nodes
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {PROJECT_TEMPLATES[selectedTemplate].nodes.map(
-                        (node, index) => (
-                          <Badge
-                            key={`${node.type}-${index}`}
-                            variant="secondary"
-                            className="border border-border/60 bg-background px-2.5 py-1 text-readable-xs font-medium"
-                          >
-                            {node.label}
-                          </Badge>
-                        ),
-                      )}
+                      {PROJECT_TEMPLATES[selectedTemplate].nodes.map((node, index) => (
+                        <Badge
+                          key={`${node.type}-${index}`}
+                          variant="secondary"
+                          className="border border-border/60 bg-background px-2.5 py-1 text-readable-xs font-medium"
+                        >
+                          {node.label}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </section>
+            )}
 
-            <div className="grid gap-3">
-              <div className="space-y-1">
-                <Label>Delivery mode</Label>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Previo will keep one canonical task model, then frame planning output based on this delivery style.
-                </p>
-              </div>
-
-              <Select
-                value={deliveryMode}
-                onValueChange={(value) => onDeliveryModeChange(value as DeliveryMode)}
+            {activeStep === "delivery" && (
+              <section
+                className="grid gap-3"
+                data-testid="create-project-panel-delivery"
               >
-                <SelectTrigger
-                  className="h-11 rounded-xl"
-                  data-testid="delivery-mode-trigger"
-                >
-                  <SelectValue placeholder="Choose delivery mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(
-                    Object.entries(DELIVERY_MODE_LABELS) as [DeliveryMode, string][]
-                  ).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-1">
+                  <Label>Delivery mode</Label>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Previo keeps one canonical task model, then frames the output
+                    using the delivery style you choose here.
+                  </p>
+                </div>
 
-            <div className="grid gap-3">
-              <div className="space-y-1">
-                <Label>Pre-fill Project Brief</Label>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Jump-start your brief with a starter template. You can edit everything after.
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-6">
-                {CONTENT_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.key}
-                    type="button"
-                    onClick={() => onContentTemplateChange(tpl.key)}
-                    data-testid={`content-template-${tpl.key}`}
-                    className={[
-                      "flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
-                      selectedContentTemplate === tpl.key
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border/60 bg-background hover:border-primary/30 hover:bg-primary/5",
-                    ].join(" ")}
+                <Select
+                  value={deliveryMode}
+                  onValueChange={(value) => onDeliveryModeChange(value as DeliveryMode)}
+                >
+                  <SelectTrigger
+                    className="h-11 rounded-xl"
+                    data-testid="delivery-mode-trigger"
                   >
-                    <span className="text-xl">{tpl.emoji}</span>
-                    <span className="text-[10px] font-bold leading-tight text-foreground">
-                      {tpl.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {selectedContentTemplate !== "blank" && (
-                <p className="text-readable-xs text-muted-foreground">
-                  {CONTENT_TEMPLATES.find((t) => t.key === selectedContentTemplate)?.description}
-                </p>
-              )}
-            </div>
+                    <SelectValue placeholder="Choose delivery mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      Object.entries(DELIVERY_MODE_LABELS) as [DeliveryMode, string][]
+                    ).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </section>
+            )}
+
+            {activeStep === "advanced" && (
+              <section
+                className="grid gap-6"
+                data-testid="create-project-panel-advanced"
+              >
+                <div className="rounded-[16px] border border-border/70 bg-secondary/30 p-4">
+                  <div className="flex items-center gap-2">
+                    <Layers3 className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold">Advanced metadata</h3>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Domain is metadata only. It helps seed context and framing,
+                    but it never changes the canonical workflow map.
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  <Label htmlFor="project-domain-trigger">Domain</Label>
+                  <Select
+                    value={selectedDomain}
+                    onValueChange={(value) => onDomainChange(value as ProjectDomain)}
+                  >
+                    <SelectTrigger
+                      id="project-domain-trigger"
+                      className="h-11 rounded-xl"
+                      data-testid="project-domain-trigger"
+                    >
+                      <SelectValue placeholder="Choose a domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOMAIN_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-readable-xs text-muted-foreground">
+                    {selectedDomainOption.description}
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="space-y-1">
+                    <Label>Starter content intensity</Label>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Pick how much starter content to seed into the workspace
+                      before you start editing.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {STARTER_INTENSITY_OPTIONS.map((option) => {
+                      const isSelected =
+                        selectedStarterContentIntensity === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          data-testid={`intensity-option-${option.value}`}
+                          onClick={() =>
+                            onStarterContentIntensityChange(option.value)
+                          }
+                          className={[
+                            "rounded-[14px] border p-4 text-left transition-all",
+                            isSelected
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : "border-border/60 bg-background hover:border-primary/30 hover:bg-primary/5",
+                          ].join(" ")}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold">{option.label}</p>
+                              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                {option.description}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Badge className="px-2 py-1 text-readable-xs">
+                                Selected
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="mt-3 text-readable-xs text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-[14px] border border-border/60 bg-background/80 px-4 py-3">
+                    <p className="text-readable-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      Metadata preview
+                    </p>
+                    <p className="mt-2 text-sm text-foreground">
+                      {selectedDomain === "general"
+                        ? "No extra domain metadata"
+                        : selectedDomainOption.label}
+                    </p>
+                    <p className="mt-1 text-readable-xs text-muted-foreground">
+                      Starter content: {selectedIntensityOption.label}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         </div>
 
         <DialogFooter className="border-t bg-muted/30 px-6 py-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={onCreate}
-            disabled={!projectName.trim()}
-            data-testid="create-workspace-submit"
-          >
-            Create workspace
-          </Button>
+          <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              data-testid="create-project-cancel"
+            >
+              Cancel
+            </Button>
+
+            <div className="flex items-center gap-3 sm:ml-auto">
+              {!isFirstStep && (
+                <Button
+                  variant="outline"
+                  onClick={goToPreviousStep}
+                  data-testid="create-project-back"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+
+              {!isLastStep ? (
+                <Button
+                  onClick={goToNextStep}
+                  disabled={!projectName.trim() && activeStep === "basics"}
+                  data-testid="create-project-next"
+                >
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleCreate}
+                  disabled={!projectName.trim()}
+                  data-testid="create-workspace-submit"
+                >
+                  Create workspace
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

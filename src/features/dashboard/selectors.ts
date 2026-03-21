@@ -66,7 +66,7 @@ export function formatDateTime(value: string) {
 }
 
 export function getProjectTemplate(project: Project): TemplateKey {
-  return (project.template_type as TemplateKey) ?? "quick";
+  return project.template_type === "full" ? "full" : "quick";
 }
 
 export function getRecentProject(projects: Project[]) {

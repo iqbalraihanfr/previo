@@ -1,6 +1,15 @@
 import Dexie, { type EntityTable } from "dexie";
 
 export type DeliveryMode = "agile" | "waterfall" | "hybrid";
+export type ProjectDomain =
+  | "general"
+  | "saas"
+  | "ecommerce"
+  | "mobile_web"
+  | "internal_tool"
+  | "marketplace"
+  | "content_platform";
+export type StarterContentIntensity = "none" | "light" | "rich";
 export type SourceType =
   | "brief_doc"
   | "meeting_text"
@@ -20,8 +29,11 @@ export interface Project {
   id: string;
   name: string;
   description: string;
-  template_type: "quick" | "full" | "blank";
+  template_type: "quick" | "full";
   delivery_mode: DeliveryMode;
+  domain?: ProjectDomain;
+  starter_content_intensity?: StarterContentIntensity;
+  project_notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -256,6 +268,95 @@ db.version(6)
       .modify((task: TaskData) => {
         if (!task.task_origin) {
           task.task_origin = task.is_manual ? "manual" : "generated";
+        }
+      });
+  });
+
+// Schema declaration for version 7 (Canonical workflows + project notes)
+db.version(7)
+  .stores({
+    projects:
+      "id, name, template_type, delivery_mode, created_at, updated_at",
+    nodes:
+      "id, project_id, type, status, sort_order, source_type, generation_status, override_status, imported_at",
+    nodeContents: "id, node_id",
+    edges: "id, project_id, source_node_id, target_node_id",
+    tasks:
+      "id, project_id, source_node_id, source_item_id, status, feature_name, priority_tier, group_key, is_manual, task_origin, external_source, external_task_id, match_to_generated, sort_order",
+    attachments: "id, node_id, filename, mime_type, created_at",
+    validationWarnings:
+      "id, project_id, source_node_id, target_node_type, severity, rule_id",
+    sourceArtifacts:
+      "id, project_id, node_id, source_type, parser_version, created_at, updated_at",
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table("projects")
+      .toCollection()
+      .modify((project: Project) => {
+        if (project.template_type !== "quick" && project.template_type !== "full") {
+          project.template_type = "quick";
+        }
+        if (typeof project.project_notes !== "string") {
+          project.project_notes = "";
+        }
+      });
+
+    const customNodes = await tx
+      .table("nodes")
+      .where("type")
+      .equals("custom")
+      .toArray();
+
+    const customNodeIds = customNodes.map((node) => node.id);
+
+    if (customNodeIds.length > 0) {
+      await tx.table("nodeContents").where("node_id").anyOf(customNodeIds).delete();
+      await tx.table("tasks").where("source_node_id").anyOf(customNodeIds).delete();
+      await tx.table("attachments").where("node_id").anyOf(customNodeIds).delete();
+      await tx
+        .table("validationWarnings")
+        .where("source_node_id")
+        .anyOf(customNodeIds)
+        .delete();
+      await tx
+        .table("sourceArtifacts")
+        .where("node_id")
+        .anyOf(customNodeIds)
+        .delete();
+      await tx.table("nodes").where("id").anyOf(customNodeIds).delete();
+    }
+
+    await tx.table("edges").clear();
+  });
+
+// Schema declaration for version 8 (Domain metadata + starter intensity)
+db.version(8)
+  .stores({
+    projects:
+      "id, name, template_type, delivery_mode, domain, starter_content_intensity, created_at, updated_at",
+    nodes:
+      "id, project_id, type, status, sort_order, source_type, generation_status, override_status, imported_at",
+    nodeContents: "id, node_id",
+    edges: "id, project_id, source_node_id, target_node_id",
+    tasks:
+      "id, project_id, source_node_id, source_item_id, status, feature_name, priority_tier, group_key, is_manual, task_origin, external_source, external_task_id, match_to_generated, sort_order",
+    attachments: "id, node_id, filename, mime_type, created_at",
+    validationWarnings:
+      "id, project_id, source_node_id, target_node_type, severity, rule_id",
+    sourceArtifacts:
+      "id, project_id, node_id, source_type, parser_version, created_at, updated_at",
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table("projects")
+      .toCollection()
+      .modify((project: Project) => {
+        if (!project.domain) {
+          project.domain = "general";
+        }
+        if (!project.starter_content_intensity) {
+          project.starter_content_intensity = "none";
         }
       });
   });

@@ -1,8 +1,20 @@
-import { db, NodeData, NodeContent, TaskData, type DeliveryMode } from "@/lib/db";
+import {
+  db,
+  NodeData,
+  NodeContent,
+  TaskData,
+  type DeliveryMode,
+  type ProjectDomain,
+  type StarterContentIntensity,
+} from "@/lib/db";
 import { MERMAID_TEMPLATES } from "@/components/editors/panel/constants";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 import type { ContentTemplate } from "@/lib/contentTemplates";
-import { PROJECT_TEMPLATES } from "@/features/dashboard/projectTemplates";
+import { getDomainStarterSeed } from "@/lib/projectStarters";
+import {
+  getWorkflowDefinition,
+  type WorkflowTemplateKey,
+} from "@/features/dashboard/projectTemplates";
 import { generateTasksFromNode } from "@/services/taskEngine";
 import { ProjectRepository } from "@/repositories/ProjectRepository";
 import { NodeRepository, NodeContentRepository } from "@/repositories/NodeRepository";
@@ -12,20 +24,23 @@ import { ValidationWarningRepository, AttachmentRepository } from "@/repositorie
 
 /** Node types that the task engine can generate tasks from */
 const TASK_GENERATING_TYPES = new Set([
+  "requirements",
+  "user_stories",
   "erd",
   "flowchart",
   "sequence",
   "dfd",
   "use_cases",
-  "user_stories",
 ]);
 
 export class ProjectService {
   static async createProject(params: {
     name: string;
     description: string;
-    templateKey: string;
+    templateKey: WorkflowTemplateKey;
     deliveryMode?: DeliveryMode;
+    domain?: ProjectDomain;
+    starterContentIntensity?: StarterContentIntensity;
     initialBriefContent?: ProjectBriefFields;
     contentTemplate?: ContentTemplate;
   }): Promise<string> {
@@ -34,59 +49,65 @@ export class ProjectService {
       description,
       templateKey,
       deliveryMode = "agile",
+      domain = "general",
+      starterContentIntensity = "none",
       initialBriefContent,
       contentTemplate,
     } = params;
     const projectId = crypto.randomUUID();
     const now = new Date().toISOString();
+    const starterSeed =
+      contentTemplate ??
+      getDomainStarterSeed(domain, starterContentIntensity);
 
     const seededNodes: { node: NodeData; content: NodeContent }[] = [];
 
     await db.transaction(
       "rw",
-      [db.projects, db.nodes, db.nodeContents, db.edges],
+      [db.projects, db.nodes, db.nodeContents],
       async () => {
         // 1. Create project
         await ProjectRepository.create({
           id: projectId,
           name,
           description,
-          template_type: templateKey as "quick" | "full" | "blank",
+          template_type: templateKey,
           delivery_mode: deliveryMode,
+          domain,
+          starter_content_intensity: starterContentIntensity,
+          project_notes: "",
           created_at: now,
           updated_at: now,
         });
 
-        const template = PROJECT_TEMPLATES[templateKey] || PROJECT_TEMPLATES.blank;
-        const nodeMap = new Map<string, string>();
+        const template = getWorkflowDefinition(templateKey);
 
         // 2. Add nodes
         for (const nodeTpl of template.nodes) {
           const nodeId = crypto.randomUUID();
-          nodeMap.set(nodeTpl.type, nodeId);
 
           let structuredFields: Record<string, unknown> = {};
           let mermaidManual = "";
           let hasContent = false;
 
-          if (contentTemplate) {
+          if (starterSeed) {
             if (nodeTpl.type === "project_brief") {
-              structuredFields = { ...contentTemplate.brief, name };
-              hasContent = Object.keys(contentTemplate.brief).length > 0;
-            } else if (nodeTpl.type === "requirements" && contentTemplate.requirements) {
-              structuredFields = contentTemplate.requirements;
+              structuredFields = { ...starterSeed.brief, name };
+              hasContent = Object.keys(starterSeed.brief).length > 0;
+            } else if (nodeTpl.type === "requirements" && starterSeed.requirements) {
+              structuredFields = starterSeed.requirements;
               hasContent = true;
-            } else if (nodeTpl.type === "erd" && contentTemplate.erd) {
-              structuredFields = contentTemplate.erd;
+            } else if (nodeTpl.type === "erd" && starterSeed.erd) {
+              structuredFields = starterSeed.erd;
               hasContent = true;
-            } else if (nodeTpl.type === "flowchart" && contentTemplate.mermaid?.flowchart) {
-              mermaidManual = contentTemplate.mermaid.flowchart;
+            } else if (nodeTpl.type === "flowchart" && starterSeed.mermaid?.flowchart) {
+              mermaidManual = starterSeed.mermaid.flowchart;
               hasContent = true;
-            } else if (nodeTpl.type === "sequence" && contentTemplate.mermaid?.sequence) {
-              mermaidManual = contentTemplate.mermaid.sequence;
+            } else if (nodeTpl.type === "sequence" && starterSeed.mermaid?.sequence) {
+              mermaidManual = starterSeed.mermaid.sequence;
               hasContent = true;
-            } else if (nodeTpl.type === "dfd" && contentTemplate.mermaid?.dfd) {
-              mermaidManual = contentTemplate.mermaid.dfd;
+            } else if (nodeTpl.type === "dfd" && starterSeed.mermaid?.dfd) {
+              mermaidManual = starterSeed.mermaid.dfd;
               hasContent = true;
             }
           } else if (nodeTpl.type === "project_brief" && initialBriefContent) {
@@ -136,21 +157,6 @@ export class ProjectService {
               updated_at: now,
             };
             seededNodes.push({ node: nodeData, content: nodeContent });
-          }
-        }
-
-        // 3. Add edges
-        for (const edgeTpl of template.edges) {
-          const sourceId = nodeMap.get(edgeTpl.from);
-          const targetId = nodeMap.get(edgeTpl.to);
-
-          if (sourceId && targetId) {
-            await EdgeRepository.create({
-              id: crypto.randomUUID(),
-              project_id: projectId,
-              source_node_id: sourceId,
-              target_node_id: targetId,
-            });
           }
         }
       },

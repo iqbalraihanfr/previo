@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Plus } from "lucide-react";
 
 import { ProjectService } from "@/services/ProjectService";
-import type { DeliveryMode } from "@/lib/db";
-import {
-  getContentTemplate,
-  type ContentTemplateKey,
-} from "@/lib/contentTemplates";
+import type {
+  DeliveryMode,
+  ProjectDomain,
+  StarterContentIntensity,
+} from "@/lib/db";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -41,27 +41,34 @@ export function DashboardScreen() {
   } = useDashboardData();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createDialogSession, setCreateDialogSession] = useState(0);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDesc, setNewProjectDesc] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey>("quick");
-  const [selectedContentTemplate, setSelectedContentTemplate] =
-    useState<ContentTemplateKey>("blank");
+  const [selectedDomain, setSelectedDomain] =
+    useState<ProjectDomain>("general");
+  const [selectedStarterContentIntensity, setSelectedStarterContentIntensity] =
+    useState<StarterContentIntensity>("none");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("agile");
 
   const [deleteProject, setDeleteProject] = useState<DeleteProjectState>(null);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
+  const openCreateDialog = () => {
+    setCreateDialogSession((value) => value + 1);
+    setIsCreateOpen(true);
+  };
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
 
-    const contentTpl = getContentTemplate(selectedContentTemplate);
     const projectId = await ProjectService.createProject({
       name: newProjectName.trim(),
       description: newProjectDesc.trim(),
       templateKey: selectedTemplate,
       deliveryMode,
-      contentTemplate:
-        selectedContentTemplate !== "blank" ? contentTpl : undefined,
+      domain: selectedDomain,
+      starterContentIntensity: selectedStarterContentIntensity,
     });
     const destination = `/workspace/${projectId}`;
 
@@ -69,7 +76,8 @@ export function DashboardScreen() {
     setNewProjectName("");
     setNewProjectDesc("");
     setSelectedTemplate("quick");
-    setSelectedContentTemplate("blank");
+    setSelectedDomain("general");
+    setSelectedStarterContentIntensity("none");
     setDeliveryMode("agile");
 
     startTransition(() => {
@@ -107,37 +115,34 @@ export function DashboardScreen() {
   return (
     <div className="workspace-shell min-h-screen" data-testid="dashboard-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="workspace-header mb-5 rounded-[12px] border border-border/70 px-6 py-6 sm:px-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl space-y-4">
+        <header
+          className="workspace-header mb-4 rounded-[16px] border border-border/70 px-5 py-4 sm:px-6"
+          data-testid="dashboard-hero"
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="px-3 py-1 text-readable-xs"
-                >
+                <Badge variant="outline" className="px-3 py-1 text-readable-xs">
                   Local-first workspace
                 </Badge>
-                <Badge
-                  variant="secondary"
-                  className="px-3 py-1 text-readable-xs"
-                >
+                <Badge variant="secondary" className="px-3 py-1 text-readable-xs">
                   Offline-ready
                 </Badge>
               </div>
 
-              <div className="space-y-3">
-                <h1 className="font-serif text-4xl font-semibold tracking-[-0.04em] text-foreground sm:text-5xl">
+              <div className="space-y-1.5">
+                <h1 className="font-serif text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-[2.6rem]">
                   Previo
                 </h1>
-                <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                  The bridge between thinking and building. Capture
-                  architecture, map decisions, and turn your documentation into
-                  execution-ready tasks.
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Turn project inputs into structured architecture, track what is
+                  still missing, and resume the latest workspace without digging
+                  through noise.
                 </p>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="rounded-[12px] border border-border/70 bg-background/75 px-6 py-5">
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                <div className="rounded-[14px] border border-border/70 bg-background/75 px-4 py-4">
                   <p className="text-readable-2xs uppercase tracking-[0.18em] text-muted-foreground">
                     Continue where you left off
                   </p>
@@ -170,7 +175,7 @@ export function DashboardScreen() {
                         documenting your flow.
                       </p>
                       <Button
-                        onClick={() => setIsCreateOpen(true)}
+                        onClick={openCreateDialog}
                         data-testid="dashboard-empty-new-project"
                       >
                         <Plus className="mr-2 h-4 w-4" />
@@ -189,12 +194,11 @@ export function DashboardScreen() {
               </div>
             </div>
 
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3 xl:flex-col xl:items-stretch">
               <ModeToggle />
               <Button
-                size="lg"
                 className="px-5"
-                onClick={() => setIsCreateOpen(true)}
+                onClick={openCreateDialog}
                 data-testid="dashboard-new-project"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -213,7 +217,7 @@ export function DashboardScreen() {
           onFilterChange={setFilterBy}
         />
 
-        <section className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <section className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
@@ -241,7 +245,7 @@ export function DashboardScreen() {
           </div>
 
           <p className="text-sm leading-6 text-muted-foreground">
-            Resume where you left off or start a new architecture workspace.
+            Recent work, filters, and creation live in one tighter shell now.
           </p>
         </section>
 
@@ -255,23 +259,33 @@ export function DashboardScreen() {
               setFilterBy("all");
               setSortBy("recent");
             }}
-            onCreateProject={() => setIsCreateOpen(true)}
+            onCreateProject={openCreateDialog}
             totalProjects={stats.totalProjects}
           />
         </main>
       </div>
 
       <CreateProjectDialog
+        key={createDialogSession}
         isOpen={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          if (!open) {
+            setSelectedTemplate("quick");
+            setSelectedDomain("general");
+            setSelectedStarterContentIntensity("none");
+          }
+        }}
         projectName={newProjectName}
         onProjectNameChange={setNewProjectName}
         projectDesc={newProjectDesc}
         onProjectDescChange={setNewProjectDesc}
         selectedTemplate={selectedTemplate}
         onTemplateChange={setSelectedTemplate}
-        selectedContentTemplate={selectedContentTemplate}
-        onContentTemplateChange={setSelectedContentTemplate}
+        selectedDomain={selectedDomain}
+        onDomainChange={setSelectedDomain}
+        selectedStarterContentIntensity={selectedStarterContentIntensity}
+        onStarterContentIntensityChange={setSelectedStarterContentIntensity}
         deliveryMode={deliveryMode}
         onDeliveryModeChange={setDeliveryMode}
         onCreate={handleCreateProject}
