@@ -22,6 +22,7 @@ type WorkspaceTraceabilityPanelProps = {
   contents: NodeContent[];
   sourceArtifacts: SourceArtifact[];
   onCloseAction: () => void;
+  onNodeNavigateAction: (nodeId: string) => void;
 };
 
 function formatTimestamp(value: string | null) {
@@ -40,6 +41,7 @@ export function WorkspaceTraceabilityPanel({
   contents,
   sourceArtifacts,
   onCloseAction,
+  onNodeNavigateAction,
 }: WorkspaceTraceabilityPanelProps) {
   const model = useMemo(
     () => buildWorkspaceTraceabilityModel({ nodes, contents, sourceArtifacts }),
@@ -165,6 +167,12 @@ export function WorkspaceTraceabilityPanel({
                             <Badge className="rounded-full px-3 py-1 text-xs">
                               {row.sourceLabel}
                             </Badge>
+                            <Badge
+                              variant="outline"
+                              className="rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.14em]"
+                            >
+                              {row.status}
+                            </Badge>
                             <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                               {row.relationLabel}
                             </span>
@@ -188,8 +196,22 @@ export function WorkspaceTraceabilityPanel({
                             ))
                           ) : (
                             <span className="text-sm text-muted-foreground">
-                              Unlinked
+                              {row.status === "unresolved" ? "Unresolved" : "Unlinked"}
                             </span>
+                          )}
+
+                          {row.navigationTarget.nodeId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full"
+                              onClick={() =>
+                                onNodeNavigateAction(row.navigationTarget.nodeId)
+                              }
+                              data-testid={`traceability-open-${row.navigationTarget.nodeId}`}
+                            >
+                              Open {row.navigationTarget.label}
+                            </Button>
                           )}
                         </div>
                       </div>

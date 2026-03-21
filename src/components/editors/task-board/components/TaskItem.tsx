@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { TaskData } from "@/lib/db";
 import { PriorityFilter } from "../types";
+import type { TaskProvenance } from "../provenance";
 
 // Helper functions (could be moved to a utils file)
 function normalizePriority(priority: TaskData["priority"]) {
@@ -70,11 +71,18 @@ function taskOriginLabel(task: TaskData) {
 interface TaskItemProps {
   task: TaskData;
   sourceNodeLabel: string;
+  provenance?: TaskProvenance | null;
   onUpdate: (id: string, updates: Partial<TaskData>) => void;
   onDelete: (id: string) => void;
 }
 
-export function TaskItem({ task, sourceNodeLabel, onUpdate, onDelete }: TaskItemProps) {
+export function TaskItem({
+  task,
+  sourceNodeLabel,
+  provenance,
+  onUpdate,
+  onDelete,
+}: TaskItemProps) {
   return (
     <div className="group rounded-2xl border border-border/70 bg-background/50 px-5 py-5 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
       <div className="flex flex-col gap-5">
@@ -169,6 +177,38 @@ export function TaskItem({ task, sourceNodeLabel, onUpdate, onDelete }: TaskItem
             </Select>
           </div>
         </div>
+
+        {provenance && (
+          <details
+            className="rounded-2xl border border-border/60 bg-background/70 px-4 py-4"
+            data-testid={`task-provenance-${task.id}`}
+          >
+            <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Implementation provenance
+            </summary>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/50 bg-background/80 px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Generated from
+                </p>
+                <p className="mt-2 text-sm font-medium text-foreground">{provenance.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{provenance.sourceLabel}</p>
+              </div>
+
+              <div className="rounded-xl border border-border/50 bg-background/80 px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Rule
+                </p>
+                <p className="mt-2 text-sm text-foreground">{provenance.reason}</p>
+                {provenance.relatedBriefScope && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Related brief scope: {provenance.relatedBriefScope}
+                  </p>
+                )}
+              </div>
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );

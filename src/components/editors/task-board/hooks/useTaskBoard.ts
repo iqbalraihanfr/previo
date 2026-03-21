@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { db, type TaskData, type NodeData, type Project } from "@/lib/db";
+import { db, type NodeContent, type TaskData, type NodeData, type Project } from "@/lib/db";
 import { generateTasksFromNode, detectDuplicateTasks } from "@/services/taskEngine";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import { resolveBacklogImport } from "@/lib/sourceIntake";
 import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
+import { resolveTaskProvenance, type TaskProvenance } from "../provenance";
 import {
   GroupingMode,
   StatusFilter,
@@ -29,6 +30,7 @@ function normalizePriority(priority: TaskData["priority"]) {
 export function useTaskBoard(node: NodeData) {
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [nodes, setNodes] = useState<NodeData[]>([]);
+  const [contents, setContents] = useState<NodeContent[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [grouping, setGrouping] = useState<GroupingMode>("methodology");
@@ -39,10 +41,11 @@ export function useTaskBoard(node: NodeData) {
   const [duplicates, setDuplicates] = useState<[number, number, number][]>([]);
 
   const loadTasks = useCallback(async () => {
-    const [projectTasks, projectNodes, currentProject] = await Promise.all([
+    const [projectTasks, projectNodes, currentProject, allContents] = await Promise.all([
       db.tasks.where({ project_id: node.project_id }).toArray(),
       db.nodes.where({ project_id: node.project_id }).toArray(),
       db.projects.get(node.project_id),
+      db.nodeContents.toArray(),
     ]);
 
     const sorted = [...projectTasks].sort((a, b) => {
@@ -60,6 +63,7 @@ export function useTaskBoard(node: NodeData) {
 
     setTasks(sorted);
     setNodes(projectNodes);
+    setContents(allContents);
     setProject(currentProject ?? null);
     setDuplicates(detectDuplicateTasks(sorted));
   }, [node.project_id]);
@@ -73,6 +77,23 @@ export function useTaskBoard(node: NodeData) {
     nodes.forEach((sn) => map.set(sn.id, sn.label));
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
   }, [nodes]);
+
+  const taskProvenance = useMemo<Record<string, TaskProvenance>>(
+    () =>
+      Object.fromEntries(
+        tasks
+          .map((task) => [
+            task.id,
+            resolveTaskProvenance({
+              task,
+              nodes,
+              contents,
+            }),
+          ])
+          .filter((entry): entry is [string, TaskProvenance] => Boolean(entry[1])),
+      ),
+    [contents, nodes, tasks],
+  );
 
   const summary = useMemo<TaskSummary>(() => {
     const total = tasks.length;
@@ -289,6 +310,7 @@ export function useTaskBoard(node: NodeData) {
     setSourceFilter,
     duplicates,
     sourceOptions,
+    taskProvenance,
     updateTask,
     deleteTask,
     addManualTask,

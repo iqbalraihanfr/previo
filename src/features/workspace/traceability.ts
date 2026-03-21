@@ -6,10 +6,18 @@ import {
 } from "@/lib/sourceArtifacts";
 
 type TraceabilitySectionRow = {
+  sourceNodeId?: string;
+  targetNodeId?: string;
+  sourceItemId?: string;
   sourceLabel: string;
   relationLabel: string;
   targetLabels: string[];
   evidenceLabel: string;
+  status: "linked" | "missing" | "unresolved";
+  navigationTarget: {
+    nodeId: string;
+    label: string;
+  };
 };
 
 type TraceabilitySection = {
@@ -195,14 +203,35 @@ export function buildWorkspaceTraceabilityModel(params: {
           normalizeValue(item.related_scope) === normalizeValue(scope),
       );
 
+    const hasUnresolvedRequirements = requirementItems.some(
+      (item) => !normalizeValue(item.related_scope),
+    );
+    const status: TraceabilitySectionRow["status"] =
+      matches.length > 0 ? "linked" : hasUnresolvedRequirements ? "unresolved" : "missing";
+
     return {
+      sourceNodeId: briefEntry?.node.id,
+      targetNodeId: requirementEntry?.node.id,
+      sourceItemId: scope,
       sourceLabel: scope,
       relationLabel: "related_scope",
       targetLabels: matches.map(
         ({ item, displayId }) =>
           `${displayId}${asString(item.description) ? ` - ${asString(item.description)}` : ""}`,
       ),
-      evidenceLabel: matches.length > 0 ? "Linked by requirement scope" : "No matching requirement yet",
+      evidenceLabel:
+        status === "linked"
+          ? "Linked by requirement scope"
+          : status === "unresolved"
+            ? "Some requirements still have no related scope."
+            : "No matching requirement yet",
+      status,
+      navigationTarget: matches.length > 0 && requirementEntry?.node
+        ? { nodeId: requirementEntry.node.id, label: requirementEntry.node.label }
+        : {
+            nodeId: briefEntry?.node.id ?? "",
+            label: briefEntry?.node.label ?? "Project Brief",
+          },
     };
   });
 
@@ -221,14 +250,35 @@ export function buildWorkspaceTraceabilityModel(params: {
         );
       });
 
+    const hasUnresolvedStories = storyItems.some(
+      (story) => !normalizeValue(story.related_requirement),
+    );
+    const status: TraceabilitySectionRow["status"] =
+      matches.length > 0 ? "linked" : hasUnresolvedStories ? "unresolved" : "missing";
+
     return {
+      sourceNodeId: requirementEntry?.node.id,
+      targetNodeId: storyEntry?.node.id,
+      sourceItemId: displayId,
       sourceLabel: `${displayId}${asString(item.description) ? ` - ${asString(item.description)}` : ""}`,
       relationLabel: "related_requirement",
       targetLabels: matches.map(
         ({ story, displayId: storyDisplayId }) =>
           `${storyDisplayId}${asString(story.goal) ? ` - ${asString(story.goal)}` : ""}`,
       ),
-      evidenceLabel: matches.length > 0 ? "Linked by story requirement" : "No linked story yet",
+      evidenceLabel:
+        status === "linked"
+          ? "Linked by story requirement"
+          : status === "unresolved"
+            ? "Some stories still have no related requirement."
+            : "No linked story yet",
+      status,
+      navigationTarget: matches.length > 0 && storyEntry?.node
+        ? { nodeId: storyEntry.node.id, label: storyEntry.node.label }
+        : {
+            nodeId: requirementEntry?.node.id ?? "",
+            label: requirementEntry?.node.label ?? "Requirements",
+          },
     };
   });
 
@@ -256,14 +306,43 @@ export function buildWorkspaceTraceabilityModel(params: {
         );
       });
 
+    const hasUnresolvedUseCases = useCaseItems.some((useCase) => {
+      const relatedStories = [
+        ...(Array.isArray(useCase.related_user_stories)
+          ? useCase.related_user_stories
+          : []),
+        ...(Array.isArray(useCase.related_stories)
+          ? useCase.related_stories
+          : []),
+      ];
+      return relatedStories.length === 0;
+    });
+    const status: TraceabilitySectionRow["status"] =
+      matches.length > 0 ? "linked" : hasUnresolvedUseCases ? "unresolved" : "missing";
+
     return {
+      sourceNodeId: storyEntry?.node.id,
+      targetNodeId: useCaseEntry?.node.id,
+      sourceItemId: displayId,
       sourceLabel: `${displayId}${asString(story.role) ? ` - ${asString(story.role)}` : ""}`,
       relationLabel: "related_user_stories",
       targetLabels: matches.map(
         ({ useCase, displayId: useCaseDisplayId }) =>
           `${useCaseDisplayId}${asString(useCase.name) ? ` - ${asString(useCase.name)}` : ""}`,
       ),
-      evidenceLabel: matches.length > 0 ? "Linked by use case story map" : "No linked use case yet",
+      evidenceLabel:
+        status === "linked"
+          ? "Linked by use case story map"
+          : status === "unresolved"
+            ? "Some use cases still have no related stories."
+            : "No linked use case yet",
+      status,
+      navigationTarget: matches.length > 0 && useCaseEntry?.node
+        ? { nodeId: useCaseEntry.node.id, label: useCaseEntry.node.label }
+        : {
+            nodeId: storyEntry?.node.id ?? "",
+            label: storyEntry?.node.label ?? "User Stories",
+          },
     };
   });
 
@@ -281,7 +360,29 @@ export function buildWorkspaceTraceabilityModel(params: {
 
     const hasSequenceLink = normalizeValue(sequenceFields.related_use_case) === normalizeValue(useCase.id);
 
+    const hasUnresolvedDiagramLinks =
+      (Array.isArray(flowchartFields.flows)
+        ? flowchartFields.flows.some(
+            (flow) =>
+              typeof flow === "object" &&
+              flow !== null &&
+              !normalizeValue((flow as Record<string, unknown>).related_use_case),
+          )
+        : false) ||
+      (sequenceEntry?.content
+        ? !normalizeValue(sequenceFields.related_use_case)
+        : false);
+    const status: TraceabilitySectionRow["status"] =
+      hasFlowchartLink || hasSequenceLink
+        ? "linked"
+        : hasUnresolvedDiagramLinks
+          ? "unresolved"
+          : "missing";
+
     return {
+      sourceNodeId: useCaseEntry?.node.id,
+      targetNodeId: flowchartEntry?.node.id ?? sequenceEntry?.node.id,
+      sourceItemId: displayId,
       sourceLabel: `${displayId}${asString(useCase.name) ? ` - ${asString(useCase.name)}` : ""}`,
       relationLabel: "diagram coverage",
       targetLabels: [
@@ -289,9 +390,21 @@ export function buildWorkspaceTraceabilityModel(params: {
         ...(hasSequenceLink && sequenceEntry?.node ? [sequenceEntry.node.label] : []),
       ],
       evidenceLabel:
-        hasFlowchartLink || hasSequenceLink
+        status === "linked"
           ? "Linked through diagram structured fields"
-          : "No linked diagram yet",
+          : status === "unresolved"
+            ? "Diagram nodes exist but related use case identifiers are missing."
+            : "No linked diagram yet",
+      status,
+      navigationTarget:
+        (hasFlowchartLink && flowchartEntry?.node
+          ? { nodeId: flowchartEntry.node.id, label: flowchartEntry.node.label }
+          : hasSequenceLink && sequenceEntry?.node
+            ? { nodeId: sequenceEntry.node.id, label: sequenceEntry.node.label }
+            : {
+                nodeId: useCaseEntry?.node.id ?? "",
+                label: useCaseEntry?.node.label ?? "Use Cases",
+              }),
     };
   });
 
@@ -307,12 +420,33 @@ export function buildWorkspaceTraceabilityModel(params: {
       return relatedEntity === normalizeValue(entityName) || label === normalizeValue(entityName);
     });
 
+    const hasUnresolvedStores = dfdNodes.some((dfdNode) => {
+      const nodeType = (asString(dfdNode.type) || "").toLowerCase();
+      return nodeType === "datastore" && !normalizeValue(dfdNode.related_erd_entity);
+    });
+    const status: TraceabilitySectionRow["status"] =
+      dfdMatches.length > 0 ? "linked" : hasUnresolvedStores ? "unresolved" : "missing";
+
     return {
+      sourceNodeId: erdEntry?.node.id,
+      targetNodeId: dfdEntry?.node.id,
+      sourceItemId: entityName,
       sourceLabel: entityName,
       relationLabel: "related_erd_entity",
       targetLabels: dfdMatches.map((dfdNode) => asString(dfdNode.label) || "Data store"),
       evidenceLabel:
-        dfdMatches.length > 0 ? "Linked by datastore mapping" : "No matching DFD datastore yet",
+        status === "linked"
+          ? "Linked by datastore mapping"
+          : status === "unresolved"
+            ? "Some DFD datastores still have no ERD link."
+            : "No matching DFD datastore yet",
+      status,
+      navigationTarget: dfdMatches.length > 0 && dfdEntry?.node
+        ? { nodeId: dfdEntry.node.id, label: dfdEntry.node.label }
+        : {
+            nodeId: erdEntry?.node.id ?? "",
+            label: erdEntry?.node.label ?? "ERD",
+          },
     };
   });
 
