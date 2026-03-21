@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import type { ProjectDomain, StarterContentIntensity } from "@/lib/db";
 
 export async function dismissWorkspaceOnboarding(page: Page) {
   const dismissButton = page.getByTestId("dismiss-workspace-onboarding");
@@ -51,6 +52,9 @@ export async function createProject(
   params: {
     name: string;
     template?: "quick" | "full";
+    deliveryMode?: "agile" | "waterfall" | "hybrid";
+    domain?: ProjectDomain;
+    starterContentIntensity?: StarterContentIntensity;
   },
 ) {
   let dashboardReady = false;
@@ -107,18 +111,67 @@ export async function createProject(
   await expect(createDialog).toBeVisible({ timeout: 15000 });
 
   await createDialog.getByLabel(/project name/i).fill(params.name);
+  await createDialog.getByTestId("create-project-next").click();
 
-  if (params.template && params.template !== "quick") {
-    await createDialog.getByTestId(`template-option-${params.template}`).click();
+  const workflow = params.template ?? "quick";
+  await expect(createDialog.getByTestId(`workflow-option-${workflow}`)).toBeVisible();
+  if (workflow !== "quick") {
+    await createDialog.getByTestId(`workflow-option-${workflow}`).click();
+  }
+
+  await createDialog.getByTestId("create-project-next").click();
+
+  if (params.deliveryMode && params.deliveryMode !== "agile") {
+    await createDialog.getByTestId("delivery-mode-trigger").click();
+    await page
+      .getByRole("option", {
+        name:
+          params.deliveryMode === "waterfall"
+            ? /^waterfall$/i
+            : /^hybrid$/i,
+      })
+      .click();
+  }
+
+  await createDialog.getByTestId("create-project-next").click();
+
+  const domain = params.domain ?? "general";
+  if (domain !== "general") {
+    await createDialog.getByTestId("project-domain-trigger").click();
+    await page
+      .getByRole("option", {
+        name:
+          domain === "saas"
+            ? /^saas$/i
+            : domain === "ecommerce"
+              ? /^ecommerce$/i
+              : domain === "mobile_web"
+                ? /^mobile web$/i
+                : domain === "internal_tool"
+                  ? /^internal tool$/i
+                  : domain === "marketplace"
+                    ? /^marketplace$/i
+                    : /^content platform$/i,
+      })
+      .click();
+  }
+
+  const starterContentIntensity = params.starterContentIntensity ?? "none";
+  if (starterContentIntensity !== "none") {
+    await createDialog
+      .getByTestId(`intensity-option-${starterContentIntensity}`)
+      .click();
   }
 
   await createDialog.getByTestId("create-workspace-submit").click();
   const workspaceHeader = page.getByTestId("workspace-header");
   const workspaceScreen = page.getByTestId("workspace-screen");
+  const dashboardScreen = page.getByTestId("dashboard-screen");
   const reachedWorkspace = await Promise.any([
-    page.waitForURL(/\/workspace\//, { timeout: 15000 }).then(() => true),
-    workspaceHeader.waitFor({ state: "visible", timeout: 15000 }).then(() => true),
-    workspaceScreen.waitFor({ state: "visible", timeout: 15000 }).then(() => true),
+    page.waitForURL(/\/workspace\//, { timeout: 10000 }).then(() => true),
+    workspaceHeader.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
+    workspaceScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
+    dashboardScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
   ]).catch(() => false);
 
   const isWorkspaceReady =
@@ -129,30 +182,42 @@ export async function createProject(
 
   if (!isWorkspaceReady) {
     const resolvedDestination = await Promise.any([
-      page.waitForURL(/\/workspace\//, { timeout: 15000 }).then(() => "workspace"),
-      workspaceHeader.waitFor({ state: "visible", timeout: 15000 }).then(() => "workspace"),
-      workspaceScreen.waitFor({ state: "visible", timeout: 15000 }).then(() => "workspace"),
-      page
-        .getByTestId("dashboard-screen")
-        .waitFor({ state: "visible", timeout: 15000 })
-        .then(() => "dashboard"),
+      page.waitForURL(/\/workspace\//, { timeout: 10000 }).then(() => "workspace"),
+      workspaceHeader.waitFor({ state: "visible", timeout: 10000 }).then(() => "workspace"),
+      workspaceScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => "workspace"),
+      dashboardScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => "dashboard"),
     ]).catch(() => "unknown");
 
     if (resolvedDestination === "dashboard") {
+      const projectCard = page.locator(
+        `[data-project-name="${params.name}"]`,
+      ).first();
       const recentContinue = page.getByTestId("recent-project-continue");
-      if (await recentContinue.isVisible().catch(() => false)) {
+
+      const openedFromCard = await projectCard
+        .waitFor({ state: "visible", timeout: 30000 })
+        .then(async () => {
+          const continueButton = projectCard.getByRole("button", {
+            name: /continue/i,
+          });
+
+          if (await continueButton.isVisible().catch(() => false)) {
+            await continueButton.click();
+          } else {
+            await projectCard.click();
+          }
+
+          return true;
+        })
+        .catch(() => false);
+
+      if (!openedFromCard && (await recentContinue.isVisible().catch(() => false))) {
         await recentContinue.click();
-      } else {
-        const projectCard = page.locator(
-          `[data-project-name="${params.name}"]`,
-        ).first();
-        await expect(projectCard).toBeVisible({ timeout: 30000 });
-        await projectCard.getByRole("button", { name: /continue/i }).click();
       }
     }
   }
 
-  await expect(page).toHaveURL(/\/workspace\//, { timeout: 45000 });
+  await expect(page).toHaveURL(/\/workspace\//, { timeout: 30000 });
 
   try {
     await expect(page.getByTestId("workspace-screen")).toBeVisible({
@@ -219,6 +284,13 @@ export async function importNode(page: Page, nodeType: string, rawContent: strin
     "Imported source",
     { timeout: 15000 },
   );
+}
+
+export async function openProjectNotes(page: Page) {
+  await page.getByTestId("workspace-project-notes").click();
+  await expect(page.getByTestId("project-notes-panel")).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 export async function markCurrentNodeDone(page: Page) {

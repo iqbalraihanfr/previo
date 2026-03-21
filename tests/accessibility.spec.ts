@@ -7,6 +7,8 @@ import {
   openWorkspaceCommandMenu,
 } from "./helpers/app";
 
+test.describe.configure({ timeout: 90000 });
+
 test.describe("Previo accessibility smoke", () => {
   test("keeps dashboard create flow accessible by role and label", async ({
     page,
@@ -26,8 +28,17 @@ test.describe("Previo accessibility smoke", () => {
       dialog.getByRole("heading", { name: /create new project/i }),
     ).toBeVisible();
     await expect(dialog.getByLabel(/project name/i)).toBeVisible();
-    await expect(dialog.getByTestId("template-option-quick")).toBeVisible();
-    await expect(dialog.getByTestId("template-option-full")).toBeVisible();
+    await expect(dialog.getByTestId("create-project-step-basics")).toBeVisible();
+    await expect(dialog.getByTestId("create-project-step-advanced")).toBeVisible();
+    await expect(dialog.getByTestId("workflow-option-quick")).toHaveCount(0);
+    await dialog.getByLabel(/project name/i).fill(`A11y ${Date.now()}`);
+    await dialog.getByTestId("create-project-next").click();
+    await expect(dialog.getByTestId("workflow-option-quick")).toBeVisible();
+    await expect(dialog.getByTestId("workflow-option-full")).toBeVisible();
+    await dialog.getByTestId("create-project-next").click();
+    await dialog.getByTestId("create-project-next").click();
+    await expect(dialog.getByTestId("project-domain-trigger")).toBeVisible();
+    await expect(dialog.getByTestId("intensity-option-none")).toBeVisible();
     await expect(
       dialog.getByRole("button", { name: /create workspace/i }),
     ).toBeVisible();

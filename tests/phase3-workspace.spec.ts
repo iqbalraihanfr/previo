@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject, openNode } from "./helpers/app";
+import { createProject, importNode, openNode } from "./helpers/app";
 
 test.describe("Previo phase 3 workspace QA", () => {
   test("supports command menu actions and node search/jump", async ({ page }) => {
@@ -107,5 +107,53 @@ test.describe("Previo phase 3 workspace QA", () => {
       page.getByTestId("task-board-export-json").click(),
     ]);
     await expect(jsonDownload.suggestedFilename()).toBe("Previo-tasks.json");
+  });
+
+  test("shows structured traceability links and imported provenance", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+
+    await page.route("**/api/ai/import-document", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: {
+          fields: {
+            name: "Traceable Workspace",
+            background: "Imported brief for traceability.",
+            target_users: ["Customer"],
+            scope_in: ["Self-service signup"],
+            objectives: ["Launch a traced workflow"],
+          },
+        },
+      });
+    });
+
+    await createProject(page, {
+      name: `Traceability QA ${Date.now()}`,
+      template: "quick",
+    });
+
+    await importNode(
+      page,
+      "project_brief",
+      "Traceability fixture for the workspace panel.",
+    );
+
+    await importNode(
+      page,
+      "requirements",
+      "[FR] [Must] Allow sign up via email | Authentication | Self-service signup",
+    );
+
+    await page.getByTestId("workspace-traceability").click();
+    const traceabilityPanel = page.getByTestId("workspace-traceability-panel");
+    await expect(traceabilityPanel).toBeVisible();
+    await expect(traceabilityPanel).toContainText("Brief to requirements");
+    await expect(traceabilityPanel).toContainText("Self-service signup");
+    await expect(traceabilityPanel).toContainText("Allow sign up via email");
+    await expect(traceabilityPanel).toContainText("Imported brief");
+    await expect(traceabilityPanel).toContainText("Brief document");
   });
 });

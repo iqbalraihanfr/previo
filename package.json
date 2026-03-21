@@ -4,8 +4,8 @@
   "private": true,
   "packageManager": "pnpm@10.17.1",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build --webpack",
+    "dev": "next dev --webpack",
+    "build": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\" && next build --webpack",
     "start": "next start",
     "start:prod": "next start --hostname 127.0.0.1 --port 3001",
     "lint": "eslint",

@@ -4,11 +4,39 @@ import {
   createProject,
   dismissWorkspaceOnboarding,
   importNode,
+  openProjectNotes,
   openNode,
   returnToDashboard,
 } from "./helpers/app";
 
+test.describe.configure({ timeout: 90000 });
+
 test.describe("Previo feature QA", () => {
+  test("stages project creation and replaces starter content templates with intensity", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByTestId("dashboard-new-project").click();
+
+    const dialog = page.getByTestId("create-project-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByTestId("create-project-panel-basics")).toBeVisible();
+    await expect(dialog.getByTestId("create-project-step-basics")).toBeVisible();
+    await dialog.getByLabel(/project name/i).fill(`Stage QA ${Date.now()}`);
+
+    await dialog.getByTestId("create-project-next").click();
+    await expect(dialog.getByTestId("create-project-panel-workflow")).toBeVisible();
+    await expect(dialog.getByTestId("workflow-option-quick")).toBeVisible();
+    await expect(dialog.getByTestId("workflow-option-full")).toBeVisible();
+    await expect(dialog.getByTestId("template-option-blank")).toHaveCount(0);
+
+    await dialog.getByTestId("create-project-next").click();
+    await dialog.getByTestId("create-project-next").click();
+    await expect(dialog.getByTestId("create-project-panel-advanced")).toBeVisible();
+    await expect(dialog.getByTestId("project-domain-trigger")).toBeVisible();
+    await expect(dialog.getByTestId("intensity-option-none")).toBeVisible();
+  });
+
   test("filters dashboard projects by search and project type", async ({ page }) => {
     test.setTimeout(90000);
 
@@ -33,6 +61,22 @@ test.describe("Previo feature QA", () => {
       .click({ force: true });
     await expect(page.locator(`[data-project-name="${fullName}"]`)).toBeVisible();
     await expect(page.locator(`[data-project-name="${quickName}"]`)).toBeHidden();
+  });
+
+  test("keeps the dashboard hero compact while preserving recent project and stats", async ({
+    page,
+  }) => {
+    const projectName = `Hero QA ${Date.now()}`;
+    await createProject(page, { name: projectName, template: "quick" });
+
+    await returnToDashboard(page);
+
+    const hero = page.getByTestId("dashboard-hero");
+    await expect(hero).toBeVisible();
+    await expect(hero).toContainText(projectName);
+    await expect(hero).toContainText("Projects");
+    await expect(hero).toContainText("Nodes");
+    await expect(hero).toContainText("Completed");
   });
 
   test("supports manual task addition and task-board search", async ({ page }) => {
@@ -65,5 +109,28 @@ test.describe("Previo feature QA", () => {
     await expect(summaryEditor).toBeVisible();
     await expect(summaryEditor).toContainText("Blueprint Empty");
     await expect(summaryEditor).toContainText("No specifications found");
+  });
+
+  test("uses a fixed workflow map and keeps project notes outside canonical compilation", async ({
+    page,
+  }) => {
+    const projectName = `Notes QA ${Date.now()}`;
+    await createProject(page, { name: projectName, template: "quick" });
+
+    await expect(page.getByText("Add Node")).toHaveCount(0);
+    await openProjectNotes(page);
+    await expect(page.getByTestId("project-notes-panel")).toContainText(
+      "do not affect validation, tasks, summary, or readiness",
+    );
+
+    const notesTextarea = page.getByTestId("project-notes-textarea");
+    await notesTextarea.fill("Private scratch note");
+    await expect(page.getByTestId("project-notes-save-state")).toContainText(
+      /saving|saved/i,
+    );
+
+    await page.getByTestId("project-notes-close").click();
+    await openProjectNotes(page);
+    await expect(notesTextarea).toHaveValue("Private scratch note");
   });
 });

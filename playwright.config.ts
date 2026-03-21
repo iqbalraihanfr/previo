@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   testMatch: ['**/*.spec.ts'],
-  testIgnore: ['**/unit/**'],
+  testIgnore: ['**/unit/**', '**/prod-smoke.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
@@ -22,8 +22,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev --hostname 127.0.0.1',
+    command:
+      'mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && PORT=3000 HOSTNAME=127.0.0.1 node .next/standalone/server.js',
     url: 'http://127.0.0.1:3000',
+    timeout: 120_000,
     reuseExistingServer: !process.env.CI,
   },
 });
