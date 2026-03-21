@@ -3,9 +3,7 @@ import { test, expect } from "@playwright/test";
 import {
   createProject,
   dismissWorkspaceOnboarding,
-  importNode,
   openProjectNotes,
-  openNode,
   returnToDashboard,
 } from "./helpers/app";
 

@@ -88,16 +88,24 @@ test.describe("Previo editor UX", () => {
     await openWorkspaceNode(page, "requirements");
     await expect(page.getByTestId("editor-entry-state")).toBeVisible();
     await expect(page.getByTestId("node-source-import")).toBeVisible();
-    await expect(page.getByTestId("node-source-manual-action")).toBeVisible();
-    await expect(page.getByTestId("node-source-manual-action")).toContainText(
-      "Create manually",
-    );
+    await expect(page.getByTestId("node-source-manual-action")).toHaveCount(0);
 
-    await page.getByTestId("node-source-manual-action").click();
+    await page.getByTestId("node-source-import").click();
+    await expect(page.getByTestId("source-import-dialog")).toBeVisible();
+    await page
+      .getByTestId("source-import-textarea")
+      .fill("[FR] [Must] User can review imported requirements | Review | Imported scope");
+    await page.getByTestId("source-import-parse").click();
+    await page.getByTestId("source-import-apply").click();
+    await expect(page.getByTestId("source-import-dialog")).toBeHidden({
+      timeout: 15000,
+    });
     await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
       "data-editor-mode",
-      "editing",
+      "review",
     );
+
+    await page.getByTestId("editor-mode-editing").click();
 
     const referenceArea = page.getByTestId("editor-reference-area");
     await expect(referenceArea).not.toHaveAttribute("open", "");
@@ -158,7 +166,7 @@ test.describe("Previo editor UX", () => {
     );
     await page.getByTestId("node-source-provenance-toggle").click();
     await expect(page.getByTestId("node-source-provenance-details")).toContainText(
-      "Manual entry: secondary",
+      "Manual entry: review only",
     );
   });
 
