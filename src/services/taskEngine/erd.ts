@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TaskData } from "@/lib/db";
+import { compactTaskText, normalizeTaskPhrase } from "./utils";
 
 export function generateERDTasks(
   nodeId: string,
@@ -12,16 +13,18 @@ export function generateERDTasks(
   let order = 0;
 
   entities.forEach((entity: any) => {
-    if (!entity.name) return;
-    
-    // Migration task
+    const name = String(entity.name ?? "").trim();
+    if (!name) return;
+    const entitySlug = normalizeTaskPhrase(name).replace(/\s+/g, "-") || name.toLowerCase();
+    const attributeCount = Array.isArray(entity.attributes) ? entity.attributes.length : 0;
+
     tasks.push({
       project_id: projectId,
       source_node_id: nodeId,
-      source_item_id: `erd-migration-${entity.name.toLowerCase()}`,
-      title: `Create ${entity.name} migration + model`,
-      description: `Database schema implementation for ${entity.name} entity.`,
-      group_key: "Database",
+      source_item_id: `erd-model-${entitySlug}`,
+      title: `Create data model for ${compactTaskText(name, 44)}`,
+      description: `Database schema implementation for ${name} entity.`,
+      group_key: "Database Schema",
       feature_name: "Database Schema",
       priority_tier: "P0",
       priority: "Must",
@@ -31,15 +34,14 @@ export function generateERDTasks(
       sort_order: order++,
     });
 
-    // Validation task if 5+ attributes
-    if ((entity.attributes || []).length >= 5) {
+    if (attributeCount >= 5) {
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `erd-validation-${entity.name.toLowerCase()}`,
-        title: `Add validations for ${entity.name}`,
-        description: `${entity.name} has ${entity.attributes.length} attributes — add input validation rules.`,
-        group_key: "Database",
+        source_item_id: `erd-validation-${entitySlug}`,
+        title: `Validate ${compactTaskText(name, 44)} inputs`,
+        description: `${name} has ${attributeCount} attributes - add input validation rules.`,
+        group_key: "Database Schema",
         feature_name: "Database Schema",
         priority_tier: "P1",
         priority: "Should",
@@ -50,14 +52,13 @@ export function generateERDTasks(
       });
     }
 
-    // Seed data task
     tasks.push({
       project_id: projectId,
       source_node_id: nodeId,
-      source_item_id: `erd-seed-${entity.name.toLowerCase()}`,
-      title: `Create seed data for ${entity.name}`,
-      description: `Generate sample/seed data for ${entity.name} entity.`,
-      group_key: "Database",
+      source_item_id: `erd-seed-${entitySlug}`,
+      title: `Seed ${compactTaskText(name, 44)} records`,
+      description: `Generate sample/seed data for ${name} entity.`,
+      group_key: "Database Schema",
       feature_name: "Quality & Performance",
       priority_tier: "P2",
       priority: "Could",
@@ -70,14 +71,17 @@ export function generateERDTasks(
 
   // Relationship tasks
   rels.forEach((rel: any) => {
-    if (!rel.from || !rel.to) return;
+    const from = String(rel.from ?? "").trim();
+    const to = String(rel.to ?? "").trim();
+    if (!from || !to) return;
+    const relationshipSlug = normalizeTaskPhrase(`${from} ${to}`).replace(/\s+/g, "-") || `${from}-${to}`;
     tasks.push({
       project_id: projectId,
       source_node_id: nodeId,
-      source_item_id: `erd-rel-${rel.from.toLowerCase()}-${rel.to.toLowerCase()}`,
-      title: `Setup ${rel.from} ↔ ${rel.to} relationship`,
-      description: `Configure ${rel.type || "one-to-many"} relationship between ${rel.from} and ${rel.to}.`,
-      group_key: "Database",
+      source_item_id: `erd-rel-${relationshipSlug}`,
+      title: `Link ${compactTaskText(from, 30)} and ${compactTaskText(to, 30)}`,
+      description: `Configure ${rel.type || "one-to-many"} relationship between ${from} and ${to}.`,
+      group_key: "Database Schema",
       feature_name: "Database Schema",
       priority_tier: "P0",
       priority: "Must",
@@ -89,14 +93,14 @@ export function generateERDTasks(
 
     // N:M pivot table task
     if (rel.type === "many-to-many") {
-      const junction = rel.junction_table || `${rel.from}_${rel.to}`;
+      const junction = String(rel.junction_table || `${from}_${to}`).trim();
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `erd-pivot-${rel.from.toLowerCase()}-${rel.to.toLowerCase()}`,
-        title: `Create ${junction} pivot table`,
-        description: `N:M junction table for ${rel.from} ↔ ${rel.to}.`,
-        group_key: "Database",
+        source_item_id: `erd-pivot-${relationshipSlug}`,
+        title: `Add join table for ${compactTaskText(junction, 44)}`,
+        description: `N:M junction table for ${from} ↔ ${to}.`,
+        group_key: "Database Schema",
         feature_name: "Database Schema",
         priority_tier: "P0",
         priority: "Must",

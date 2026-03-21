@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TaskData } from "@/lib/db";
+import { compactTaskText, normalizeTaskPhrase } from "./utils";
 
 export function generateSequenceTasks(
   nodeId: string,
@@ -13,20 +14,20 @@ export function generateSequenceTasks(
   const seenServices = new Set<string>();
   const seenAltGroups = new Set<string>();
 
-  // Service participant → module task
   participants.forEach((p: any) => {
-    const name = typeof p === "string" ? p : p?.name || "";
-    const type = typeof p === "string" ? "component" : p?.type || "component";
-    
+    const name = String(typeof p === "string" ? p : p?.name || "").trim();
+    const type = typeof p === "string" ? "component" : String(p?.type || "component").trim();
+
     if (type === "service" && name && !seenServices.has(name)) {
       seenServices.add(name);
+      const serviceSlug = normalizeTaskPhrase(name).replace(/\s+/g, "-") || name.toLowerCase();
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `seq-service-${name.toLowerCase().replace(/\s+/g, "-")}`,
-        title: `Setup ${name} module`,
+        source_item_id: `seq-service-${serviceSlug}`,
+        title: `Provision ${compactTaskText(name, 40)} service`,
         description: `Initialize and configure the ${name} service module.`,
-        group_key: "Backend",
+        group_key: "Backend Platform",
         feature_name: "API & Infrastructure",
         priority_tier: "P0",
         priority: "Must",
@@ -39,21 +40,20 @@ export function generateSequenceTasks(
   });
 
   messages.forEach((msg: any, msgIdx: number) => {
-    const content = msg.content || "";
+    const content = String(msg.content || "").trim();
     if (!content) return;
 
-    // HTTP messages → API endpoint task
     const httpMatch = content.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(.+)/i);
     if (httpMatch || /\/api\//.test(content)) {
       const method = httpMatch ? httpMatch[1].toUpperCase() : "API";
       const endpoint = httpMatch ? httpMatch[2] : content;
-      
+      const endpointSlug = normalizeTaskPhrase(content).replace(/\s+/g, "-").slice(0, 48) || `api-${msgIdx}`;
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `seq-api-${msgIdx}-${content.toLowerCase().replace(/\s+/g, "-").substring(0, 30)}`,
-        title: `Create ${method} ${endpoint}`,
-        description: `API endpoint: ${content} (${msg.from} → ${msg.to})`,
+        source_item_id: `seq-api-${msgIdx}-${endpointSlug}`,
+        title: `Implement ${method} ${compactTaskText(endpoint, 52)}`,
+        description: `API endpoint: ${content} (${String(msg.from || "source").trim()} → ${String(msg.to || "target").trim()})`,
         group_key: "API",
         feature_name: "API & Infrastructure",
         priority_tier: "P0",
@@ -64,14 +64,13 @@ export function generateSequenceTasks(
         sort_order: order++,
       });
     } else {
-      // Generic message task
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `seq-msg-${msgIdx}`,
-        title: `Implement: ${content}`,
-        description: `Integration: ${msg.from} → ${msg.to}: ${content}`,
-        group_key: "Logic",
+        source_item_id: `seq-msg-${msgIdx}-${normalizeTaskPhrase(content).replace(/\s+/g, "-").slice(0, 48) || "message"}`,
+        title: `Wire ${compactTaskText(content, 52)}`,
+        description: `Integration: ${String(msg.from || "source").trim()} → ${String(msg.to || "target").trim()}: ${content}`,
+        group_key: "Integration",
         feature_name: "API & Infrastructure",
         priority_tier: "P1",
         priority: "Should",
@@ -87,13 +86,14 @@ export function generateSequenceTasks(
     const groupLabel = msg.group_label || group;
     if (group === "alt" && groupLabel && !seenAltGroups.has(groupLabel)) {
       seenAltGroups.add(groupLabel);
+      const labelSlug = normalizeTaskPhrase(groupLabel).replace(/\s+/g, "-") || "alt";
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `seq-alt-${groupLabel.toLowerCase().replace(/\s+/g, "-")}`,
-        title: `Handle: ${groupLabel} error case`,
+        source_item_id: `seq-alt-${labelSlug}`,
+        title: `Cover ${compactTaskText(groupLabel, 40)} edge case`,
         description: `Error handling for alternative flow: ${groupLabel}`,
-        group_key: "Quality",
+        group_key: "Quality & Performance",
         feature_name: "Quality & Performance",
         priority_tier: "P1",
         priority: "Should",

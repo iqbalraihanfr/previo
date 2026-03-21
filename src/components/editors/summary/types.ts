@@ -203,3 +203,10 @@ export type ProjectSnapshot = {
   tasks: TaskData[];
   warnings: ValidationWarning[];
 };
+
+export type SummaryFraming = {
+  executiveSnapshot: string[];
+  readinessGaps: string[];
+  recommendedNextActions: string[];
+  traceabilityHighlights: string[];
+};

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TaskData } from "@/lib/db";
-import { mapPriorityToTier } from "./utils";
+import { compactTaskText, mapPriorityToTier, normalizeTaskPhrase } from "./utils";
 
 export function generateRequirementTasks(
   nodeId: string,
@@ -11,35 +11,36 @@ export function generateRequirementTasks(
   const items = (fields.items as any[]) || [];
   let order = 0;
 
-  // Group items by category to define "Features"
   const featureGroups: Record<string, any[]> = {};
   items.forEach((item) => {
     if ((item.type || "FR") !== "FR") return;
-    const cat = item.category || "General";
+    const cat = item.category || item.related_scope || "General";
     if (!featureGroups[cat]) featureGroups[cat] = [];
     featureGroups[cat].push(item);
   });
 
-  // Create tasks per feature
   Object.entries(featureGroups).forEach(([featureName, featureItems]) => {
-    // 1. Feature Core Implementation Task
     const topPriority = featureItems.reduce((prev, curr) => {
       const pMap: Record<string, number> = { Must: 0, Should: 1, Could: 2, Wont: 3 };
       return (pMap[curr.priority] ?? 1) < (pMap[prev.priority] ?? 1) ? curr : prev;
     }, featureItems[0]);
 
     const tier = mapPriorityToTier(topPriority.priority);
-
-    // DoD for this feature based on all FRs in it
-    const dod = featureItems.map(i => ({ text: i.description, done: false }));
+    const requirementCount = featureItems.length;
+    const featureLabel = compactTaskText(featureName, 42);
+    const featureSlug = normalizeTaskPhrase(featureName).replace(/\s+/g, "-") || "general";
+    const dod = featureItems
+      .map((i) => compactTaskText(String(i.description ?? "").trim(), 96))
+      .filter(Boolean)
+      .map((text) => ({ text, done: false }));
 
     tasks.push({
       project_id: projectId,
       source_node_id: nodeId,
-      source_item_id: `feature-${featureName.toLowerCase().replace(/\s+/g, "-")}`,
-      title: `${featureName}: Core Implementation`,
-      description: `Implementation of the ${featureName} feature covering ${featureItems.length} requirements.`,
-      group_key: "Feature",
+      source_item_id: `feature-${featureSlug}`,
+      title: `Deliver ${featureLabel}`,
+      description: `Implement the ${featureLabel} area across ${requirementCount} functional requirement${requirementCount === 1 ? "" : "s"}.`,
+      group_key: "Feature Delivery",
       feature_name: featureName,
       priority_tier: tier,
       dod_items: dod,
@@ -50,16 +51,17 @@ export function generateRequirementTasks(
       sort_order: order++,
     });
 
-    // 2. Individual tasks for complex FRs
     featureItems.forEach((item, idx) => {
-      if (item.description.length > 100) {
+      const description = String(item.description ?? "").trim();
+      if (description.length > 100) {
+        const snippet = compactTaskText(description, 64);
         tasks.push({
           project_id: projectId,
           source_node_id: nodeId,
           source_item_id: `fr-${item.id || idx}`,
-          title: `Detail: ${item.description.slice(0, 50)}...`,
-          description: item.description,
-          group_key: "Logic",
+          title: `Split ${featureLabel} requirement: ${snippet}`,
+          description,
+          group_key: "Feature Delivery",
           feature_name: featureName,
           priority_tier: mapPriorityToTier(item.priority),
           priority: item.priority || "Should",
@@ -72,16 +74,18 @@ export function generateRequirementTasks(
     });
   });
 
-  // NFR tasks
   const nfrs = items.filter(i => i.type === "NFR");
   nfrs.forEach((nfr, idx) => {
+    const category = compactTaskText(String(nfr.category || "Quality"), 28);
+    const metric = compactTaskText(String(nfr.metric || "target"), 28);
+    const target = String(nfr.target || "N/A").trim();
     tasks.push({
       project_id: projectId,
       source_node_id: nodeId,
       source_item_id: `nfr-${nfr.id || idx}`,
-      title: `Quality: ${nfr.category || "Performance"} - ${nfr.metric || "Goal"}`,
-      description: `${nfr.description}\nTarget: ${nfr.target || "N/A"}`,
-      group_key: "Quality",
+      title: `Harden ${category}: ${metric}`,
+      description: `${String(nfr.description || "").trim()}${target ? `\nTarget: ${target}` : ""}`.trim(),
+      group_key: "Quality & Performance",
       feature_name: "Quality & Performance",
       priority_tier: mapPriorityToTier(nfr.priority),
       priority: nfr.priority || "Should",

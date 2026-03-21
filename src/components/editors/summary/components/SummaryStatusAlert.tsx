@@ -35,7 +35,7 @@ export function SummaryStatusAlert({
 
       <div className="flex-1 space-y-1">
         <h4 className="text-base font-bold tracking-tight">
-          {isReady ? "Architecture Validated" : "Documentation Incomplete"}
+          {isReady ? "Architecture Ready" : "Documentation Incomplete"}
         </h4>
 
         <div className="text-sm leading-relaxed opacity-80 font-medium">
@@ -52,7 +52,7 @@ export function SummaryStatusAlert({
             </p>
           )}
           {isReady && (
-            <p>Your blueprint is clinically complete. Ready for implementation and export phase.</p>
+            <p>The workspace is complete enough for implementation planning, export, and downstream handoff.</p>
           )}
         </div>
       </div>

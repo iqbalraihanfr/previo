@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TaskData } from "@/lib/db";
+import { compactTaskText, normalizeTaskPhrase } from "./utils";
 
 export function generateFlowchartTasks(
   nodeId: string,
@@ -15,18 +16,20 @@ export function generateFlowchartTasks(
 
   const processSteps = (steps: any[], featureName: string) => {
     steps.forEach((s: any) => {
-      if (!s.label || s.type === "start" || s.type === "end") return;
+      const label = String(s.label ?? "").trim();
+      if (!label || s.type === "start" || s.type === "end") return;
       const isDecision = s.type === "decision";
+      const stepSlug = normalizeTaskPhrase(label).replace(/\s+/g, "-") || "step";
       
       tasks.push({
         project_id: projectId,
         source_node_id: nodeId,
-        source_item_id: `flowchart-step-${order}-${s.label.toLowerCase().replace(/\s+/g, "-")}`,
-        title: isDecision ? `Validate: ${s.label}` : s.label,
+        source_item_id: `flowchart-step-${order}-${stepSlug}`,
+        title: isDecision ? `Add decision branch for ${compactTaskText(label, 44)}` : `Build step: ${compactTaskText(label, 52)}`,
         description: isDecision
-          ? `Implement branching logic for: ${s.label}`
-          : `Implement process: ${s.label}`,
-        group_key: "Logic",
+          ? `Implement branching logic for: ${label}`
+          : `Implement process step: ${label}`,
+        group_key: "Process Flow",
         feature_name: featureName,
         priority_tier: "P0",
         priority: "Must",

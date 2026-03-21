@@ -8,6 +8,7 @@ import type {
   SequenceMessage,
   SummaryContent,
   SummaryStructuredFields,
+  SummaryFraming,
   UseCaseItem,
   UserStoryItem,
 } from "./types";
@@ -371,4 +372,137 @@ export function formatMermaidError(error: unknown): string {
   }
 
   return "Invalid Mermaid syntax.";
+}
+
+function compactSentence(value: string, maxLength = 96): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function formatCountLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function listPreview(values: string[], maxItems = 3): string {
+  const trimmed = values.map((value) => value.trim()).filter(Boolean);
+  if (trimmed.length === 0) return "";
+  if (trimmed.length <= maxItems) return trimmed.join(", ");
+  return `${trimmed.slice(0, maxItems).join(", ")} and ${trimmed.length - maxItems} more`;
+}
+
+export function buildSummaryFraming({
+  deliveryModeLabel,
+  nodesDone,
+  totalTasks,
+  tasksDone,
+  warningCount,
+  isProjectReady,
+  incompleteNodeCount,
+  errorWarnings,
+  warnWarnings,
+  coverage,
+  deliveryPlanTitles,
+  sprintProposalTitles,
+  apiEndpoints,
+  importedNodes,
+  generatedNodes,
+  manualNodes,
+  overriddenNodes,
+}: {
+  deliveryModeLabel: string;
+  nodesDone: number;
+  totalTasks: number;
+  tasksDone: number;
+  warningCount: number;
+  isProjectReady: boolean;
+  incompleteNodeCount: number;
+  errorWarnings: number;
+  warnWarnings: number;
+  coverage: CoverageMetric[];
+  deliveryPlanTitles: string[];
+  sprintProposalTitles: string[];
+  apiEndpoints: string[];
+  importedNodes: number;
+  generatedNodes: number;
+  manualNodes: number;
+  overriddenNodes: number;
+}): SummaryFraming {
+  const executedCoverage = coverage.filter((metric) => metric.total > 0);
+  const fullyTraced = executedCoverage.filter(
+    (metric) => metric.covered >= metric.total,
+  ).length;
+  const coverageCount = executedCoverage.length;
+  const coverageSummary =
+    coverageCount > 0
+      ? `${fullyTraced}/${coverageCount} trace checks are complete`
+      : "No cross-artifact trace checks are available yet";
+
+  const executiveSnapshot = [
+    `${deliveryModeLabel} delivery is tracking ${formatCountLabel(nodesDone, "node")} done and ${formatCountLabel(tasksDone, "task")} complete out of ${totalTasks}.`,
+    `${coverageSummary}.`,
+    warningCount > 0
+      ? `${formatCountLabel(warningCount, "warning")} remain across the workspace.`
+      : "No warnings remain across the workspace.",
+  ];
+
+  const readinessGaps: string[] = [];
+  if (!isProjectReady) {
+    if (incompleteNodeCount > 0) {
+      readinessGaps.push(
+        `${formatCountLabel(incompleteNodeCount, "specification node")} still need completion.`,
+      );
+    }
+    if (errorWarnings > 0) {
+      readinessGaps.push(
+        `${formatCountLabel(errorWarnings, "validation error")} must be resolved before handoff.`,
+      );
+    }
+    if (warnWarnings > 0) {
+      readinessGaps.push(
+        `${formatCountLabel(warnWarnings, "warning")} should be reviewed for quality risks.`,
+      );
+    }
+    coverage
+      .filter((metric) => metric.total > 0 && metric.covered < metric.total)
+      .slice(0, 2)
+      .forEach((metric) => {
+        readinessGaps.push(`${metric.label}: ${metric.covered}/${metric.total} traced.`);
+      });
+  }
+
+  if (readinessGaps.length === 0) {
+    readinessGaps.push("No blocking gaps detected.");
+  }
+
+  const recommendedNextActions: string[] = [];
+  if (errorWarnings > 0) {
+    recommendedNextActions.push("Resolve the current validation errors first.");
+  }
+  if (incompleteNodeCount > 0) {
+    recommendedNextActions.push("Finish the remaining specification nodes.");
+  }
+  if (deliveryPlanTitles.length > 0) {
+    recommendedNextActions.push(`Start with ${deliveryPlanTitles[0]}.`);
+  }
+  if (!isProjectReady && sprintProposalTitles.length > 0) {
+    recommendedNextActions.push(`Review ${sprintProposalTitles[0]} for the next implementation slice.`);
+  }
+  if (recommendedNextActions.length === 0) {
+    recommendedNextActions.push("Export the summary or hand off to implementation.");
+  }
+
+  const traceabilityHighlights = [
+    apiEndpoints.length > 0
+      ? `API coverage includes ${listPreview(apiEndpoints)}.`
+      : "No API endpoints have been detected yet.",
+    `Provenance is ${formatCountLabel(importedNodes, "imported node")}, ${formatCountLabel(generatedNodes, "generated node")}, and ${formatCountLabel(manualNodes, "manual node")} with ${formatCountLabel(overriddenNodes, "manual override")} logged.`,
+  ];
+
+  return {
+    executiveSnapshot: executiveSnapshot.map((line) => compactSentence(line)),
+    readinessGaps: readinessGaps.map((line) => compactSentence(line)),
+    recommendedNextActions: recommendedNextActions.map((line) => compactSentence(line)),
+    traceabilityHighlights: traceabilityHighlights.map((line) => compactSentence(line)),
+  };
 }

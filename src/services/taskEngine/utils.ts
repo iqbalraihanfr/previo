@@ -1,3 +1,82 @@
+const TASK_PREFIX_RE =
+  /^(implement|create|setup|set up|test|validate|handle|integrate|build|add|deliver|prepare|configure|wire|link|connect|cover|harden|verify|design|document|ship|support)\b[:\-\s]*/i;
+
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "for",
+  "in",
+  "into",
+  "logic",
+  "module",
+  "of",
+  "on",
+  "process",
+  "step",
+  "steps",
+  "task",
+  "the",
+  "to",
+  "with",
+  "flow",
+  "feature",
+]);
+
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(TASK_PREFIX_RE, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => !STOP_WORDS.has(token));
+}
+
+export function normalizeTaskPhrase(value: string): string {
+  return tokenize(value).join(" ").trim();
+}
+
+export function compactTaskText(value: string, maxLength = 72): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+export function dedupeGeneratedTasks<
+  T extends {
+    title: string;
+    description?: string;
+    group_key: string;
+    feature_name?: string;
+    source_item_id?: string;
+    sort_order: number;
+  },
+>(tasks: T[]): T[] {
+  const seen = new Set<string>();
+
+  return tasks
+    .filter((task) => {
+      const sourceKey = normalizeTaskPhrase(task.source_item_id ?? "");
+      const titleKey = normalizeTaskPhrase(task.title);
+      const groupKey = normalizeTaskPhrase(task.group_key);
+      const featureKey = normalizeTaskPhrase(task.feature_name ?? "");
+      const descriptionKey = normalizeTaskPhrase(task.description ?? "");
+      const semanticKey = [titleKey, groupKey, featureKey, descriptionKey]
+        .filter(Boolean)
+        .join("|");
+
+      if (sourceKey && seen.has(`source:${sourceKey}`)) return false;
+      if (semanticKey && seen.has(`semantic:${semanticKey}`)) return false;
+
+      if (sourceKey) seen.add(`source:${sourceKey}`);
+      if (semanticKey) seen.add(`semantic:${semanticKey}`);
+      return true;
+    })
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
 /**
  * Detect potential duplicate tasks by title similarity.
  * Returns pairs of [taskA_index, taskB_index, similarity_score].
@@ -6,16 +85,6 @@ export function detectDuplicateTasks(
   tasks: { title: string; source_item_id?: string }[],
 ): [number, number, number][] {
   const duplicates: [number, number, number][] = [];
-
-  const normalize = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(
-        /^(implement|create|setup|test|validate|handle|integrate with):?\s*/i,
-        "",
-      )
-      .replace(/[^a-z0-9\s]/g, "")
-      .trim();
 
   for (let i = 0; i < tasks.length; i++) {
     for (let j = i + 1; j < tasks.length; j++) {
@@ -26,8 +95,8 @@ export function detectDuplicateTasks(
       )
         continue;
 
-      const a = normalize(tasks[i].title);
-      const b = normalize(tasks[j].title);
+      const a = normalizeTaskPhrase(tasks[i].title);
+      const b = normalizeTaskPhrase(tasks[j].title);
       if (!a || !b) continue;
 
       const similarity = computeSimilarity(a, b);
@@ -44,6 +113,15 @@ export function detectDuplicateTasks(
 function computeSimilarity(a: string, b: string): number {
   if (a === b) return 1;
   if (a.length < 2 || b.length < 2) return 0;
+
+  const tokenizedA = a.split(/\s+/).filter(Boolean);
+  const tokenizedB = b.split(/\s+/).filter(Boolean);
+  if (tokenizedA.length > 0 && tokenizedB.length > 0) {
+    const sharedTokens = tokenizedA.filter((token) => tokenizedB.includes(token));
+    const tokenScore =
+      sharedTokens.length / Math.max(tokenizedA.length, tokenizedB.length);
+    if (tokenScore >= 0.8) return tokenScore;
+  }
 
   const bigrams = (s: string) => {
     const set = new Map<string, number>();
@@ -85,4 +163,3 @@ export function mapPriorityToTier(priority: string): "P0" | "P1" | "P2" | "P3" {
       return "P1";
   }
 }
-

@@ -13,6 +13,7 @@ import { SummaryCoverage } from "./summary/components/SummaryCoverage";
 import { TaskBreakdown } from "./summary/components/TaskBreakdown";
 import { APIEndpoints } from "./summary/components/APIEndpoints";
 import { ValidationWarnings } from "./summary/components/ValidationWarnings";
+import { SummaryFraming } from "./summary/components/SummaryFraming";
 
 type SummaryNodeEditorProps = {
   node: NodeData;
@@ -37,6 +38,7 @@ export function SummaryNodeEditor({
     deliveryPlan,
     sprintProposal,
     provenanceSummary,
+    framing,
     nonSummaryNodes,
     allNodesDone,
     isProjectReady,
@@ -56,6 +58,9 @@ export function SummaryNodeEditor({
             </span>
             <span className="rounded-full bg-accent/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-accent-foreground/70">
               System Review
+            </span>
+            <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-muted-foreground">
+              Read-only
             </span>
           </div>
 
@@ -100,6 +105,13 @@ export function SummaryNodeEditor({
                 incompleteNodeCount={incompleteNodeCount}
                 errorCount={errorWarnings.length}
                 allNodesDone={allNodesDone}
+              />
+
+              <SummaryFraming
+                executiveSnapshot={framing.executiveSnapshot}
+                readinessGaps={framing.readinessGaps}
+                recommendedNextActions={framing.recommendedNextActions}
+                traceabilityHighlights={framing.traceabilityHighlights}
               />
 
               <SummaryStats

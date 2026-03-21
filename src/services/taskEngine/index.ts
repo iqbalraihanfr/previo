@@ -7,6 +7,7 @@ import { generateSequenceTasks } from "./sequence";
 import { generateDFDTasks } from "./dfd";
 import { generateUseCasesTasks } from "./useCases";
 import { generateRequirementTasks } from "./requirements";
+import { dedupeGeneratedTasks } from "./utils";
 
 export { detectDuplicateTasks } from "./utils";
 
@@ -25,19 +26,19 @@ export function generateTasksFromNode(
 
   switch (node.type) {
     case "requirements":
-      return generateRequirementTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateRequirementTasks(node.id, projectId, fields));
     case "user_stories":
-      return generateUserStoriesTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateUserStoriesTasks(node.id, projectId, fields));
     case "erd":
-      return generateERDTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateERDTasks(node.id, projectId, fields));
     case "flowchart":
-      return generateFlowchartTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateFlowchartTasks(node.id, projectId, fields));
     case "sequence":
-      return generateSequenceTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateSequenceTasks(node.id, projectId, fields));
     case "dfd":
-      return generateDFDTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateDFDTasks(node.id, projectId, fields));
     case "use_cases":
-      return generateUseCasesTasks(node.id, projectId, fields);
+      return dedupeGeneratedTasks(generateUseCasesTasks(node.id, projectId, fields));
     default:
       return [];
   }

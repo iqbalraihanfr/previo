@@ -14,6 +14,7 @@ function createProject(overrides: Partial<Project> = {}): Project {
     description: "Workspace export coverage",
     template_type: "full",
     delivery_mode: "agile",
+    project_notes: "",
     created_at: "2026-03-21T00:00:00.000Z",
     updated_at: "2026-03-21T00:00:00.000Z",
     ...overrides,
@@ -24,8 +25,8 @@ function createNode(overrides: Partial<NodeData>): NodeData {
   return {
     id: "node-1",
     project_id: "project-1",
-    type: "custom",
-    label: "Custom",
+    type: "project_brief",
+    label: "Project Brief",
     status: "In Progress",
     position_x: 0,
     position_y: 0,
@@ -56,7 +57,7 @@ afterEach(() => {
 
 describe("export engine", () => {
   it("compiles canonical project nodes into markdown and skips derived-only exports", () => {
-    const project = createProject();
+    const project = createProject({ project_notes: "internal note should stay private" });
     const nodes = [
       createNode({
         id: "brief",
@@ -127,6 +128,7 @@ describe("export engine", () => {
     expect(markdown).toContain("**As a** solo developer");
     expect(markdown).toContain("```mermaid");
     expect(markdown).not.toContain("## Summary (summary)");
+    expect(markdown).not.toContain("internal note should stay private");
   });
 
   it("triggers downloads for project and task exports with stable filenames", () => {

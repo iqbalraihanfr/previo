@@ -5,10 +5,12 @@ import { db, NodeData, TaskData, ValidationWarning } from "@/lib/db";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import {
   computeCoverage,
+  buildSummaryFraming,
   extractAPIEndpoints,
   getNodeContentMap,
 } from "../helpers";
 import { ProjectSnapshot } from "../types";
+import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
 
 async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> {
   const [project, projectNodes, allContents, tasks, warnings] = await Promise.all([
@@ -124,6 +126,28 @@ export function useSummary(projectId: string) {
         overridden: 0,
       },
     );
+    const framing = buildSummaryFraming({
+      deliveryModeLabel:
+        DELIVERY_MODE_LABELS[
+          (snapshot.project?.delivery_mode ?? deliveryMode) as keyof typeof DELIVERY_MODE_LABELS
+        ] ?? String(snapshot.project?.delivery_mode ?? deliveryMode),
+      nodesDone: nonSummaryNodes.filter((pn: NodeData) => pn.status === "Done").length,
+      totalTasks: snapshot.tasks.length,
+      tasksDone: tasksByStatus.done,
+      warningCount: snapshot.warnings.length,
+      isProjectReady: allNodesDone && errorWarnings.length === 0,
+      incompleteNodeCount: nonSummaryNodes.filter((pn: NodeData) => pn.status !== "Done").length,
+      errorWarnings: errorWarnings.length,
+      warnWarnings: warnWarnings.length,
+      coverage,
+      deliveryPlanTitles: deliveryPlan.map((group) => group.title),
+      sprintProposalTitles: sprintProposal.map((group) => group.title),
+      apiEndpoints,
+      importedNodes: provenanceSummary.imported,
+      generatedNodes: provenanceSummary.generated,
+      manualNodes: provenanceSummary.manual,
+      overriddenNodes: provenanceSummary.overridden,
+    });
 
     return {
       errorWarnings,
@@ -137,6 +161,7 @@ export function useSummary(projectId: string) {
       deliveryPlan,
       sprintProposal,
       provenanceSummary,
+      framing,
       nonSummaryNodes,
       allNodesDone,
       isProjectReady: allNodesDone && errorWarnings.length === 0,
