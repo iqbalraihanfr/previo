@@ -1,6 +1,7 @@
 import { parseDbmlToERD } from "@/lib/parseDbml";
 import { parseSqlToERD } from "@/lib/parseSql";
 import { generateDFDFromProject, generateUseCaseDrafts } from "@/lib/nodeDerivations";
+import { db } from "@/lib/db";
 import {
   SOURCE_ARTIFACT_PARSER_VERSION,
   type BacklogItem,
@@ -12,12 +13,16 @@ import type { SourceType } from "@/lib/db";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 
 export interface ResolvedNodeImport {
+  nodeType: string;
   fields: Record<string, unknown>;
   sourceType: SourceType;
   rawContent: string;
   parserVersion: string;
   title: string;
   mermaidSyntax?: string;
+  issues: ImportReviewIssue[];
+  unresolvedFields: string[];
+  reviewContext?: ImportReviewContext;
 }
 
 export interface ResolvedTaskImport {
@@ -26,6 +31,16 @@ export interface ResolvedTaskImport {
   rawContent: string;
   parserVersion: string;
   title: string;
+}
+
+export interface ImportReviewIssue {
+  field: string;
+  severity: "error" | "warning";
+  message: string;
+}
+
+export interface ImportReviewContext {
+  briefScopeOptions?: string[];
 }
 
 function parseCsv(raw: string) {
@@ -494,6 +509,194 @@ async function parseBriefText(
   return data.fields as Record<string, unknown>;
 }
 
+function asTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asTrimmedStringList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => asTrimmedString(item))
+    .filter(Boolean);
+}
+
+function buildBriefImportReview(fields: Record<string, unknown>): {
+  issues: ImportReviewIssue[];
+  unresolvedFields: string[];
+} {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+
+  const requiredFieldChecks: Array<[string, boolean, string]> = [
+    ["name", asTrimmedString(fields.name).length > 0, "Project name is still missing."],
+    [
+      "background",
+      asTrimmedString(fields.background).length > 0,
+      "Background / project context is still missing.",
+    ],
+    [
+      "target_users",
+      asTrimmedStringList(fields.target_users).length > 0,
+      "At least one target user is required before the brief becomes canonical.",
+    ],
+    [
+      "scope_in",
+      asTrimmedStringList(fields.scope_in).length > 0,
+      "At least one scope-in item is required before the brief becomes canonical.",
+    ],
+    [
+      "objectives",
+      asTrimmedStringList(fields.objectives).length > 0,
+      "At least one objective is required before the brief becomes canonical.",
+    ],
+  ];
+
+  requiredFieldChecks.forEach(([field, isValid, message]) => {
+    if (!isValid) {
+      unresolvedFields.push(field);
+      issues.push({
+        field,
+        severity: "error",
+        message,
+      });
+    }
+  });
+
+  const constraints = asTrimmedStringList(fields.constraints);
+  if (constraints.length === 0) {
+    issues.push({
+      field: "constraints",
+      severity: "warning",
+      message:
+        "No explicit constraints were detected. Add them if the client has budget, timeline, or technical limits.",
+    });
+  }
+
+  return { issues, unresolvedFields };
+}
+
+function buildRequirementImportReview(
+  fields: Record<string, unknown>,
+  context?: ImportReviewContext,
+): {
+  issues: ImportReviewIssue[];
+  unresolvedFields: string[];
+} {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+  const items = Array.isArray(fields.items) ? fields.items : [];
+  const briefScopes = new Set(
+    (context?.briefScopeOptions ?? []).map((scope) => scope.trim().toLowerCase()),
+  );
+
+  if (items.length === 0) {
+    issues.push({
+      field: "items",
+      severity: "error",
+      message: "No requirements were parsed from the imported source.",
+    });
+    unresolvedFields.push("items");
+    return { issues, unresolvedFields };
+  }
+
+  const frItems = items.filter((item) => {
+    const type = asTrimmedString((item as Record<string, unknown>).type).toUpperCase();
+    return type === "" || type === "FR";
+  });
+
+  if (frItems.length === 0) {
+    issues.push({
+      field: "items",
+      severity: "error",
+      message: "At least one functional requirement is required for implementation planning.",
+    });
+    unresolvedFields.push("items");
+  }
+
+  items.forEach((item, index) => {
+    const requirement = item as Record<string, unknown>;
+    const description = asTrimmedString(requirement.description);
+    const category = asTrimmedString(requirement.category);
+    const relatedScope = asTrimmedString(requirement.related_scope);
+    const type = asTrimmedString(requirement.type).toUpperCase() || "FR";
+    const fieldBase = `items[${index}]`;
+
+    if (!description) {
+      unresolvedFields.push(`${fieldBase}.description`);
+      issues.push({
+        field: `${fieldBase}.description`,
+        severity: "error",
+        message: `Requirement ${index + 1} is missing a description.`,
+      });
+    }
+
+    if (!category) {
+      unresolvedFields.push(`${fieldBase}.category`);
+      issues.push({
+        field: `${fieldBase}.category`,
+        severity: "warning",
+        message: `Requirement ${index + 1} has no category yet.`,
+      });
+    }
+
+    if (type === "FR" && briefScopes.size > 0 && !relatedScope) {
+      unresolvedFields.push(`${fieldBase}.related_scope`);
+      issues.push({
+        field: `${fieldBase}.related_scope`,
+        severity: "warning",
+        message: `Requirement ${index + 1} is not linked to any brief scope item.`,
+      });
+    } else if (
+      type === "FR" &&
+      relatedScope &&
+      briefScopes.size > 0 &&
+      !briefScopes.has(relatedScope.toLowerCase())
+    ) {
+      unresolvedFields.push(`${fieldBase}.related_scope`);
+      issues.push({
+        field: `${fieldBase}.related_scope`,
+        severity: "warning",
+        message: `Requirement ${index + 1} points to a scope item that is not present in the current brief.`,
+      });
+    }
+  });
+
+  return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
+}
+
+function buildImportReview(
+  nodeType: string,
+  fields: Record<string, unknown>,
+  context?: ImportReviewContext,
+) {
+  if (nodeType === "project_brief") {
+    return buildBriefImportReview(fields);
+  }
+
+  if (nodeType === "requirements") {
+    return buildRequirementImportReview(fields, context);
+  }
+
+  return {
+    issues: [] as ImportReviewIssue[],
+    unresolvedFields: [] as string[],
+  };
+}
+
+export function revalidateResolvedNodeImport(
+  result: Pick<ResolvedNodeImport, "nodeType" | "reviewContext"> &
+    Omit<ResolvedNodeImport, "issues" | "unresolvedFields">,
+  fields: Record<string, unknown>,
+): ResolvedNodeImport {
+  const review = buildImportReview(result.nodeType, fields, result.reviewContext);
+  return {
+    ...result,
+    fields,
+    issues: review.issues,
+    unresolvedFields: review.unresolvedFields,
+  };
+}
+
 export async function resolveNodeImport(params: {
   nodeType: string;
   sourceType: SourceType;
@@ -501,96 +704,77 @@ export async function resolveNodeImport(params: {
   projectId: string;
 }): Promise<ResolvedNodeImport> {
   const { nodeType, sourceType, rawContent } = params;
+  let fields: Record<string, unknown>;
+  let title = "Imported source";
+  let mermaidSyntax: string | undefined;
+  let reviewContext: ImportReviewContext | undefined;
 
   if (nodeType === "project_brief") {
-    return {
-      fields: await parseBriefText(rawContent),
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported brief",
-    };
-  }
+    fields = await parseBriefText(rawContent);
+    title = "Imported brief";
+  } else if (nodeType === "requirements") {
+    let briefScopeOptions: string[] = [];
 
-  if (nodeType === "requirements") {
-    return {
-      fields: { items: parseRequirementsLines(rawContent) },
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported requirements",
-    };
-  }
+    try {
+      const briefNode = await db.nodes
+        .where({ project_id: params.projectId, type: "project_brief" })
+        .first();
+      const briefContent = briefNode
+        ? await db.nodeContents.where({ node_id: briefNode.id }).first()
+        : null;
+      briefScopeOptions = asTrimmedStringList(
+        (briefContent?.structured_fields as Record<string, unknown> | undefined)?.scope_in,
+      );
+    } catch {
+      briefScopeOptions = [];
+    }
 
-  if (nodeType === "user_stories") {
-    return {
-      fields: { items: parseUserStoriesCsv(rawContent) },
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported user stories",
-    };
-  }
-
-  if (nodeType === "erd") {
-    const fields =
+    fields = { items: parseRequirementsLines(rawContent) };
+    title = "Imported requirements";
+    reviewContext = { briefScopeOptions };
+  } else if (nodeType === "user_stories") {
+    fields = { items: parseUserStoriesCsv(rawContent) };
+    title = "Imported user stories";
+  } else if (nodeType === "erd") {
+    const schemaFields =
       sourceType === "dbml" ? parseDbmlToERD(rawContent) : parseSqlToERD(rawContent);
-    if (!fields.entities?.length) {
+    if (!schemaFields.entities?.length) {
       throw new Error("Schema import did not produce any entities.");
     }
-    return {
-      fields: fields as Record<string, unknown>,
+    fields = schemaFields as Record<string, unknown>;
+    title = "Imported schema";
+  } else if (nodeType === "flowchart") {
+    fields = parseMermaidFlowchart(rawContent);
+    title = "Imported flowchart";
+    mermaidSyntax = rawContent;
+  } else if (nodeType === "sequence") {
+    fields = parseMermaidSequence(rawContent);
+    title = "Imported sequence";
+    mermaidSyntax = rawContent;
+  } else if (nodeType === "use_cases") {
+    fields = parseUseCaseText(rawContent);
+    title = "Imported use cases";
+  } else if (nodeType === "dfd") {
+    fields = parseMermaidDFD(rawContent);
+    title = "Imported DFD";
+    mermaidSyntax = rawContent;
+  } else {
+    throw new Error(`Import is not supported for node type "${nodeType}".`);
+  }
+
+  return revalidateResolvedNodeImport(
+    {
+      nodeType,
+      fields,
       sourceType,
       rawContent,
       parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported schema",
-    };
-  }
-
-  if (nodeType === "flowchart") {
-    return {
-      fields: parseMermaidFlowchart(rawContent),
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported flowchart",
-      mermaidSyntax: rawContent,
-    };
-  }
-
-  if (nodeType === "sequence") {
-    return {
-      fields: parseMermaidSequence(rawContent),
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported sequence",
-      mermaidSyntax: rawContent,
-    };
-  }
-
-  if (nodeType === "use_cases") {
-    return {
-      fields: parseUseCaseText(rawContent),
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported use cases",
-    };
-  }
-
-  if (nodeType === "dfd") {
-    return {
-      fields: parseMermaidDFD(rawContent),
-      sourceType,
-      rawContent,
-      parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
-      title: "Imported DFD",
-      mermaidSyntax: rawContent,
-    };
-  }
-
-  throw new Error(`Import is not supported for node type "${nodeType}".`);
+      title,
+      mermaidSyntax,
+      reviewContext,
+    },
+    fields,
+  );
 }
 
 export async function generateDerivedNode(params: {
@@ -602,21 +786,27 @@ export async function generateDerivedNode(params: {
   if (nodeType === "use_cases") {
     const fields = await generateUseCaseDrafts(projectId);
     return {
+      nodeType,
       fields: fields as Record<string, unknown>,
       sourceType: "manual_structured",
       rawContent: "Generated from brief, requirements, and user stories.",
       parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
       title: "Generated use cases",
+      issues: [],
+      unresolvedFields: [],
     };
   }
 
   const fields = await generateDFDFromProject(projectId);
   return {
+    nodeType,
     fields: fields as Record<string, unknown>,
     sourceType: "manual_structured",
     rawContent: "Generated from project brief, use cases, and ERD.",
     parserVersion: SOURCE_ARTIFACT_PARSER_VERSION,
     title: "Generated DFD",
+    issues: [],
+    unresolvedFields: [],
   };
 }
 
