@@ -1,4 +1,4 @@
-import { db, type Attachment, type ValidationWarning } from "@/lib/db";
+import { db } from "@/lib/db";
 
 export class AttachmentRepository {
   static async deleteByNodeIds(nodeIds: string[]): Promise<number> {

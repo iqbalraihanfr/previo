@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, Key, Link, ShieldCheck, HelpCircle } from "lucide-react";
+import { Trash2, Key, Link, ShieldCheck } from "lucide-react";
 import { DATA_TYPES } from "../constants";
 import { ERDAttribute } from "../hooks/useERDLogic";
 import { 
@@ -48,8 +48,8 @@ export function AttributeItem({
 
           <div className="w-32">
             <Select
-              value={attribute.type}
-              onValueChange={(val) => onUpdate({ type: val })}
+              value={attribute.type || undefined}
+              onValueChange={(val) => onUpdate({ type: val ?? "" })}
             >
               <SelectTrigger className="h-9 text-xs border-none bg-muted/30 rounded-lg">
                 <SelectValue />

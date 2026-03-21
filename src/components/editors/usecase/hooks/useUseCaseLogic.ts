@@ -3,23 +3,57 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { useBriefFields } from "@/lib/hooks";
+import type { UserStoryFieldItem } from "../../userstory/hooks/useUserStoryLogic";
 
-export function useUseCaseLogic(projectId?: string, fields?: any, onChange?: (f: any) => void) {
+export interface UseCaseFlowStep {
+  actor: string;
+  action: string;
+}
+
+export interface UseCaseAlternativeFlow {
+  name: string;
+  branch_from_step: string;
+  steps: string;
+}
+
+export interface UseCaseItemData {
+  id: string;
+  name: string;
+  primary_actor: string;
+  secondary_actors: string[];
+  description: string;
+  preconditions: string[];
+  postconditions: string[];
+  main_flow: UseCaseFlowStep[];
+  alternative_flows: UseCaseAlternativeFlow[];
+  related_user_stories: string[];
+  include_extend: string[];
+}
+
+export interface UseCaseFields {
+  actors?: string[];
+  useCases?: UseCaseItemData[];
+}
+
+export function useUseCaseLogic(
+  projectId?: string,
+  fields: UseCaseFields = {},
+  onChange?: (f: UseCaseFields) => void,
+) {
   const briefFields = useBriefFields(projectId);
   
-  const userStories = useLiveQuery(
-    async () => {
-      if (!projectId) return [];
+  const userStories =
+    useLiveQuery(async () => {
+      if (!projectId) return [] as UserStoryFieldItem[];
       const node = await db.nodes
         .where({ project_id: projectId, type: "user_stories" })
         .first();
-      if (!node) return [];
+      if (!node) return [] as UserStoryFieldItem[];
       const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return content?.structured_fields?.items || [];
+      return (content?.structured_fields?.items || []) as UserStoryFieldItem[];
     },
     [projectId],
-    []
-  );
+  ) ?? [];
 
   const targetUsers: string[] = Array.isArray(briefFields?.target_users)
     ? (briefFields.target_users as string[])
@@ -29,14 +63,14 @@ export function useUseCaseLogic(projectId?: string, fields?: any, onChange?: (f:
     ? (fields.actors as string[])
     : [];
   
-  const useCases: any[] = Array.isArray(fields?.useCases)
-    ? (fields.useCases as any[])
+  const useCases: UseCaseItemData[] = Array.isArray(fields?.useCases)
+    ? fields.useCases
     : [];
 
   const updateActors = (newActors: string[]) =>
     onChange?.({ ...fields, actors: newActors });
 
-  const updateUseCases = (newUseCases: any[]) =>
+  const updateUseCases = (newUseCases: UseCaseItemData[]) =>
     onChange?.({ ...fields, useCases: newUseCases });
 
   const addUseCase = () => {
@@ -58,14 +92,14 @@ export function useUseCaseLogic(projectId?: string, fields?: any, onChange?: (f:
     ]);
   };
 
-  const updateUseCase = (id: string, updates: any) => {
+  const updateUseCase = (id: string, updates: Partial<UseCaseItemData>) => {
     updateUseCases(
-      useCases.map((uc: any) => (uc.id === id ? { ...uc, ...updates } : uc))
+      useCases.map((uc) => (uc.id === id ? { ...uc, ...updates } : uc))
     );
   };
 
   const removeUseCase = (id: string) => {
-    updateUseCases(useCases.filter((uc: any) => uc.id !== id));
+    updateUseCases(useCases.filter((uc) => uc.id !== id));
   };
 
   return {

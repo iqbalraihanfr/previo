@@ -6,13 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Milestone, GitPullRequest, Link2 } from "lucide-react";
 import { ListSection } from "./ListSection";
+import type { UserStoryFieldItem } from "../../userstory/hooks/useUserStoryLogic";
+import type {
+  UseCaseAlternativeFlow,
+  UseCaseFlowStep,
+  UseCaseItemData,
+} from "../hooks/useUseCaseLogic";
 
 interface UseCaseItemProps {
-  useCase: any;
+  useCase: UseCaseItemData;
   index: number;
   actors: string[];
-  userStories: any[];
-  onUpdate: (updates: any) => void;
+  userStories: UserStoryFieldItem[];
+  onUpdate: (updates: Partial<UseCaseItemData>) => void;
   onRemove: () => void;
 }
 
@@ -176,7 +182,7 @@ export function UseCaseItem({
         </div>
 
         <div className="grid gap-3">
-          {(uc.main_flow || []).map((step: any, stepIdx: number) => (
+          {(uc.main_flow || []).map((step: UseCaseFlowStep, stepIdx: number) => (
             <div
               key={stepIdx}
               className="group/step flex items-start gap-3 p-3 rounded-[1.25rem] bg-muted/20 border border-border/40 hover:bg-background/40 hover:border-primary/20 transition-all"
@@ -219,7 +225,7 @@ export function UseCaseItem({
                 size="icon"
                 className="h-10 w-10 text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 rounded-xl shrink-0 opacity-0 group-hover/step:opacity-100 transition-all"
                 onClick={() => {
-                  const flow = (uc.main_flow || []).filter((_: any, i: number) => i !== stepIdx);
+                  const flow = (uc.main_flow || []).filter((_, i: number) => i !== stepIdx);
                   onUpdate({ main_flow: flow });
                 }}
               >
@@ -245,7 +251,7 @@ export function UseCaseItem({
           </div>
           {userStories.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {userStories.map((us: any, usIdx: number) => {
+              {userStories.map((us, usIdx: number) => {
                 if (!us.goal) return null;
                 const selected = (uc.related_user_stories || []).includes(us.id);
                 return (
@@ -291,7 +297,7 @@ export function UseCaseItem({
             </Button>
           </div>
           <div className="grid gap-3">
-            {(uc.alternative_flows || []).map((af: any, afIdx: number) => (
+            {(uc.alternative_flows || []).map((af: UseCaseAlternativeFlow, afIdx: number) => (
               <div key={afIdx} className="p-4 rounded-2xl border border-border/40 bg-muted/20 hover:bg-background/40 transition-all space-y-3">
                 <div className="flex items-center gap-3">
                   <Input
@@ -319,7 +325,7 @@ export function UseCaseItem({
                     size="icon"
                     className="h-8 w-8 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 rounded-xl shrink-0"
                     onClick={() => {
-                      const alt = (uc.alternative_flows || []).filter((_: any, i: number) => i !== afIdx);
+                      const alt = (uc.alternative_flows || []).filter((_, i: number) => i !== afIdx);
                       onUpdate({ alternative_flows: alt });
                     }}
                   >

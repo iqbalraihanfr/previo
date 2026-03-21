@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Trash2, MessageSquare, ArrowRight, Layers } from "lucide-react";
+import { Trash2, ArrowRight } from "lucide-react";
 import { Message } from "../hooks/useSequenceLogic";
 import {
   Select,
@@ -60,8 +60,8 @@ export function MessageItem({
         {/* Interaction row */}
         <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-4">
           <Select
-            value={message.from}
-            onValueChange={(val) => onUpdate({ from: val })}
+            value={message.from || undefined}
+            onValueChange={(val) => onUpdate({ from: val ?? "" })}
           >
             <SelectTrigger className="h-10 border-none bg-background/50 rounded-xl font-bold text-xs">
               <SelectValue placeholder="FROM..." />
@@ -78,8 +78,8 @@ export function MessageItem({
           <ArrowRight className="h-4 w-4 text-muted-foreground/30" />
 
           <Select
-            value={message.to}
-            onValueChange={(val) => onUpdate({ to: val })}
+            value={message.to || undefined}
+            onValueChange={(val) => onUpdate({ to: val ?? "" })}
           >
             <SelectTrigger className="h-10 border-none bg-background/50 rounded-xl font-bold text-xs">
               <SelectValue placeholder="TO..." />
@@ -130,8 +130,10 @@ export function MessageItem({
             <div className="space-y-1.5 px-1">
               <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 ml-1">Logic Grouping</Label>
               <Select
-                value={message.group || "none"}
-                onValueChange={(val) => onUpdate({ group: val as any })}
+                value={message.group || undefined}
+                onValueChange={(val) =>
+                  onUpdate({ group: (val ?? "none") as Message["group"] })
+                }
               >
                 <SelectTrigger className="h-9 border-none bg-muted/30 rounded-xl text-[10px] font-black uppercase tracking-widest">
                   <SelectValue />

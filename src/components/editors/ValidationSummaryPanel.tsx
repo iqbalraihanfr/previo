@@ -147,16 +147,19 @@ function SeveritySummaryCard({
 function FilterChip({
   active,
   onClick,
+  testId,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  testId?: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      data-testid={testId}
       className={[
         "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         active
@@ -185,6 +188,7 @@ function IssueCard({
   return (
     <div
       className={`rounded-2xl border p-4 shadow-sm transition-colors ${toneClasses.wrapper}`}
+      data-testid={`validation-issue-${warning.severity}`}
     >
       <div className="flex items-start gap-3">
         <div
@@ -231,6 +235,7 @@ function IssueCard({
               size="sm"
               className="rounded-full"
               onClick={() => onNodeNavigateAction(warning.source_node_id)}
+              data-testid={`validation-open-node-${warning.source_node_id}`}
             >
               <ExternalLink className="mr-2 h-3.5 w-3.5" />
               {actionLabel}
@@ -338,7 +343,10 @@ export function ValidationSummaryPanel({
   const hasFilteredResults = filteredWarnings.length > 0;
 
   return (
-    <aside className="workspace-drawer workspace-scroll flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-border/70">
+    <aside
+      className="workspace-drawer workspace-scroll flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-border/70"
+      data-testid="validation-summary-panel"
+    >
       <div className="border-b border-border/70 px-4 py-4 sm:px-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3">
@@ -392,6 +400,7 @@ export function ValidationSummaryPanel({
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search issues, rules, targets..."
               className="h-10 rounded-2xl pl-10 text-sm"
+              data-testid="validation-search"
             />
           </div>
 
@@ -400,6 +409,7 @@ export function ValidationSummaryPanel({
               type="button"
               onClick={() => setShowFilters(!showFilters)}
               className="flex w-full items-center justify-between px-3 py-2.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground hover:bg-muted/30 transition-colors"
+              data-testid="validation-filter-toggle"
             >
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5" />
@@ -427,24 +437,28 @@ export function ValidationSummaryPanel({
                     <FilterChip
                       active={severityFilter === "all"}
                       onClick={() => setSeverityFilter("all")}
+                      testId="validation-filter-severity-all"
                     >
                       All
                     </FilterChip>
                     <FilterChip
                       active={severityFilter === "error"}
                       onClick={() => setSeverityFilter("error")}
+                      testId="validation-filter-severity-error"
                     >
                       Errors
                     </FilterChip>
                     <FilterChip
                       active={severityFilter === "warning"}
                       onClick={() => setSeverityFilter("warning")}
+                      testId="validation-filter-severity-warning"
                     >
                       Warnings
                     </FilterChip>
                     <FilterChip
                       active={severityFilter === "info"}
                       onClick={() => setSeverityFilter("info")}
+                      testId="validation-filter-severity-info"
                     >
                       Info
                     </FilterChip>
@@ -459,18 +473,21 @@ export function ValidationSummaryPanel({
                     <FilterChip
                       active={scopeFilter === "all"}
                       onClick={() => setScopeFilter("all")}
+                      testId="validation-filter-scope-all"
                     >
                       All issues
                     </FilterChip>
                     <FilterChip
                       active={scopeFilter === "cross-node-only"}
                       onClick={() => setScopeFilter("cross-node-only")}
+                      testId="validation-filter-scope-cross-node"
                     >
                       Cross-node only
                     </FilterChip>
                     <FilterChip
                       active={scopeFilter === "current-node-target"}
                       onClick={() => setScopeFilter("current-node-target")}
+                      testId="validation-filter-scope-current-node"
                     >
                       Current-node only
                     </FilterChip>
@@ -575,7 +592,7 @@ export function ValidationSummaryPanel({
                   </div>
 
                   <div className="space-y-3">
-                    {section.items.map((warning) => (
+                  {section.items.map((warning) => (
                       <IssueCard
                         key={warning.id}
                         warning={warning}

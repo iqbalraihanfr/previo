@@ -1,12 +1,12 @@
 "use client";
 
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { ValidationWarningData } from "@/lib/db";
+import type { ValidationWarning } from "@/lib/db";
 
 interface ValidationWarningsProps {
-  errors: ValidationWarningData[];
-  warnings: ValidationWarningData[];
-  infos: ValidationWarningData[];
+  errors: ValidationWarning[];
+  warnings: ValidationWarning[];
+  infos: ValidationWarning[];
 }
 
 export function ValidationWarnings({ errors, warnings, infos }: ValidationWarningsProps) {

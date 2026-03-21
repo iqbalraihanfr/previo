@@ -3,6 +3,7 @@
 import { FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type NodeData } from "@/lib/db";
+import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
 
 import { NodeSummarySection } from "./summary/renderers";
 import { useSummary } from "./summary/hooks/useSummary";
@@ -32,6 +33,10 @@ export function SummaryNodeEditor({
     tasksByStatus,
     coverage,
     apiEndpoints,
+    deliveryMode,
+    deliveryPlan,
+    sprintProposal,
+    provenanceSummary,
     nonSummaryNodes,
     allNodesDone,
     isProjectReady,
@@ -39,7 +44,10 @@ export function SummaryNodeEditor({
   } = useSummary(node.project_id);
 
   return (
-    <div className="flex h-full w-full flex-col bg-card/40 backdrop-blur-md shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.15)] overflow-hidden">
+    <div
+      className="flex h-full w-full flex-col bg-card/40 backdrop-blur-md shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.15)] overflow-hidden"
+      data-testid="summary-editor"
+    >
       <div className="flex items-start justify-between border-b border-border/70 px-8 py-6 bg-card/10 shrink-0">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -105,6 +113,90 @@ export function SummaryNodeEditor({
               <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
                 <SummaryCoverage metrics={coverage} />
                 <TaskBreakdown priority={tasksByPriority} status={tasksByStatus} />
+              </div>
+
+              <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
+                <div
+                  className="rounded-3xl border border-border/70 bg-background/50 p-6"
+                  data-testid="summary-delivery-framing"
+                >
+                  <p className="text-readable-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Delivery framing
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-foreground">
+                    {DELIVERY_MODE_LABELS[deliveryMode]}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    The canonical task model stays fixed. Previo only changes how the work is grouped and sequenced for this delivery mode.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {deliveryPlan.slice(0, 4).map((group) => (
+                      <div
+                        key={group.id}
+                        className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+                      >
+                        <p className="text-sm font-semibold text-foreground">
+                          {group.title}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {group.tasks.length} task(s)
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {deliveryMode === "agile" && sprintProposal.length > 0 && (
+                    <p className="mt-4 text-xs text-muted-foreground">
+                      Suggested sprint slices available: {sprintProposal.length}
+                    </p>
+                  )}
+                </div>
+
+                <div
+                  className="rounded-3xl border border-border/70 bg-background/50 p-6"
+                  data-testid="summary-provenance"
+                >
+                  <p className="text-readable-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Provenance
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div
+                      className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+                      data-testid="summary-provenance-imported"
+                    >
+                      <p className="text-xs text-muted-foreground">Imported nodes</p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">
+                        {provenanceSummary.imported}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+                      data-testid="summary-provenance-generated"
+                    >
+                      <p className="text-xs text-muted-foreground">Generated nodes</p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">
+                        {provenanceSummary.generated}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+                      data-testid="summary-provenance-manual"
+                    >
+                      <p className="text-xs text-muted-foreground">Manual structured</p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">
+                        {provenanceSummary.manual}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3"
+                      data-testid="summary-provenance-overridden"
+                    >
+                      <p className="text-xs text-muted-foreground">Manual overrides</p>
+                      <p className="mt-1 text-xl font-semibold text-foreground">
+                        {provenanceSummary.overridden}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">

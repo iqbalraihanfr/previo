@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
 import mermaid from "mermaid";
-import { MarkdownViewer as MarkdownBlock } from "@/components/ui/markdown-viewer";
 import type { NodeData } from "@/lib/db";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 
@@ -628,7 +627,6 @@ export function NodeSummarySection({
   content: SummaryContent;
 }) {
   const fields = content.structured_fields;
-  const notes = asString(fields.notes);
   const diagramSyntax = asString(
     content.mermaid_manual || content.mermaid_auto,
   );
@@ -676,12 +674,6 @@ export function NodeSummarySection({
 
       <div className="space-y-6 p-4">
         {guidedSummary}
-
-        {notes.trim() && (
-          <SummarySection title="Notes">
-            <MarkdownBlock value={notes} />
-          </SummarySection>
-        )}
 
         {node.type === "erd" && sqlSchema.trim() && (
           <SummarySection title="SQL Schema">

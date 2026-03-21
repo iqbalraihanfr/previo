@@ -3,11 +3,13 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Link2, Info, GitBranch } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
+import { Plus, Trash2, Info, GitBranch } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { useFlowchartLogic } from "./flowchart/hooks/useFlowchartLogic";
+import {
+  useFlowchartLogic,
+  type FlowchartFields,
+} from "./flowchart/hooks/useFlowchartLogic";
 import { FlowStepItem } from "./flowchart/components/FlowStepItem";
 import { FlowConnectionItem } from "./flowchart/components/FlowConnectionItem";
 import {
@@ -17,25 +19,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import type { StructuredEditorProps } from "./editorTypes";
+
+type UseCaseReference = { id?: string; name?: string };
 
 function useUseCases(projectId?: string) {
-  return useLiveQuery(
-    async () => {
-      if (!projectId) return [];
+  return (
+    useLiveQuery(async () => {
+      if (!projectId) return [] as UseCaseReference[];
       const node = await db.nodes
         .where({ project_id: projectId, type: "use_cases" })
         .first();
-      if (!node) return [];
+      if (!node) return [] as UseCaseReference[];
       const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return content?.structured_fields?.useCases || [];
-    },
-    [projectId],
-    [],
+      return (content?.structured_fields?.useCases || []) as UseCaseReference[];
+    }, [projectId]) ?? []
   );
 }
 
-export function FlowchartEditor({ fields, onChange, projectId }: EditorProps) {
+type FlowchartEditorProps = StructuredEditorProps<FlowchartFields>;
+
+export function FlowchartEditor({
+  fields,
+  onChange,
+  projectId,
+}: FlowchartEditorProps) {
   const useCases = useUseCases(projectId);
   const {
     flows,
@@ -126,15 +134,21 @@ export function FlowchartEditor({ fields, onChange, projectId }: EditorProps) {
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 ml-1">Related Use Case</Label>
                   <Select
                     value={flow.related_use_case || "none"}
-                    onValueChange={(val) => updateFlow(flow.id, { related_use_case: val })}
+                    onValueChange={(val) =>
+                      updateFlow(flow.id, { related_use_case: val === "none" ? "" : (val ?? "") })
+                    }
                   >
                     <SelectTrigger className="h-10 border-none bg-background/50 rounded-xl font-bold text-xs">
                       <SelectValue placeholder="Link to UC..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none" className="italic opacity-50">Unlinked</SelectItem>
-                      {useCases.map((uc: any, i: number) => (
-                        <SelectItem key={uc.id} value={uc.id} className="text-xs font-bold">
+                      {useCases.map((uc, i: number) => (
+                        <SelectItem
+                          key={String(uc.id ?? `uc-${i + 1}`)}
+                          value={String(uc.id ?? `uc-${i + 1}`)}
+                          className="text-xs font-bold"
+                        >
                           UC-{String(i + 1).padStart(3, "0")}: {uc.name}
                         </SelectItem>
                       ))}

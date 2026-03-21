@@ -3,16 +3,15 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import type { UserStoryCriteria } from "../hooks/useUserStoryLogic";
 
 interface AcceptanceCriteriaProps {
-  storyId: string;
-  criteria: any[];
+  criteria: Array<string | UserStoryCriteria>;
   onUpdate: (idx: number, key: "given" | "when" | "then", val: string) => void;
   onRemove: (idx: number) => void;
 }
 
 export function AcceptanceCriteriaSection({
-  storyId,
   criteria,
   onUpdate,
   onRemove,

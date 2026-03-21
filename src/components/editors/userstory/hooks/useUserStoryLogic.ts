@@ -1,18 +1,43 @@
 "use client";
 
 import { useBriefFields, useRequirementsFields } from "@/lib/hooks";
+import type { RequirementFieldItem } from "../../requirement/hooks/useRequirementLogic";
 
-export function useUserStoryLogic(projectId: string, fields: any, onChange: (f: any) => void) {
+export interface UserStoryFields {
+  items?: UserStoryFieldItem[];
+}
+
+export interface UserStoryCriteria {
+  given?: string;
+  when?: string;
+  then?: string;
+}
+
+export interface UserStoryFieldItem extends Record<string, unknown> {
+  id: string;
+  role?: string;
+  goal?: string;
+  benefit?: string;
+  related_requirement?: string;
+  acceptance_criteria?: Array<string | UserStoryCriteria>;
+}
+
+export function useUserStoryLogic(
+  projectId: string | undefined,
+  fields: UserStoryFields,
+  onChange: (f: UserStoryFields) => void,
+) {
   const briefFields = useBriefFields(projectId);
   const reqFields = useRequirementsFields(projectId);
 
   const items = fields.items || [];
   const targetUsers: string[] = briefFields?.target_users || [];
-  const frItems = (reqFields?.items || []).filter(
-    (i: any) => (i.type || "FR") === "FR",
+  const frItems: RequirementFieldItem[] = (reqFields?.items || []).filter(
+    (i: Record<string, unknown>): i is RequirementFieldItem =>
+      (i.type || "FR") === "FR",
   );
 
-  const updateItems = (newItems: any[]) => {
+  const updateItems = (newItems: UserStoryFieldItem[]) => {
     onChange({ ...fields, items: newItems });
   };
 
@@ -30,18 +55,18 @@ export function useUserStoryLogic(projectId: string, fields: any, onChange: (f: 
     ]);
   };
 
-  const updateItem = (id: string, updates: any) => {
+  const updateItem = (id: string, updates: Partial<UserStoryFieldItem>) => {
     updateItems(
-      items.map((it: any) => (it.id === id ? { ...it, ...updates } : it)),
+      items.map((it) => (it.id === id ? { ...it, ...updates } : it)),
     );
   };
 
   const removeItem = (id: string) => {
-    updateItems(items.filter((it: any) => it.id !== id));
+    updateItems(items.filter((it) => it.id !== id));
   };
 
   const addCriteria = (storyId: string) => {
-    const story = items.find((i: any) => i.id === storyId);
+    const story = items.find((i) => i.id === storyId);
     if (!story) return;
     const ac = story.acceptance_criteria || [];
     updateItem(storyId, {
@@ -55,7 +80,7 @@ export function useUserStoryLogic(projectId: string, fields: any, onChange: (f: 
     key: "given" | "when" | "then",
     value: string,
   ) => {
-    const story = items.find((i: any) => i.id === storyId);
+    const story = items.find((i) => i.id === storyId);
     if (!story) return;
     const ac = [...(story.acceptance_criteria || [])];
     
@@ -69,18 +94,18 @@ export function useUserStoryLogic(projectId: string, fields: any, onChange: (f: 
   };
 
   const removeCriteria = (storyId: string, index: number) => {
-    const story = items.find((i: any) => i.id === storyId);
+    const story = items.find((i) => i.id === storyId);
     if (!story) return;
     const ac = (story.acceptance_criteria || []).filter(
-      (_: any, i: number) => i !== index,
+      (_criterion, i: number) => i !== index,
     );
     updateItem(storyId, { acceptance_criteria: ac });
   };
 
-  const getAutoPriority = (item: any) => {
+  const getAutoPriority = (item: UserStoryFieldItem) => {
     if (!item.related_requirement) return null;
     const linkedFr = frItems.find(
-      (fr: any) => fr.id === item.related_requirement,
+      (fr) => fr.id === item.related_requirement,
     );
     return linkedFr?.priority || null;
   };

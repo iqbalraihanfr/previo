@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Trash2, Settings, Box, Database, ExternalLink } from "lucide-react";
+import { Trash2, Settings, Database, ExternalLink } from "lucide-react";
 import { DFDNode } from "../hooks/useDFDLogic";
 import {
   Select,
@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
 
 interface DFDNodeItemProps {
   node: DFDNode;
-  useCases: any[];
-  erdEntities: any[];
+  useCases: Array<{ id?: string; name?: string }>;
+  erdEntities: Array<{ id?: string; name?: string }>;
   onUpdate: (updates: Partial<DFDNode>) => void;
   onRemove: () => void;
 }
