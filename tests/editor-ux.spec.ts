@@ -1,6 +1,59 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-import { createProject, importNode, openNode } from "./helpers/app";
+import { createProject, dismissWorkspaceOnboarding } from "./helpers/app";
+
+async function openWorkspaceNode(
+  page: Page,
+  nodeType: "project_brief" | "requirements" | "use_cases" | "summary",
+  panelTestId: "node-editor-panel" | "summary-editor" = "node-editor-panel",
+) {
+  await dismissWorkspaceOnboarding(page);
+
+  const closeButton = page.getByTestId("editor-close-panel");
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
+
+  const fitViewButton = page.getByTestId("workspace-fit-view");
+  if (await fitViewButton.isVisible().catch(() => false)) {
+    await fitViewButton.click();
+  }
+
+  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
+  await node.waitFor({ state: "attached", timeout: 30000 });
+  await node.click({ force: true });
+
+  if (panelTestId === "summary-editor") {
+    await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
+    "data-node-type",
+    nodeType,
+    { timeout: 15000 },
+  );
+}
+
+async function importStructuredNode(
+  page: Page,
+  nodeType: "requirements",
+  rawContent: string,
+) {
+  await openWorkspaceNode(page, nodeType);
+  await page.getByTestId("node-source-import").click();
+  await expect(page.getByTestId("source-import-dialog")).toBeVisible();
+  await page.getByTestId("source-import-textarea").fill(rawContent);
+  await page.getByTestId("source-import-parse").click();
+  await page.getByTestId("source-import-apply").click();
+  await expect(page.getByTestId("node-source-toolbar")).toContainText(
+    "Imported source",
+    { timeout: 15000 },
+  );
+  await expect(page.getByTestId("editor-panel-header")).toContainText("Saved", {
+    timeout: 15000,
+  });
+}
 
 test.describe("Previo editor UX", () => {
   test("keeps project brief manual-first while still offering import", async ({
@@ -11,7 +64,7 @@ test.describe("Previo editor UX", () => {
       template: "quick",
     });
 
-    await openNode(page, "project_brief");
+    await openWorkspaceNode(page, "project_brief");
     await expect(page.getByTestId("editor-entry-state")).toBeVisible();
     await expect(page.getByTestId("node-source-import")).toBeVisible();
     await expect(page.getByTestId("node-source-manual-action")).toBeVisible();
@@ -32,7 +85,7 @@ test.describe("Previo editor UX", () => {
       template: "full",
     });
 
-    await openNode(page, "requirements");
+    await openWorkspaceNode(page, "requirements");
     await expect(page.getByTestId("editor-entry-state")).toBeVisible();
     await expect(page.getByTestId("node-source-import")).toBeVisible();
     await expect(page.getByTestId("node-source-manual-action")).toBeVisible();
@@ -78,7 +131,7 @@ test.describe("Previo editor UX", () => {
       template: "full",
     });
 
-    await openNode(page, "use_cases");
+    await openWorkspaceNode(page, "use_cases");
     await expect(page.getByTestId("editor-entry-state")).toBeVisible();
     await expect(page.getByTestId("node-source-generate")).toBeVisible();
     await expect(page.getByTestId("node-source-manual-action")).toHaveCount(0);
@@ -92,7 +145,7 @@ test.describe("Previo editor UX", () => {
     await page.getByTestId("editor-mode-editing").click();
     await expect(page.getByTestId("editor-edit-panel")).toBeVisible();
 
-    await importNode(
+    await importStructuredNode(
       page,
       "requirements",
       "[FR] [Must] User can publish reports | Reporting | Publish flow",
@@ -117,7 +170,7 @@ test.describe("Previo editor UX", () => {
       template: "quick",
     });
 
-    await openNode(page, "summary", "summary-editor");
+    await openWorkspaceNode(page, "summary", "summary-editor");
     const summaryEditor = page.getByTestId("summary-editor");
     await expect(summaryEditor).toBeVisible();
     await expect(page.getByTestId("editor-entry-state")).toHaveCount(0);

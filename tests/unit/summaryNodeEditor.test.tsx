@@ -87,8 +87,10 @@ beforeEach(() => {
     framing: {
       executiveSnapshot: ["Agile delivery is on track."],
       readinessGaps: ["No blocking gaps detected."],
+      topBlockers: ["Requirements are linked and ready."],
       recommendedNextActions: ["Start with Sprint 1."],
       traceabilityHighlights: ["API coverage includes GET /api/invoices."],
+      implementationProvenance: ["Requirements contributes 4 task(s) to the current plan."],
     },
     nonSummaryNodes: [
       createNode({
@@ -115,8 +117,10 @@ describe("SummaryNodeEditor", () => {
     expect(markup).toContain("Read-only");
     expect(markup).toContain("Executive Snapshot");
     expect(markup).toContain("Readiness Gap");
+    expect(markup).toContain("Top Blockers");
     expect(markup).toContain("Recommended Next Actions");
     expect(markup).toContain("Traceability Highlights");
+    expect(markup).toContain("Implementation Provenance");
     expect(markup).not.toContain("<input");
     expect(markup).not.toContain("<textarea");
   });

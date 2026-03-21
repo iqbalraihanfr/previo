@@ -178,6 +178,7 @@ describe("workspace traceability model", () => {
       sourceLabel: "Self-service signup",
       relationLabel: "related_scope",
       evidenceLabel: "Linked by requirement scope",
+      status: "linked",
     });
     expect(briefSection?.rows[0].targetLabels[0]).toContain("FR-001");
     expect(briefSection?.rows[0].targetLabels[0]).toContain(
@@ -197,6 +198,10 @@ describe("workspace traceability model", () => {
       title: "Imported brief",
       sourceTypeLabel: "Brief document",
       generationLabel: "Imported source",
+    });
+    expect(briefSection?.rows[0].navigationTarget).toMatchObject({
+      nodeId: "requirements-node",
+      label: "Requirements",
     });
     expect(model.summary.imported).toBe(1);
     expect(model.linkedRowCount).toBeGreaterThanOrEqual(3);

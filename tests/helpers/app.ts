@@ -2,9 +2,16 @@ import { expect, type Page } from "@playwright/test";
 import type { ProjectDomain, StarterContentIntensity } from "@/lib/db";
 
 export async function dismissWorkspaceOnboarding(page: Page) {
+  const onboarding = page.getByTestId("workspace-onboarding");
   const dismissButton = page.getByTestId("dismiss-workspace-onboarding");
-  if (await dismissButton.isVisible().catch(() => false)) {
+  const onboardingVisible = await onboarding
+    .waitFor({ state: "visible", timeout: 4000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (onboardingVisible && (await dismissButton.isVisible().catch(() => false))) {
     await dismissButton.click();
+    await onboarding.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
   }
 }
 
@@ -36,11 +43,7 @@ export async function openWorkspaceCommandMenu(page: Page) {
 }
 
 export async function returnToDashboard(page: Page) {
-  const backButton = page.getByRole("button", { name: /back to dashboard/i });
-  await backButton.click({ timeout: 3000 }).catch(async () => {
-    if (page.isClosed()) return;
-    await backButton.click({ force: true, timeout: 1000 }).catch(() => {});
-  });
+  await page.goto("/", { waitUntil: "load" });
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
   await expect(page.getByTestId("dashboard-screen")).toBeVisible({
     timeout: 15000,
@@ -171,7 +174,6 @@ export async function createProject(
     page.waitForURL(/\/workspace\//, { timeout: 10000 }).then(() => true),
     workspaceHeader.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
     workspaceScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
-    dashboardScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => true),
   ]).catch(() => false);
 
   const isWorkspaceReady =
@@ -181,14 +183,12 @@ export async function createProject(
     (await workspaceScreen.isVisible().catch(() => false));
 
   if (!isWorkspaceReady) {
-    const resolvedDestination = await Promise.any([
-      page.waitForURL(/\/workspace\//, { timeout: 10000 }).then(() => "workspace"),
-      workspaceHeader.waitFor({ state: "visible", timeout: 10000 }).then(() => "workspace"),
-      workspaceScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => "workspace"),
-      dashboardScreen.waitFor({ state: "visible", timeout: 10000 }).then(() => "dashboard"),
-    ]).catch(() => "unknown");
+    const stillOnDashboard = await dashboardScreen
+      .waitFor({ state: "visible", timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
 
-    if (resolvedDestination === "dashboard") {
+    if (stillOnDashboard) {
       const projectCard = page.locator(
         `[data-project-name="${params.name}"]`,
       ).first();
@@ -238,14 +238,34 @@ export async function openNode(
   nodeType: string,
   panelTestId = "node-editor-panel",
 ) {
+  await dismissWorkspaceOnboarding(page);
+
+  const openEditorPanel = page.getByTestId("node-editor-panel");
+  const currentEditorType = await openEditorPanel
+    .getAttribute("data-node-type")
+    .catch(() => null);
+
+  if (currentEditorType && currentEditorType !== nodeType) {
+    const closeButton = page.getByTestId("editor-close-panel");
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+      await openEditorPanel.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
+    }
+  }
+
   const fitViewButton = page.getByTestId("workspace-fit-view");
   if (await fitViewButton.isVisible().catch(() => false)) {
     await fitViewButton.click();
+    await page.waitForTimeout(250);
   }
 
+  await Promise.any([
+    page.getByTestId("workspace-header").waitFor({ state: "visible", timeout: 15000 }),
+    page.getByTestId("workspace-canvas").waitFor({ state: "visible", timeout: 15000 }),
+  ]);
   const node = page.getByTestId(`workspace-node-${nodeType}`).first();
-  await expect(node).toBeVisible({ timeout: 15000 });
-  await node.scrollIntoViewIfNeeded();
+  await node.waitFor({ state: "attached", timeout: 30000 });
+  await node.scrollIntoViewIfNeeded().catch(() => {});
   const panel = page.getByTestId(panelTestId);
   const assertPanel = async (timeout: number) => {
     if (panelTestId === "node-editor-panel") {
@@ -258,13 +278,36 @@ export async function openNode(
     await expect(panel).toBeVisible({ timeout });
   };
 
-  try {
-    await node.click({ position: { x: 24, y: 24 } });
-    await assertPanel(2500);
-  } catch {
-    await node.evaluate((element) => {
-      (element as HTMLElement).click();
-    });
+  const openAttempts = [
+    async () => {
+      await node.click({ position: { x: 160, y: 40 } });
+    },
+    async () => {
+      await node.click({ position: { x: 120, y: 72 }, force: true });
+    },
+    async () => {
+      await node.dblclick({ position: { x: 160, y: 40 } });
+    },
+    async () => {
+      await node.evaluate((element) => {
+        (element as HTMLElement).click();
+      });
+    },
+  ];
+
+  let opened = false;
+  for (const attempt of openAttempts) {
+    try {
+      await attempt();
+      await assertPanel(3000);
+      opened = true;
+      break;
+    } catch {
+      // Try the next interaction pattern.
+    }
+  }
+
+  if (!opened) {
     await assertPanel(10000);
   }
 }

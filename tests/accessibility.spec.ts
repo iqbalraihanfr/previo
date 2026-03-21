@@ -1,13 +1,30 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   createProject,
   dismissWorkspaceOnboarding,
-  openNode,
   openWorkspaceCommandMenu,
 } from "./helpers/app";
 
 test.describe.configure({ timeout: 90000 });
+
+async function openWorkspaceNode(
+  page: Page,
+  nodeType: "summary",
+  panelTestId: "summary-editor" = "summary-editor",
+) {
+  await dismissWorkspaceOnboarding(page);
+
+  const fitViewButton = page.getByTestId("workspace-fit-view");
+  if (await fitViewButton.isVisible().catch(() => false)) {
+    await fitViewButton.click();
+  }
+
+  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
+  await node.waitFor({ state: "attached", timeout: 30000 });
+  await node.click({ force: true });
+  await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
+}
 
 test.describe("Previo accessibility smoke", () => {
   test("keeps dashboard create flow accessible by role and label", async ({
@@ -71,8 +88,7 @@ test.describe("Previo accessibility smoke", () => {
       template: "quick",
     });
 
-    await dismissWorkspaceOnboarding(page);
-    await openNode(page, "summary", "summary-editor");
+    await openWorkspaceNode(page, "summary");
 
     const summaryEditor = page.getByTestId("summary-editor");
     await expect(summaryEditor).toBeVisible();

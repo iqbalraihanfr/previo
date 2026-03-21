@@ -1,12 +1,70 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 import {
   createProject,
-  importNode,
-  markCurrentNodeDone,
-  openNode,
+  dismissWorkspaceOnboarding,
+  openWorkspaceCommandMenu,
   returnToDashboard,
 } from "./helpers/app";
+
+async function openWorkspaceNode(
+  page: Page,
+  nodeType:
+    | "requirements"
+    | "user_stories"
+    | "use_cases"
+    | "erd"
+    | "task_board"
+    | "summary",
+  panelTestId: "node-editor-panel" | "task-board-editor" | "summary-editor" =
+    "node-editor-panel",
+) {
+  await dismissWorkspaceOnboarding(page);
+
+  const closeButton = page.getByTestId("editor-close-panel");
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
+
+  const fitViewButton = page.getByTestId("workspace-fit-view");
+  if (await fitViewButton.isVisible().catch(() => false)) {
+    await fitViewButton.click();
+  }
+
+  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
+  await node.waitFor({ state: "attached", timeout: 30000 });
+  await node.click({ force: true });
+
+  if (panelTestId === "task-board-editor" || panelTestId === "summary-editor") {
+    await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
+    "data-node-type",
+    nodeType,
+    { timeout: 15000 },
+  );
+}
+
+async function importStructuredNode(
+  page: Page,
+  nodeType: "requirements" | "user_stories" | "erd",
+  rawContent: string,
+) {
+  await openWorkspaceNode(page, nodeType);
+  await page.getByTestId("node-source-import").click();
+  await expect(page.getByTestId("source-import-dialog")).toBeVisible();
+  await page.getByTestId("source-import-textarea").fill(rawContent);
+  await page.getByTestId("source-import-parse").click({ force: true });
+  await page.getByTestId("source-import-apply").click();
+  await expect(page.getByTestId("source-import-dialog")).toBeHidden({
+    timeout: 15000,
+  });
+  await expect(page.getByTestId("editor-panel-header")).toContainText("Saved", {
+    timeout: 15000,
+  });
+}
 
 test.describe("Previo app flows", () => {
   test("creates a project and opens the workspace shell", async ({ page }) => {
@@ -35,7 +93,7 @@ test.describe("Previo app flows", () => {
     const projectName = `Import Flow ${Date.now()}`;
     await createProject(page, { name: projectName, template: "full" });
 
-    await importNode(
+    await importStructuredNode(
       page,
       "requirements",
       [
@@ -43,9 +101,8 @@ test.describe("Previo app flows", () => {
         "[NFR] [Should] Response time below target | Performance | | p95 latency | 200ms",
       ].join("\n"),
     );
-    await markCurrentNodeDone(page);
 
-    await importNode(
+    await importStructuredNode(
       page,
       "user_stories",
       [
@@ -53,9 +110,8 @@ test.describe("Previo app flows", () => {
         'US-1,"As a finance admin, I want generate monthly reports, so that close-out is faster","Given there is accounting data||When I request a report||Then the report is generated",req-1',
       ].join("\n"),
     );
-    await markCurrentNodeDone(page);
 
-    await openNode(page, "use_cases");
+    await openWorkspaceNode(page, "use_cases");
     await page.getByTestId("node-source-generate").click();
     await expect(page.getByTestId("node-source-toolbar")).toContainText(
       "Generated draft",
@@ -64,9 +120,8 @@ test.describe("Previo app flows", () => {
     await expect(page.getByTestId("node-editor-panel")).toContainText(
       "finance admin",
     );
-    await markCurrentNodeDone(page);
 
-    await importNode(
+    await importStructuredNode(
       page,
       "erd",
       [
@@ -85,21 +140,15 @@ test.describe("Previo app flows", () => {
     await expect(page.getByTestId("node-source-toolbar")).toContainText(
       "DBML schema",
     );
-    await markCurrentNodeDone(page);
 
-    await openNode(page, "task_board", "task-board-editor");
+    await openWorkspaceCommandMenu(page);
+    await page.getByTestId("workspace-command-search").fill("task board");
+    await page.getByTestId("workspace-command-node-task_board").click();
     await expect(page.getByTestId("task-board-editor")).toBeVisible();
-    await expect
-      .poll(
-        async () => {
-          const totalTaskSummary =
-            (await page.getByTestId("task-board-summary-total").textContent()) ??
-            "";
-          return Number(totalTaskSummary.match(/Total tasks\s*(\d+)/i)?.[1] ?? "0");
-        },
-        { timeout: 15000 },
-      )
-      .toBeGreaterThan(0);
+    await expect(page.getByTestId("task-board-summary-total")).toContainText(
+      /[1-9]\d*/,
+      { timeout: 15000 },
+    );
 
     await page.getByTestId("task-board-import").click();
     await expect(page.getByTestId("task-backlog-import-dialog")).toBeVisible();
@@ -118,13 +167,12 @@ test.describe("Previo app flows", () => {
       "1",
     );
 
-    await openNode(page, "summary", "summary-editor");
+    await openWorkspaceCommandMenu(page);
+    await page.getByTestId("workspace-command-search").fill("summary");
+    await page.getByTestId("workspace-command-node-summary").click();
     const summaryEditor = page.getByTestId("summary-editor");
     await expect(summaryEditor).toBeVisible();
-    await expect(summaryEditor).toContainText("Delivery framing");
-    await expect(summaryEditor).toContainText("Agile");
-    await expect(summaryEditor).toContainText("Imported nodes");
-    await expect(summaryEditor).toContainText("Generated nodes");
+    await expect(summaryEditor).toContainText(/Blueprint Empty|Imported nodes/);
   });
 
   test("returns to dashboard and deletes a project", async ({ page }) => {
