@@ -49,7 +49,7 @@ export function ProjectFilters({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline">
+              <Button variant="outline" data-testid="project-filter-trigger">
                 Filter
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
@@ -80,7 +80,7 @@ export function ProjectFilters({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline">
+              <Button variant="outline" data-testid="project-sort-trigger">
                 Sort
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
