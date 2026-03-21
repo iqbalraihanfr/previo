@@ -5,9 +5,8 @@ import { NodeData } from "@/lib/db";
 export function useWorkspaceActions(params: {
   projectId: string;
   dbNodes: NodeData[];
-  onOpenNode: (node: NodeData) => void;
 }) {
-  const { projectId, dbNodes, onOpenNode } = params;
+  const { projectId, dbNodes } = params;
 
   const handleAddNode = useCallback(
     async (type: string, baseLabel: string) => {
