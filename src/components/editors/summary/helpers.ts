@@ -409,6 +409,8 @@ export function buildSummaryFraming({
   generatedNodes,
   manualNodes,
   overriddenNodes,
+  topBlockers,
+  topTaskSources,
 }: {
   deliveryModeLabel: string;
   nodesDone: number;
@@ -427,6 +429,8 @@ export function buildSummaryFraming({
   generatedNodes: number;
   manualNodes: number;
   overriddenNodes: number;
+  topBlockers: string[];
+  topTaskSources: string[];
 }): SummaryFraming {
   const executedCoverage = coverage.filter((metric) => metric.total > 0);
   const fullyTraced = executedCoverage.filter(
@@ -499,10 +503,17 @@ export function buildSummaryFraming({
     `Provenance is ${formatCountLabel(importedNodes, "imported node")}, ${formatCountLabel(generatedNodes, "generated node")}, and ${formatCountLabel(manualNodes, "manual node")} with ${formatCountLabel(overriddenNodes, "manual override")} logged.`,
   ];
 
+  const implementationProvenance =
+    topTaskSources.length > 0
+      ? topTaskSources
+      : ["Task provenance has not been established yet."];
+
   return {
     executiveSnapshot: executiveSnapshot.map((line) => compactSentence(line)),
     readinessGaps: readinessGaps.map((line) => compactSentence(line)),
+    topBlockers: topBlockers.map((line) => compactSentence(line)),
     recommendedNextActions: recommendedNextActions.map((line) => compactSentence(line)),
     traceabilityHighlights: traceabilityHighlights.map((line) => compactSentence(line)),
+    implementationProvenance: implementationProvenance.map((line) => compactSentence(line)),
   };
 }

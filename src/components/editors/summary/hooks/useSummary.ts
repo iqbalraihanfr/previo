@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { db, NodeData, TaskData, ValidationWarning } from "@/lib/db";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
+import { buildProjectReadinessModel } from "@/lib/readiness";
 import {
   computeCoverage,
   buildSummaryFraming,
@@ -103,6 +104,11 @@ export function useSummary(projectId: string) {
       nodes: snapshot.allProjectNodes,
     });
     const sprintProposal = buildAgileSprintProposal(snapshot.tasks);
+    const readiness = buildProjectReadinessModel({
+      nodes: snapshot.allProjectNodes,
+      contents: Object.values(snapshot.contents),
+      warnings: snapshot.warnings,
+    });
     const provenanceSummary = snapshot.allProjectNodes.reduce(
       (accumulator, projectNode) => {
         if (projectNode.generation_status === "imported") {
@@ -126,6 +132,19 @@ export function useSummary(projectId: string) {
         overridden: 0,
       },
     );
+    const topTaskSources = Object.entries(
+      snapshot.tasks.reduce<Record<string, number>>((accumulator, task) => {
+        const sourceNode = snapshot.allProjectNodes.find(
+          (node) => node.id === task.source_node_id,
+        );
+        const key = sourceNode?.label ?? (task.task_origin === "manual" ? "Manual task" : "Imported backlog");
+        accumulator[key] = (accumulator[key] ?? 0) + 1;
+        return accumulator;
+      }, {}),
+    )
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 3)
+      .map(([label, count]) => `${label} contributes ${count} task(s) to the current plan.`);
     const framing = buildSummaryFraming({
       deliveryModeLabel:
         DELIVERY_MODE_LABELS[
@@ -147,6 +166,8 @@ export function useSummary(projectId: string) {
       generatedNodes: provenanceSummary.generated,
       manualNodes: provenanceSummary.manual,
       overriddenNodes: provenanceSummary.overridden,
+      topBlockers: readiness.blockers.slice(0, 3).map((issue) => issue.message),
+      topTaskSources,
     });
 
     return {

@@ -207,6 +207,8 @@ export type ProjectSnapshot = {
 export type SummaryFraming = {
   executiveSnapshot: string[];
   readinessGaps: string[];
+  topBlockers: string[];
   recommendedNextActions: string[];
   traceabilityHighlights: string[];
+  implementationProvenance: string[];
 };

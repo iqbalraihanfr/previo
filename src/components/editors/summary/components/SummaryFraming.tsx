@@ -3,15 +3,19 @@
 type SummaryFramingProps = {
   executiveSnapshot: string[];
   readinessGaps: string[];
+  topBlockers: string[];
   recommendedNextActions: string[];
   traceabilityHighlights: string[];
+  implementationProvenance: string[];
 };
 
 export function SummaryFraming({
   executiveSnapshot,
   readinessGaps,
+  topBlockers,
   recommendedNextActions,
   traceabilityHighlights,
+  implementationProvenance,
 }: SummaryFramingProps) {
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -23,12 +27,20 @@ export function SummaryFraming({
         <List items={readinessGaps} />
       </FramingPanel>
 
+      <FramingPanel title="Top Blockers" eyebrow="Fix these first">
+        <List items={topBlockers} />
+      </FramingPanel>
+
       <FramingPanel title="Recommended Next Actions" eyebrow="Pragmatic planner">
         <List items={recommendedNextActions} />
       </FramingPanel>
 
       <FramingPanel title="Traceability Highlights" eyebrow="Coverage signals">
         <List items={traceabilityHighlights} />
+      </FramingPanel>
+
+      <FramingPanel title="Implementation Provenance" eyebrow="Why tasks exist">
+        <List items={implementationProvenance} />
       </FramingPanel>
     </div>
   );
