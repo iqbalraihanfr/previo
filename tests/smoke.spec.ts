@@ -1,87 +1,143 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('Previo E2E Smoke Tests', () => {
-  test('should load dashboard and create a new project', async ({ page }) => {
-    // 1. Load Dashboard
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveTitle(/Previo/i);
-    
-    // Wait for either the "No recent workspace" text or the project list to be ready
-    await page.waitForTimeout(2000); 
+import {
+  createProject,
+  importNode,
+  markCurrentNodeDone,
+  openNode,
+  returnToDashboard,
+} from "./helpers/app";
 
-    // 2. Click Create Project
-    const createBtn = page.getByRole('button', { name: /new project/i }).first();
-    await createBtn.waitFor({ state: 'visible', timeout: 15000 });
-    await createBtn.click();
-    
-    // 3. Fill Project Details
-    const projectName = `Test Project ${Date.now()}`;
-    await page.getByLabel(/project name/i).fill(projectName);
-    
-    // Select Template
-    const templateBtn = page.getByRole('button', { name: /full architecture/i });
-    await templateBtn.click();
-    
-    // 4. Submit
-    const submitBtn = page.getByRole('button', { name: /create workspace/i });
-    await submitBtn.click();
-    
-    // 5. Verify Workspace loads
-    await expect(page).toHaveURL(/\/workspace\//, { timeout: 15000 });
-    await expect(page.locator('h1')).toContainText(projectName, { timeout: 10000 });
-    
-    // 6. Verify React Flow Canvas is present
-    await expect(page.locator('.react-flow__renderer')).toBeVisible({ timeout: 10000 });
+test.describe("Previo app flows", () => {
+  test("creates a project and opens the workspace shell", async ({ page }) => {
+    const projectName = `Workspace Shell ${Date.now()}`;
+    await createProject(page, { name: projectName, template: "quick" });
+
+    await expect(page.getByTestId("workspace-header")).toContainText("Agile");
+    await expect(page.getByTestId("workspace-canvas")).toBeVisible();
+    await expect(
+      page.getByTestId("workspace-node-project_brief").first(),
+    ).toBeVisible();
+
+    await page.getByTestId("workspace-next-node").click();
+    await expect(page.getByTestId("node-editor-panel")).toBeVisible();
+    await expect(page.getByTestId("editor-panel-header")).toContainText(
+      "Project Brief",
+    );
+
+    await page.getByTestId("editor-close-panel").click();
+    await expect(page.getByTestId("node-editor-panel")).toBeHidden();
   });
 
-  test('should interact with editor panel', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
-    const createBtn = page.getByRole('button', { name: /new project/i }).first();
-    await createBtn.click();
-    
-    await page.getByLabel(/project name/i).fill('Editor Test');
-    await page.getByRole('button', { name: /create workspace/i }).click();
-    
-    await expect(page).toHaveURL(/\/workspace\//, { timeout: 15000 });
-    
-    // Wait for nodes to be rendered
-    const node = page.locator('.react-flow__node').filter({ hasText: 'Project Brief' }).first();
-    await node.waitFor({ state: 'visible', timeout: 10000 });
-    await node.click();
-    
-    // Check if editor panel is visible
-    await expect(page.locator('aside')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('heading', { level: 2 })).toContainText('Project Brief');
+  test("supports import-first documentation, task reconciliation, and summary provenance", async ({
+    page,
+  }) => {
+    const projectName = `Import Flow ${Date.now()}`;
+    await createProject(page, { name: projectName, template: "full" });
+
+    await importNode(
+      page,
+      "requirements",
+      [
+        "[FR] [Must] User can generate monthly reports | Reporting | Monthly reporting",
+        "[NFR] [Should] Response time below target | Performance | | p95 latency | 200ms",
+      ].join("\n"),
+    );
+    await markCurrentNodeDone(page);
+
+    await importNode(
+      page,
+      "user_stories",
+      [
+        "id,story,acceptance_criteria,related_requirement",
+        'US-1,"As a finance admin, I want generate monthly reports, so that close-out is faster","Given there is accounting data||When I request a report||Then the report is generated",req-1',
+      ].join("\n"),
+    );
+    await markCurrentNodeDone(page);
+
+    await openNode(page, "use_cases");
+    await page.getByTestId("node-source-generate").click();
+    await expect(page.getByTestId("node-source-toolbar")).toContainText(
+      "Generated draft",
+      { timeout: 15000 },
+    );
+    await expect(page.getByTestId("node-editor-panel")).toContainText(
+      "finance admin",
+    );
+    await markCurrentNodeDone(page);
+
+    await importNode(
+      page,
+      "erd",
+      [
+        "Table reports {",
+        "  id uuid [pk]",
+        "  owner_id uuid",
+        "}",
+        "",
+        "Table users {",
+        "  id uuid [pk]",
+        "}",
+        "",
+        "Ref: reports.owner_id > users.id",
+      ].join("\n"),
+    );
+    await expect(page.getByTestId("node-source-toolbar")).toContainText(
+      "DBML schema",
+    );
+    await markCurrentNodeDone(page);
+
+    await openNode(page, "task_board", "task-board-editor");
+    await expect(page.getByTestId("task-board-editor")).toBeVisible();
+    await expect
+      .poll(
+        async () => {
+          const totalTaskSummary =
+            (await page.getByTestId("task-board-summary-total").textContent()) ??
+            "";
+          return Number(totalTaskSummary.match(/Total tasks\s*(\d+)/i)?.[1] ?? "0");
+        },
+        { timeout: 15000 },
+      )
+      .toBeGreaterThan(0);
+
+    await page.getByTestId("task-board-import").click();
+    await expect(page.getByTestId("task-backlog-import-dialog")).toBeVisible();
+    await page
+      .getByTestId("task-backlog-textarea")
+      .fill(
+        [
+          "id,title,description,priority,status",
+          'JIRA-22,"Backfill analytics export","Import legacy analytics export into backlog",Low,Todo',
+        ].join("\n"),
+      );
+    await page.getByTestId("task-backlog-parse").click();
+    await page.getByTestId("task-backlog-apply").click();
+    await expect(page.getByTestId("task-backlog-import-dialog")).toBeHidden();
+    await expect(page.getByTestId("task-board-summary-imported")).toContainText(
+      "1",
+    );
+
+    await openNode(page, "summary", "summary-editor");
+    const summaryEditor = page.getByTestId("summary-editor");
+    await expect(summaryEditor).toBeVisible();
+    await expect(summaryEditor).toContainText("Delivery framing");
+    await expect(summaryEditor).toContainText("Agile");
+    await expect(summaryEditor).toContainText("Imported nodes");
+    await expect(summaryEditor).toContainText("Generated nodes");
   });
 
-  test('should handle project deletion', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
+  test("returns to dashboard and deletes a project", async ({ page }) => {
     const projectName = `Delete Me ${Date.now()}`;
-    
-    // Create project
-    await page.getByRole('button', { name: /new project/i }).first().click();
-    await page.getByLabel(/project name/i).fill(projectName);
-    await page.getByRole('button', { name: /create workspace/i }).click();
-    
-    await expect(page).toHaveURL(/\/workspace\//, { timeout: 15000 });
+    await createProject(page, { name: projectName, template: "quick" });
 
-    // Go back to dashboard - using the "PREVIO" logo/link or back button if available
-    // WorkspaceHeader has a back button or link
-    await page.goto('/'); 
-    
-    // Find the project card and delete it
-    const card = page.locator('.group\\/card').filter({ hasText: projectName });
-    await card.waitFor({ state: 'visible', timeout: 10000 });
-    await card.getByRole('button', { name: /delete project/i }).click();
-    
-    // Confirm deletion
-    const confirmBtn = page.getByRole('button', { name: /^delete project$/i });
-    await confirmBtn.waitFor({ state: 'visible' });
-    await confirmBtn.click();
-    
-    // Verify it's gone
-    await expect(card).not.toBeVisible({ timeout: 10000 });
+    await returnToDashboard(page);
+
+    const projectCard = page.locator(`[data-project-name="${projectName}"]`).first();
+    await expect(projectCard).toBeVisible();
+    await projectCard.getByRole("button", { name: new RegExp(`Delete ${projectName}`) }).click();
+
+    await page.getByRole("button", { name: /^delete project$/i }).click();
+    await expect(projectCard).toBeHidden({ timeout: 15000 });
   });
 });

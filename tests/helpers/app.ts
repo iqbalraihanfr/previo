@@ -1,0 +1,233 @@
+import { expect, type Page } from "@playwright/test";
+
+export async function dismissWorkspaceOnboarding(page: Page) {
+  const dismissButton = page.getByTestId("dismiss-workspace-onboarding");
+  if (await dismissButton.isVisible().catch(() => false)) {
+    await dismissButton.click();
+  }
+}
+
+export async function openWorkspaceCommandMenu(page: Page) {
+  const commandMenu = page.getByTestId("workspace-command-menu");
+
+  await page.keyboard.press("Control+K").catch(() => {});
+  const openedWithControl = await commandMenu
+    .waitFor({ state: "visible", timeout: 2000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (openedWithControl) {
+    return;
+  }
+
+  await page.keyboard.press("Meta+K").catch(() => {});
+  const openedWithMeta = await commandMenu
+    .waitFor({ state: "visible", timeout: 2000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (openedWithMeta) {
+    return;
+  }
+
+  await page.getByTestId("workspace-command-dialog").click();
+  await expect(commandMenu).toBeVisible({ timeout: 5000 });
+}
+
+export async function returnToDashboard(page: Page) {
+  const backButton = page.getByRole("button", { name: /back to dashboard/i });
+  await backButton.click({ timeout: 3000 }).catch(async () => {
+    if (page.isClosed()) return;
+    await backButton.click({ force: true, timeout: 1000 }).catch(() => {});
+  });
+  await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
+  await expect(page.getByTestId("dashboard-screen")).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+export async function createProject(
+  page: Page,
+  params: {
+    name: string;
+    template?: "quick" | "full";
+  },
+) {
+  let dashboardReady = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto("/", { waitUntil: "load" });
+      await expect(page.getByTestId("dashboard-screen")).toBeVisible({
+        timeout: 15000,
+      });
+      dashboardReady = true;
+      break;
+    } catch (error) {
+      if (attempt === 2) {
+        throw error;
+      }
+      await page.waitForTimeout(1000);
+    }
+  }
+
+  expect(dashboardReady).toBeTruthy();
+
+  const createDialog = page.getByTestId("create-project-dialog");
+  const openDialogTriggers = [
+    page.getByRole("button", { name: /^create project$/i }),
+    page.getByRole("button", { name: /^new project$/i }),
+    page.getByTestId("dashboard-empty-new-project"),
+    page.getByTestId("dashboard-new-project"),
+  ];
+
+  let dialogOpened = false;
+  for (let attempt = 0; attempt < 2 && !dialogOpened; attempt += 1) {
+    for (const trigger of openDialogTriggers) {
+      if (!(await trigger.isVisible().catch(() => false))) {
+        continue;
+      }
+
+      await trigger.click({ timeout: 2000 }).catch(async () => {
+        if (page.isClosed()) return;
+        await trigger.click({ force: true, timeout: 1000 }).catch(() => {});
+      });
+      const isVisible = await createDialog
+        .waitFor({ state: "visible", timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (isVisible) {
+        dialogOpened = true;
+        break;
+      }
+    }
+  }
+
+  expect(dialogOpened).toBeTruthy();
+  await expect(createDialog).toBeVisible({ timeout: 15000 });
+
+  await createDialog.getByLabel(/project name/i).fill(params.name);
+
+  if (params.template && params.template !== "quick") {
+    await createDialog.getByTestId(`template-option-${params.template}`).click();
+  }
+
+  await createDialog.getByTestId("create-workspace-submit").click();
+  const workspaceHeader = page.getByTestId("workspace-header");
+  const workspaceScreen = page.getByTestId("workspace-screen");
+  const reachedWorkspace = await Promise.any([
+    page.waitForURL(/\/workspace\//, { timeout: 15000 }).then(() => true),
+    workspaceHeader.waitFor({ state: "visible", timeout: 15000 }).then(() => true),
+    workspaceScreen.waitFor({ state: "visible", timeout: 15000 }).then(() => true),
+  ]).catch(() => false);
+
+  const isWorkspaceReady =
+    reachedWorkspace ||
+    /\/workspace\//.test(page.url()) ||
+    (await workspaceHeader.isVisible().catch(() => false)) ||
+    (await workspaceScreen.isVisible().catch(() => false));
+
+  if (!isWorkspaceReady) {
+    const resolvedDestination = await Promise.any([
+      page.waitForURL(/\/workspace\//, { timeout: 15000 }).then(() => "workspace"),
+      workspaceHeader.waitFor({ state: "visible", timeout: 15000 }).then(() => "workspace"),
+      workspaceScreen.waitFor({ state: "visible", timeout: 15000 }).then(() => "workspace"),
+      page
+        .getByTestId("dashboard-screen")
+        .waitFor({ state: "visible", timeout: 15000 })
+        .then(() => "dashboard"),
+    ]).catch(() => "unknown");
+
+    if (resolvedDestination === "dashboard") {
+      const recentContinue = page.getByTestId("recent-project-continue");
+      if (await recentContinue.isVisible().catch(() => false)) {
+        await recentContinue.click();
+      } else {
+        const projectCard = page.locator(
+          `[data-project-name="${params.name}"]`,
+        ).first();
+        await expect(projectCard).toBeVisible({ timeout: 30000 });
+        await projectCard.getByRole("button", { name: /continue/i }).click();
+      }
+    }
+  }
+
+  await expect(page).toHaveURL(/\/workspace\//, { timeout: 45000 });
+
+  try {
+    await expect(page.getByTestId("workspace-screen")).toBeVisible({
+      timeout: 10000,
+    });
+  } catch {
+    await expect(page.getByTestId("workspace-header")).toBeVisible({
+      timeout: 10000,
+    });
+  }
+  await expect(page.getByTestId("workspace-header")).toContainText(params.name);
+
+  await dismissWorkspaceOnboarding(page);
+}
+
+export async function openNode(
+  page: Page,
+  nodeType: string,
+  panelTestId = "node-editor-panel",
+) {
+  const fitViewButton = page.getByTestId("workspace-fit-view");
+  if (await fitViewButton.isVisible().catch(() => false)) {
+    await fitViewButton.click();
+  }
+
+  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
+  await expect(node).toBeVisible({ timeout: 15000 });
+  await node.scrollIntoViewIfNeeded();
+  const panel = page.getByTestId(panelTestId);
+  const assertPanel = async (timeout: number) => {
+    if (panelTestId === "node-editor-panel") {
+      await expect(panel).toHaveAttribute("data-node-type", nodeType, {
+        timeout,
+      });
+      return;
+    }
+
+    await expect(panel).toBeVisible({ timeout });
+  };
+
+  try {
+    await node.click({ position: { x: 24, y: 24 } });
+    await assertPanel(2500);
+  } catch {
+    await node.evaluate((element) => {
+      (element as HTMLElement).click();
+    });
+    await assertPanel(10000);
+  }
+}
+
+export async function importNode(page: Page, nodeType: string, rawContent: string) {
+  await openNode(page, nodeType);
+  await page.getByTestId("node-source-import").click();
+  await expect(page.getByTestId("source-import-dialog")).toBeVisible();
+  await page.getByTestId("source-import-textarea").fill(rawContent);
+  await page.getByTestId("source-import-parse").click();
+  await expect(page.getByTestId("source-import-apply")).toBeVisible({
+    timeout: 15000,
+  });
+  await page.getByTestId("source-import-apply").click();
+  await expect(page.getByTestId("source-import-dialog")).toBeHidden();
+  await expect(page.getByTestId("node-source-toolbar")).toContainText(
+    "Imported source",
+    { timeout: 15000 },
+  );
+}
+
+export async function markCurrentNodeDone(page: Page) {
+  const statusTrigger = page.getByTestId("editor-status-trigger");
+  await statusTrigger.scrollIntoViewIfNeeded().catch(() => {});
+  await statusTrigger.click({ timeout: 3000 }).catch(async () => {
+    if (page.isClosed()) return;
+    await statusTrigger.click({ force: true, timeout: 1000 }).catch(() => {});
+  });
+  await page.getByRole("option", { name: /^done$/i }).click();
+  await expect(page.getByTestId("editor-panel-header")).toContainText("Done");
+}

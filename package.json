@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
+    "start:prod": "next start --hostname 127.0.0.1 --port 3001",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test:unit": "vitest run tests/unit",
     "test:e2e": "playwright test",
+    "test:e2e:prod": "playwright test -c playwright.prod.config.ts",
     "prepare": "husky"
   },
   "dependencies": {
