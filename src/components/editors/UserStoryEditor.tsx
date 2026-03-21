@@ -2,12 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 import { Plus, Users2 } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
+import type { StructuredEditorProps } from "./editorTypes";
 
-import { useUserStoryLogic } from "./userstory/hooks/useUserStoryLogic";
+import {
+  useUserStoryLogic,
+  type UserStoryFields,
+  type UserStoryFieldItem,
+} from "./userstory/hooks/useUserStoryLogic";
 import { UserStoryItem } from "./userstory/components/UserStoryItem";
 
-export function UserStoryEditor({ fields, onChange, projectId }: EditorProps) {
+type UserStoryEditorProps = StructuredEditorProps<UserStoryFields>;
+
+export function UserStoryEditor({
+  fields,
+  onChange,
+  projectId,
+}: UserStoryEditorProps) {
   const {
     items,
     targetUsers,
@@ -19,7 +29,7 @@ export function UserStoryEditor({ fields, onChange, projectId }: EditorProps) {
     updateCriteria,
     removeCriteria,
     getAutoPriority,
-  } = useUserStoryLogic(projectId!, fields, onChange);
+  } = useUserStoryLogic(projectId, fields, onChange);
 
   return (
     <div className="workspace-scroll flex-1 overflow-y-auto px-8 py-10 w-full bg-card/5">
@@ -41,7 +51,7 @@ export function UserStoryEditor({ fields, onChange, projectId }: EditorProps) {
                 User Stories
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground max-w-xl">
-                Define value-driven narratives from the persona's perspective. Link stories to requirements for full functional traceability.
+                Define value-driven narratives from the persona&apos;s perspective. Link stories to requirements for full functional traceability.
               </p>
             </div>
           </div>
@@ -66,7 +76,7 @@ export function UserStoryEditor({ fields, onChange, projectId }: EditorProps) {
 
         {/* User Stories List */}
         <div className="space-y-16 pb-20">
-          {items.map((item: any, itemIdx: number) => (
+          {items.map((item: UserStoryFieldItem, itemIdx: number) => (
             <UserStoryItem
               key={item.id}
               item={item}

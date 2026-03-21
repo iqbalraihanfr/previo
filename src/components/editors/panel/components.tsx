@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Loader2, Check, X, Trash2, ChevronDown } from "lucide-react";
 import type { NodeData } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -84,7 +83,10 @@ export function EditorPanelHeader({
 }) {
   return (
     <>
-    <div className="flex flex-col border-b border-border/60 bg-card/50 backdrop-blur-md">
+    <div
+      className="flex flex-col border-b border-border/60 bg-card/50 backdrop-blur-md"
+      data-testid="editor-panel-header"
+    >
       {/* Top Meta Bar */}
       <div className="flex h-13 items-center justify-between border-b border-border/40 px-6">
         <div className="flex items-center gap-2.5">
@@ -95,7 +97,10 @@ export function EditorPanelHeader({
           </div>
           <div className="h-4 w-px bg-border/40" />
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="h-7 w-auto min-w-[100px] border-none bg-transparent p-0 text-readable-xs font-semibold focus:ring-0">
+            <SelectTrigger
+              className="h-7 w-auto min-w-[100px] border-none bg-transparent p-0 text-readable-xs font-semibold focus:ring-0"
+              data-testid="editor-status-trigger"
+            >
               <span className={getStatusTone(status)}>
                 <SelectValue />
               </span>
@@ -132,6 +137,7 @@ export function EditorPanelHeader({
               onClick={onDeleteAction}
               className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
               title="Delete Node"
+              data-testid="editor-delete-node"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -143,6 +149,7 @@ export function EditorPanelHeader({
             onClick={onCloseAction}
             className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:bg-muted"
             title="Close Panel"
+            data-testid="editor-close-panel"
           >
             <X className="h-4 w-4" />
           </Button>

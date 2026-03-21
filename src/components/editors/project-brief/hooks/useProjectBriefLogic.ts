@@ -1,7 +1,10 @@
 "use client";
 
-export function useProjectBriefLogic(fields: any, onChange: (f: any) => void) {
-  const updateField = (key: string, value: any) => {
+export function useProjectBriefLogic<T extends object>(
+  fields: T,
+  onChange: (f: T) => void,
+) {
+  const updateField = <K extends keyof T>(key: K, value: T[K]) => {
     onChange({ ...fields, [key]: value });
   };
 

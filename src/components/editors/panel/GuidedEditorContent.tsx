@@ -6,6 +6,14 @@ import { ERDEditor } from "@/components/editors/ERDEditor";
 import { SequenceEditor } from "@/components/editors/SequenceEditor";
 import { FlowchartEditor } from "@/components/editors/FlowchartEditor";
 import { DFDEditor } from "@/components/editors/DFDEditor";
+import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
+import type { RequirementFields } from "@/components/editors/requirement/hooks/useRequirementLogic";
+import type { UserStoryFields } from "@/components/editors/userstory/hooks/useUserStoryLogic";
+import type { UseCaseFields } from "@/components/editors/usecase/hooks/useUseCaseLogic";
+import type { ERDFields } from "@/components/editors/erd/hooks/useERDLogic";
+import type { SequenceFields } from "@/components/editors/sequence/hooks/useSequenceLogic";
+import type { FlowchartFields } from "@/components/editors/flowchart/hooks/useFlowchartLogic";
+import type { DFDFields } from "@/components/editors/dfd/hooks/useDFDLogic";
 
 export function GuidedEditorContent({
   type,
@@ -22,7 +30,7 @@ export function GuidedEditorContent({
     case "project_brief":
       return (
         <ProjectBriefEditor
-          fields={fields}
+          fields={fields as ProjectBriefFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -30,7 +38,7 @@ export function GuidedEditorContent({
     case "requirements":
       return (
         <RequirementEditor
-          fields={fields}
+          fields={fields as RequirementFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -38,7 +46,7 @@ export function GuidedEditorContent({
     case "user_stories":
       return (
         <UserStoryEditor
-          fields={fields}
+          fields={fields as UserStoryFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -46,7 +54,7 @@ export function GuidedEditorContent({
     case "use_cases":
       return (
         <UseCaseEditor
-          fields={fields}
+          fields={fields as UseCaseFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -54,7 +62,7 @@ export function GuidedEditorContent({
     case "erd":
       return (
         <ERDEditor
-          fields={fields}
+          fields={fields as ERDFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -62,7 +70,7 @@ export function GuidedEditorContent({
     case "sequence":
       return (
         <SequenceEditor
-          fields={fields}
+          fields={fields as SequenceFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -70,7 +78,7 @@ export function GuidedEditorContent({
     case "flowchart":
       return (
         <FlowchartEditor
-          fields={fields}
+          fields={fields as FlowchartFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />
@@ -78,7 +86,7 @@ export function GuidedEditorContent({
     case "dfd":
       return (
         <DFDEditor
-          fields={fields}
+          fields={fields as DFDFields}
           onChange={(f) => onChange(f as Record<string, unknown>)}
           projectId={projectId}
         />

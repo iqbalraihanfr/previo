@@ -1,6 +1,7 @@
 import type {
   NodeContent,
   NodeData,
+  Project,
   TaskData,
   ValidationWarning,
 } from "@/lib/db";
@@ -195,6 +196,7 @@ export type CoverageMetric = {
 };
 
 export type ProjectSnapshot = {
+  project: Project | null;
   allProjectNodes: NodeData[];
   displayNodes: NodeData[];
   contents: Record<string, SummaryContent>;

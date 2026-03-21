@@ -1,9 +1,9 @@
 "use client";
 
-import { Search, Plus, Download, Filter, ChevronUp, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Plus, Download, Filter, ChevronUp, ChevronDown, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -62,10 +62,9 @@ interface TaskBoardFiltersProps {
   onSourceChange: (source: SourceFilter) => void;
   sourceOptions: { id: string; label: string }[];
   onAddTask: () => void;
+  onImport: () => void;
   onExport: (format: string) => void;
 }
-
-import { useMemo, useState } from "react";
 
 export function TaskBoardFilters({
   searchQuery,
@@ -80,6 +79,7 @@ export function TaskBoardFilters({
   onSourceChange,
   sourceOptions,
   onAddTask,
+  onImport,
   onExport,
 }: TaskBoardFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
@@ -99,6 +99,7 @@ export function TaskBoardFilters({
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
             <Input
+              data-testid="task-board-search"
               value={searchQuery}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Search tasks..."
@@ -109,10 +110,14 @@ export function TaskBoardFilters({
             value={grouping}
             onValueChange={(value) => onGroupingChange(value as GroupingMode)}
           >
-            <SelectTrigger className="h-10 min-w-[140px] rounded-xl text-xs bg-background/50 border-border/60">
+            <SelectTrigger
+              className="h-10 min-w-[140px] rounded-xl text-xs bg-background/50 border-border/60"
+              data-testid="task-board-grouping-trigger"
+            >
               <SelectValue placeholder="Group" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="methodology">Methodology</SelectItem>
               <SelectItem value="feature">Feature</SelectItem>
               <SelectItem value="layer">Layer</SelectItem>
               <SelectItem value="source">Source</SelectItem>
@@ -129,9 +134,21 @@ export function TaskBoardFilters({
             variant="outline"
             onClick={onAddTask}
             className="h-10 px-4 rounded-xl border-border/60 bg-background/50 hover:bg-background"
+            data-testid="task-board-add-task"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onImport}
+            className="h-10 px-4 rounded-xl border-border/60 bg-background/50 hover:bg-background"
+            data-testid="task-board-import"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Import
           </Button>
 
           <DropdownMenu>
@@ -141,6 +158,7 @@ export function TaskBoardFilters({
                   size="sm"
                   variant="outline"
                   className="h-10 px-4 rounded-xl border-border/60 bg-background/50 hover:bg-background"
+                  data-testid="task-board-export-trigger"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export
@@ -148,10 +166,10 @@ export function TaskBoardFilters({
               }
             />
             <DropdownMenuContent align="end" className="rounded-xl p-1 shadow-lg">
-              <DropdownMenuItem onClick={() => onExport("md")}>Markdown Checklist</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport("csv")}>CSV (Spreadsheet)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport("linear")}>CSV (Linear Import)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport("json")}>JSON File</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("md")} data-testid="task-board-export-md">Markdown Checklist</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("csv")} data-testid="task-board-export-csv">CSV (Spreadsheet)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("linear")} data-testid="task-board-export-linear">CSV (Linear Import)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("json")} data-testid="task-board-export-json">JSON File</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

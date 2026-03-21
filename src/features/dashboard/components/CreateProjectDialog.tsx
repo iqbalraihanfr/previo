@@ -14,8 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PROJECT_TEMPLATES } from "@/services/ProjectService";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PROJECT_TEMPLATES } from "@/features/dashboard/projectTemplates";
 import { CONTENT_TEMPLATES, type ContentTemplateKey } from "@/lib/contentTemplates";
+import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
+import type { DeliveryMode } from "@/lib/db";
 
 export type TemplateKey = "quick" | "full";
 
@@ -72,6 +81,8 @@ interface CreateProjectDialogProps {
   onTemplateChange: (key: TemplateKey) => void;
   selectedContentTemplate: ContentTemplateKey;
   onContentTemplateChange: (key: ContentTemplateKey) => void;
+  deliveryMode: DeliveryMode;
+  onDeliveryModeChange: (value: DeliveryMode) => void;
   onCreate: () => void;
 }
 
@@ -86,6 +97,8 @@ export function CreateProjectDialog({
   onTemplateChange,
   selectedContentTemplate,
   onContentTemplateChange,
+  deliveryMode,
+  onDeliveryModeChange,
   onCreate,
 }: CreateProjectDialogProps) {
   const activeTemplate = TEMPLATES[selectedTemplate];
@@ -93,7 +106,10 @@ export function CreateProjectDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-2xl lg:max-w-4xl">
+      <DialogContent
+        className="flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-2xl lg:max-w-4xl"
+        data-testid="create-project-dialog"
+      >
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Create new project</DialogTitle>
           <DialogDescription>
@@ -149,6 +165,7 @@ export function CreateProjectDialog({
                         key={key}
                         type="button"
                         onClick={() => onTemplateChange(key)}
+                        data-testid={`template-option-${key}`}
                         className={[
                           "rounded-[12px] border p-5 text-left transition-all",
                           isSelected
@@ -252,6 +269,36 @@ export function CreateProjectDialog({
 
             <div className="grid gap-3">
               <div className="space-y-1">
+                <Label>Delivery mode</Label>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Previo will keep one canonical task model, then frame planning output based on this delivery style.
+                </p>
+              </div>
+
+              <Select
+                value={deliveryMode}
+                onValueChange={(value) => onDeliveryModeChange(value as DeliveryMode)}
+              >
+                <SelectTrigger
+                  className="h-11 rounded-xl"
+                  data-testid="delivery-mode-trigger"
+                >
+                  <SelectValue placeholder="Choose delivery mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(
+                    Object.entries(DELIVERY_MODE_LABELS) as [DeliveryMode, string][]
+                  ).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="space-y-1">
                 <Label>Pre-fill Project Brief</Label>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Jump-start your brief with a starter template. You can edit everything after.
@@ -263,6 +310,7 @@ export function CreateProjectDialog({
                     key={tpl.key}
                     type="button"
                     onClick={() => onContentTemplateChange(tpl.key)}
+                    data-testid={`content-template-${tpl.key}`}
                     className={[
                       "flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
                       selectedContentTemplate === tpl.key
@@ -290,7 +338,11 @@ export function CreateProjectDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={onCreate} disabled={!projectName.trim()}>
+          <Button
+            onClick={onCreate}
+            disabled={!projectName.trim()}
+            data-testid="create-workspace-submit"
+          >
             Create workspace
           </Button>
         </DialogFooter>

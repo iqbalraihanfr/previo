@@ -49,6 +49,8 @@ export function ProjectCard({
 }: ProjectCardProps) {
   return (
     <Card
+      data-testid={`project-card-${project.id}`}
+      data-project-name={project.name}
       className="group cursor-pointer border border-border/70 bg-card/95 py-0 transition-all hover:-translate-y-0.5 hover:border-primary/25"
       onClick={onClick}
     >
@@ -82,6 +84,7 @@ export function ProjectCard({
               className="text-muted-foreground hover:text-destructive"
               onClick={onDelete}
               aria-label={`Delete ${project.name}`}
+              data-testid={`delete-project-${project.id}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -155,7 +158,7 @@ export function ProjectCard({
           </span>
         </div>
 
-        <Button variant="outline">
+        <Button variant="outline" data-testid={`continue-project-${project.id}`}>
           Continue
           <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Button>

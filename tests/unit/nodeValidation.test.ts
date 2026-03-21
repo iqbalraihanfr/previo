@@ -1,14 +1,15 @@
 import { expect, test, describe } from "vitest";
 import { validateNode } from "../../src/lib/nodeValidation";
+import type { LocalValidationIssue } from "../../src/lib/nodeValidation";
 
 describe("Node Validation Engine", () => {
   describe("Project Brief Validation", () => {
     test("should return issues for empty fields", () => {
       const input = {};
       const issues = validateNode("project_brief", input);
-      expect(issues.some(i => i.field === "name")).toBe(true);
-      expect(issues.some(i => i.field === "background")).toBe(true);
-      expect(issues.some(i => i.field === "objectives")).toBe(true);
+      expect(issues.some((i: LocalValidationIssue) => i.field === "name")).toBe(true);
+      expect(issues.some((i: LocalValidationIssue) => i.field === "background")).toBe(true);
+      expect(issues.some((i: LocalValidationIssue) => i.field === "objectives")).toBe(true);
     });
 
     test("should return no issues for valid brief", () => {
@@ -35,8 +36,16 @@ describe("Node Validation Engine", () => {
         ]
       };
       const issues = validateNode("requirements", input);
-      expect(issues.some(i => i.message.includes("Min 3 Functional Requirements"))).toBe(true);
-      expect(issues.some(i => i.message.includes("At least 1 Non-Functional Requirement"))).toBe(true);
+      expect(
+        issues.some((i: LocalValidationIssue) =>
+          i.message.includes("Min 3 Functional Requirements"),
+        ),
+      ).toBe(true);
+      expect(
+        issues.some((i: LocalValidationIssue) =>
+          i.message.includes("At least 1 Non-Functional Requirement"),
+        ),
+      ).toBe(true);
     });
 
     test("should pass with valid requirements", () => {
@@ -64,6 +73,24 @@ describe("Node Validation Engine", () => {
       const issues = validateNode("user_stories", input);
       expect(issues.length).toBe(1);
       expect(issues[0].message).toContain("Story #2");
+    });
+  });
+
+  describe("ERD Validation", () => {
+    test("should require at least one entity", () => {
+      const issues = validateNode("erd", { entities: [] });
+      expect(
+        issues.some((issue: LocalValidationIssue) =>
+          issue.message.includes("No entities defined."),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("Validation Guardrails", () => {
+    test("should ignore unsupported node types and null fields safely", () => {
+      expect(validateNode("summary", {})).toEqual([]);
+      expect(validateNode("project_brief", null)).toEqual([]);
     });
   });
 });

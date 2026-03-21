@@ -56,6 +56,17 @@ function getStatusBadgeClass(status: TaskData["status"]) {
   }
 }
 
+function taskOriginLabel(task: TaskData) {
+  switch (task.task_origin) {
+    case "generated":
+      return "Generated";
+    case "imported_backlog":
+      return task.external_source ? `Imported ${task.external_source}` : "Imported";
+    default:
+      return "Manual";
+  }
+}
+
 interface TaskItemProps {
   task: TaskData;
   sourceNodeLabel: string;
@@ -77,11 +88,16 @@ export function TaskItem({ task, sourceNodeLabel, onUpdate, onDelete }: TaskItem
                 {statusLabel(task.status)}
               </span>
               <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-readable-2xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                {task.is_manual ? "Manual" : "Auto"}
+                {taskOriginLabel(task)}
               </span>
               <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-readable-2xs font-bold uppercase tracking-wider text-muted-foreground/80">
                 Source: {sourceNodeLabel}
               </span>
+              {task.task_origin === "imported_backlog" && (
+                <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-readable-2xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                  {task.match_to_generated ? "Matched" : "Unmatched"}
+                </span>
+              )}
             </div>
 
             <Input

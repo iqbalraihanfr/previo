@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { db, NodeData, NodeContent, TaskData, ValidationWarning } from "@/lib/db";
+import { db, NodeData, TaskData, ValidationWarning } from "@/lib/db";
+import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import {
   computeCoverage,
   extractAPIEndpoints,
@@ -10,7 +11,8 @@ import {
 import { ProjectSnapshot } from "../types";
 
 async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> {
-  const [projectNodes, allContents, tasks, warnings] = await Promise.all([
+  const [project, projectNodes, allContents, tasks, warnings] = await Promise.all([
+    db.projects.get(projectId),
     db.nodes.where({ project_id: projectId }).toArray(),
     db.nodeContents.toArray(),
     db.tasks.where({ project_id: projectId }).toArray(),
@@ -29,6 +31,7 @@ async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> 
   const contents = getNodeContentMap(projectNodes, allContents);
 
   return {
+    project: project ?? null,
     allProjectNodes: projectNodes,
     displayNodes,
     contents,
@@ -39,6 +42,7 @@ async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> 
 
 export function useSummary(projectId: string) {
   const [snapshot, setSnapshot] = useState<ProjectSnapshot>({
+    project: null,
     allProjectNodes: [],
     displayNodes: [],
     contents: {},
@@ -90,6 +94,36 @@ export function useSummary(projectId: string) {
 
     const coverage = computeCoverage(snapshot.allProjectNodes, snapshot.contents);
     const apiEndpoints = extractAPIEndpoints(snapshot.contents, snapshot.allProjectNodes);
+    const deliveryMode = snapshot.project?.delivery_mode ?? "agile";
+    const deliveryPlan = buildDeliveryPlan({
+      deliveryMode,
+      tasks: snapshot.tasks,
+      nodes: snapshot.allProjectNodes,
+    });
+    const sprintProposal = buildAgileSprintProposal(snapshot.tasks);
+    const provenanceSummary = snapshot.allProjectNodes.reduce(
+      (accumulator, projectNode) => {
+        if (projectNode.generation_status === "imported") {
+          accumulator.imported += 1;
+        } else if (projectNode.generation_status === "generated") {
+          accumulator.generated += 1;
+        } else {
+          accumulator.manual += 1;
+        }
+
+        if (projectNode.override_status === "manual_override") {
+          accumulator.overridden += 1;
+        }
+
+        return accumulator;
+      },
+      {
+        imported: 0,
+        generated: 0,
+        manual: 0,
+        overridden: 0,
+      },
+    );
 
     return {
       errorWarnings,
@@ -99,12 +133,16 @@ export function useSummary(projectId: string) {
       tasksByStatus,
       coverage,
       apiEndpoints,
+      deliveryMode,
+      deliveryPlan,
+      sprintProposal,
+      provenanceSummary,
       nonSummaryNodes,
       allNodesDone,
       isProjectReady: allNodesDone && errorWarnings.length === 0,
       incompleteNodeCount: nonSummaryNodes.filter((pn: NodeData) => pn.status !== "Done").length,
     };
-  }, [snapshot]);
+  }, [allNodesDone, nonSummaryNodes, snapshot]);
 
   return {
     snapshot,

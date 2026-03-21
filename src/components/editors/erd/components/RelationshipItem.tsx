@@ -40,25 +40,31 @@ export function RelationshipItem({
           <div className="flex-1 grid grid-cols-[1fr,auto,1fr] items-center gap-3">
             {/* Entity A */}
             <Select
-              value={relationship.from}
-              onValueChange={(val) => onUpdate({ from: val })}
+              value={relationship.from || undefined}
+              onValueChange={(val) => onUpdate({ from: val ?? "" })}
             >
               <SelectTrigger className="h-10 border-none bg-background/50 rounded-xl font-bold uppercase tracking-tight font-mono text-xs">
                 <SelectValue placeholder="ENTITY A" />
               </SelectTrigger>
               <SelectContent>
-                {entities.map((e) => (
-                  <option key={e.id} value={e.name}>
+                {entities.map((e, index) => (
+                  <SelectItem
+                    key={e.id}
+                    value={e.name || `entity-${index + 1}`}
+                    className="font-mono text-xs uppercase"
+                  >
                     {e.name || "UNNAMED"}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
             {/* Type */}
             <Select
-              value={relationship.type}
-              onValueChange={(val) => onUpdate({ type: val as any })}
+              value={relationship.type || undefined}
+              onValueChange={(val) =>
+                onUpdate({ type: (val ?? "one-to-many") as ERDRelationship["type"] })
+              }
             >
               <SelectTrigger className="h-9 w-24 border-none bg-primary/10 text-primary font-black text-[10px] rounded-lg">
                 <SelectValue />
@@ -74,17 +80,21 @@ export function RelationshipItem({
 
             {/* Entity B */}
             <Select
-              value={relationship.to}
-              onValueChange={(val) => onUpdate({ to: val })}
+              value={relationship.to || undefined}
+              onValueChange={(val) => onUpdate({ to: val ?? "" })}
             >
               <SelectTrigger className="h-10 border-none bg-background/50 rounded-xl font-bold uppercase tracking-tight font-mono text-xs">
                 <SelectValue placeholder="ENTITY B" />
               </SelectTrigger>
               <SelectContent>
-                {entities.map((e) => (
-                  <option key={e.id} value={e.name}>
+                {entities.map((e, index) => (
+                  <SelectItem
+                    key={e.id}
+                    value={e.name || `entity-${index + 1}`}
+                    className="font-mono text-xs uppercase"
+                  >
                     {e.name || "UNNAMED"}
-                  </option>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

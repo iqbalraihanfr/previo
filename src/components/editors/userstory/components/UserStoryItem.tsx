@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus, Users, Target, ShieldCheck, Link2 } from "lucide-react";
 import { AcceptanceCriteriaSection } from "./AcceptanceCriteriaSection";
+import type { RequirementFieldItem } from "../../requirement/hooks/useRequirementLogic";
+import type { UserStoryFieldItem } from "../hooks/useUserStoryLogic";
 
 interface UserStoryItemProps {
-  item: any;
+  item: UserStoryFieldItem;
   index: number;
   targetUsers: string[];
-  frItems: any[];
+  frItems: RequirementFieldItem[];
   autoPriority: string | null;
-  onUpdate: (updates: any) => void;
+  onUpdate: (updates: Partial<UserStoryFieldItem>) => void;
   onRemove: () => void;
   onAddCriteria: () => void;
   onUpdateCriteria: (idx: number, key: "given" | "when" | "then", val: string) => void;
@@ -79,8 +81,8 @@ export function UserStoryItem({
             </div>
             {targetUsers.length > 0 ? (
               <Select
-                value={item.role || ""}
-                onValueChange={(val) => onUpdate({ role: val === "__none__" ? "" : val })}
+                value={typeof item.role === "string" ? item.role : ""}
+                onValueChange={(val) => onUpdate({ role: val === "__none__" ? "" : (val ?? "") })}
               >
                 <SelectTrigger className="h-12 bg-background/50 border-border/40 rounded-2xl hover:bg-background transition-all">
                   <SelectValue placeholder="Identify the user role..." />
@@ -109,7 +111,7 @@ export function UserStoryItem({
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-muted-foreground/60">
                 <Target className="h-3.5 w-3.5" />
-                <Label className="text-[10px] font-bold uppercase tracking-widest">The "What" (Goal)</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest">The &quot;What&quot; (Goal)</Label>
               </div>
               <Input
                 value={item.goal || ""}
@@ -121,7 +123,7 @@ export function UserStoryItem({
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-muted-foreground/60">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                <Label className="text-[10px] font-bold uppercase tracking-widest">The "Why" (Value)</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest">The &quot;Why&quot; (Value)</Label>
               </div>
               <Input
                 value={item.benefit || ""}
@@ -140,15 +142,23 @@ export function UserStoryItem({
             </div>
             {frItems.length > 0 ? (
               <Select
-                value={item.related_requirement || ""}
-                onValueChange={(val) => onUpdate({ related_requirement: val === "__none__" ? "" : val })}
+                value={
+                  typeof item.related_requirement === "string"
+                    ? item.related_requirement
+                    : ""
+                }
+                onValueChange={(val) =>
+                  onUpdate({
+                    related_requirement: val === "__none__" ? "" : (val ?? ""),
+                  })
+                }
               >
                 <SelectTrigger className="h-12 bg-background/50 border-border/40 rounded-2xl hover:bg-background transition-all">
                   <SelectValue placeholder="Link to functional requirement..." />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-border/40 shadow-xl max-w-[400px]">
                   <SelectItem value="__none__" className="rounded-xl italic opacity-50 text-xs">Unlinked</SelectItem>
-                  {frItems.map((fr: any, idx: number) => {
+                  {frItems.map((fr, idx: number) => {
                     const frId = `FR-${String(idx + 1).padStart(3, "0")}`;
                     return (
                       <SelectItem key={fr.id} value={fr.id} className="rounded-xl py-3">
@@ -189,7 +199,6 @@ export function UserStoryItem({
           </div>
 
           <AcceptanceCriteriaSection
-            storyId={item.id}
             criteria={item.acceptance_criteria || []}
             onUpdate={onUpdateCriteria}
             onRemove={onRemoveCriteria}

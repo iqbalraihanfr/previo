@@ -145,6 +145,10 @@ export const ArchwayNode = memo(
         />
 
         <div
+          data-testid={`workspace-node-${nodeData.type}`}
+          data-node-id={nodeData.id}
+          data-node-type={nodeData.type}
+          data-node-status={nodeData.status}
           className={cn(
             "flex min-w-[320px] max-w-[340px] flex-col overflow-hidden rounded-[12px] border border-border/70 bg-card shadow-[0_4px_20px_rgba(46,50,48,0.06)] transition-all duration-200",
             selected

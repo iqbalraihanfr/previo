@@ -198,6 +198,23 @@ That means:
 
 Previo currently supports two workspace modes.
 
+## Tooling standard
+
+Previo is standardized on:
+
+- `Node.js 22`
+- `pnpm`
+
+Recommended local commands:
+
+- `pnpm install`
+- `pnpm dev`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test:unit`
+- `pnpm test:e2e`
+- `pnpm build`
+
 ### Quick Start
 
 Best for:

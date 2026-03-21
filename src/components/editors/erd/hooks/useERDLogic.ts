@@ -1,7 +1,5 @@
 "use client";
 
-import { crypto } from "@/lib/utils"; // Assuming crypto.randomUUID is available or needs fallback
-
 export type ERDAttribute = {
   name: string;
   type: string;
