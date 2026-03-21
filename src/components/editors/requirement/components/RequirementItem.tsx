@@ -13,20 +13,19 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Hash, Layers, ListChecks, Target, Zap } from "lucide-react";
 import { FR_CATEGORIES, NFR_CATEGORIES } from "../constants";
+import type { RequirementFieldItem, RequirementType } from "../hooks/useRequirementLogic";
 
 interface RequirementItemProps {
-  item: any;
-  index: number;
-  type: "FR" | "NFR";
+  item: RequirementFieldItem;
+  type: RequirementType;
   displayId: string;
   scopeInItems: string[];
-  onUpdate: (updates: any) => void;
+  onUpdate: (updates: Partial<RequirementFieldItem>) => void;
   onRemove: () => void;
 }
 
 export function RequirementItem({
   item,
-  index,
   type,
   displayId,
   scopeInItems,
@@ -90,9 +89,15 @@ export function RequirementItem({
             </div>
             <div className="space-y-3">
               <Select
-                value={isCustomCategory ? "__custom__" : item.category || ""}
+                value={
+                  isCustomCategory
+                    ? "__custom__"
+                    : typeof item.category === "string"
+                      ? item.category
+                      : ""
+                }
                 onValueChange={(val) => {
-                  if (val !== "__custom__") onUpdate({ category: val });
+                  if (val !== "__custom__") onUpdate({ category: val ?? "" });
                 }}
               >
                 <SelectTrigger className="h-12 bg-background/50 border-border/40 rounded-2xl hover:bg-background transition-all">
@@ -135,8 +140,10 @@ export function RequirementItem({
               <Label className="text-[10px] font-bold uppercase tracking-widest">Priority (MoSCoW)</Label>
             </div>
             <Select
-              value={item.priority || "Should"}
-              onValueChange={(val) => onUpdate({ priority: val })}
+              value={typeof item.priority === "string" ? item.priority : "Should"}
+              onValueChange={(val) =>
+                onUpdate({ priority: (val ?? "Should") as RequirementFieldItem["priority"] })
+              }
             >
               <SelectTrigger className="h-12 bg-background/50 border-border/40 rounded-2xl hover:bg-background transition-all">
                 <SelectValue placeholder="Set priority level..." />
@@ -145,7 +152,7 @@ export function RequirementItem({
                 <SelectItem value="Must" className="rounded-xl font-bold text-emerald-600 dark:text-emerald-400">Must Have</SelectItem>
                 <SelectItem value="Should" className="rounded-xl font-medium text-sky-600 dark:text-sky-400">Should Have</SelectItem>
                 <SelectItem value="Could" className="rounded-xl text-amber-600 dark:text-amber-400">Could Have</SelectItem>
-                <SelectItem value="Wont" className="rounded-xl text-muted-foreground italic">Won't Have (This time)</SelectItem>
+                <SelectItem value="Wont" className="rounded-xl text-muted-foreground italic">Won&apos;t Have (This time)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -159,8 +166,10 @@ export function RequirementItem({
               <Label className="text-[10px] font-bold uppercase tracking-widest">Traceability (Scope Link)</Label>
             </div>
             <Select
-              value={item.related_scope || ""}
-              onValueChange={(val) => onUpdate({ related_scope: val === "__none__" ? "" : val })}
+              value={typeof item.related_scope === "string" ? item.related_scope : ""}
+              onValueChange={(val) =>
+                onUpdate({ related_scope: val === "__none__" ? "" : (val ?? "") })
+              }
             >
               <SelectTrigger className="h-12 bg-background/50 border-border/40 rounded-2xl hover:bg-background transition-all">
                 <SelectValue placeholder="Map to a system scope item..." />

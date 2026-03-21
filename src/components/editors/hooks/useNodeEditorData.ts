@@ -51,7 +51,7 @@ export function useNodeEditorData(node: NodeData) {
         setMermaidSyntax(data.mermaid_manual || data.mermaid_auto || "");
         setSqlSchema((structuredFields.sql as string | undefined) || "");
 
-        let sf: Record<string, unknown> = { ...structuredFields };
+        const sf: Record<string, unknown> = { ...structuredFields };
 
         // Migration logic for project_brief
         if (node.type === "project_brief") {

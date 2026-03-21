@@ -3,13 +3,23 @@
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Workflow } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
+import type { StructuredEditorProps } from "./editorTypes";
 
-import { useUseCaseLogic } from "./usecase/hooks/useUseCaseLogic";
+import {
+  useUseCaseLogic,
+  type UseCaseFields,
+  type UseCaseItemData,
+} from "./usecase/hooks/useUseCaseLogic";
 import { ActorSection } from "./usecase/components/ActorSection";
 import { UseCaseItem } from "./usecase/components/UseCaseItem";
 
-export function UseCaseEditor({ fields, onChange, projectId }: EditorProps) {
+type UseCaseEditorProps = StructuredEditorProps<UseCaseFields>;
+
+export function UseCaseEditor({
+  fields,
+  onChange,
+  projectId,
+}: UseCaseEditorProps) {
   const {
     targetUsers,
     actors,
@@ -46,14 +56,16 @@ export function UseCaseEditor({ fields, onChange, projectId }: EditorProps) {
         </div>
 
         {/* Actors Configuration */}
-        <ActorSection
-          actors={actors}
-          targetUsers={targetUsers}
-          onUpdate={updateActors}
-        />
+        <div id="use-cases-actors">
+          <ActorSection
+            actors={actors}
+            targetUsers={targetUsers}
+            onUpdate={updateActors}
+          />
+        </div>
 
         {/* Use Cases Grid */}
-        <div className="space-y-8">
+        <div className="space-y-8" id="use-cases-protocols">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-sm font-bold tracking-tight">Interaction Protocols</Label>
@@ -72,7 +84,7 @@ export function UseCaseEditor({ fields, onChange, projectId }: EditorProps) {
           </div>
 
           <div className="space-y-12">
-            {useCases.map((uc: any, ucIdx: number) => (
+            {useCases.map((uc: UseCaseItemData, ucIdx: number) => (
               <UseCaseItem
                 key={uc.id}
                 useCase={uc}
@@ -93,7 +105,7 @@ export function UseCaseEditor({ fields, onChange, projectId }: EditorProps) {
                   No Protocols Defined
                 </h3>
                 <p className="mt-2 text-[10px] font-medium text-muted-foreground/30 px-6 text-center">
-                  Start mapping your system's capabilities by adding your first interaction sequence.
+                  Start mapping your system&apos;s capabilities by adding your first interaction sequence.
                 </p>
                 <Button
                   variant="link"

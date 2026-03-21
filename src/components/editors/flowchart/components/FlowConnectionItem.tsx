@@ -29,8 +29,8 @@ export function FlowConnectionItem({
     <div className="group flex items-center gap-3 p-3 bg-primary/5 border border-primary/10 rounded-2xl animate-in fade-in slide-in-from-right-2">
       <div className="flex-1 grid grid-cols-[1fr,auto,1fr] items-center gap-3">
         <Select
-          value={connection.from}
-          onValueChange={(val) => onUpdate({ from: val })}
+          value={connection.from || undefined}
+          onValueChange={(val) => onUpdate({ from: val ?? "" })}
         >
           <SelectTrigger className="h-8 border-none bg-background/50 rounded-lg text-[10px] font-bold">
             <SelectValue placeholder="From..." />
@@ -47,8 +47,8 @@ export function FlowConnectionItem({
         <ArrowRight className="h-3 w-3 text-primary/30" />
 
         <Select
-          value={connection.to}
-          onValueChange={(val) => onUpdate({ to: val })}
+          value={connection.to || undefined}
+          onValueChange={(val) => onUpdate({ to: val ?? "" })}
         >
           <SelectTrigger className="h-8 border-none bg-background/50 rounded-lg text-[10px] font-bold">
             <SelectValue placeholder="To..." />

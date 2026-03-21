@@ -189,7 +189,7 @@ export function WorkspaceCommandDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[720px]">
+      <DialogContent className="sm:max-w-[720px]" data-testid="workspace-command-menu">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Command className="h-5 w-5 text-primary" />
@@ -210,6 +210,7 @@ export function WorkspaceCommandDialog({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search nodes, actions, or shortcuts..."
               className="h-11 rounded-2xl pl-10 text-sm"
+              data-testid="workspace-command-search"
             />
           </div>
 
@@ -253,6 +254,7 @@ export function WorkspaceCommandDialog({
                         type="button"
                         onClick={action.onSelect}
                         className="flex w-full items-start gap-3 rounded-2xl border border-border/70 bg-background px-4 py-3 text-left transition-colors hover:border-primary/35 hover:bg-primary/5"
+                        data-testid={`workspace-command-action-${action.id}`}
                       >
                         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Icon className="h-4 w-4" />
@@ -303,6 +305,7 @@ export function WorkspaceCommandDialog({
                         handleOpenChange(false);
                       }}
                       className="flex w-full items-start gap-3 rounded-2xl border border-border/70 bg-background px-4 py-3 text-left transition-colors hover:border-primary/35 hover:bg-primary/5"
+                      data-testid={`workspace-command-node-${node.type}`}
                     >
                       <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                         {node.isNext ? (

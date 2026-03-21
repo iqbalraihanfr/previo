@@ -1,14 +1,13 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Info, Settings, User, Database } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { useDFDLogic, DFDNodeType } from "./dfd/hooks/useDFDLogic";
+import { useDFDLogic, type DFDFields } from "./dfd/hooks/useDFDLogic";
 import { DFDNodeItem } from "./dfd/components/DFDNodeItem";
 import { DFDFlowItem } from "./dfd/components/DFDFlowItem";
+import type { StructuredEditorProps } from "./editorTypes";
 
 function useUseCases(projectId?: string) {
   return useLiveQuery(
@@ -42,7 +41,13 @@ function useERDEntities(projectId?: string) {
   );
 }
 
-export function DFDEditor({ fields, onChange, projectId }: EditorProps) {
+type DFDEditorProps = StructuredEditorProps<DFDFields>;
+
+export function DFDEditor({
+  fields,
+  onChange,
+  projectId,
+}: DFDEditorProps) {
   const useCases = useUseCases(projectId);
   const erdEntities = useERDEntities(projectId);
   

@@ -1,10 +1,27 @@
 import Dexie, { type EntityTable } from "dexie";
 
+export type DeliveryMode = "agile" | "waterfall" | "hybrid";
+export type SourceType =
+  | "brief_doc"
+  | "meeting_text"
+  | "requirements_doc"
+  | "jira_csv"
+  | "linear_csv"
+  | "dbml"
+  | "sql_schema"
+  | "mermaid"
+  | "plantuml"
+  | "manual_structured";
+export type GenerationStatus = "none" | "imported" | "generated";
+export type OverrideStatus = "none" | "manual_override";
+export type TaskOrigin = "generated" | "manual" | "imported_backlog";
+
 export interface Project {
   id: string;
   name: string;
   description: string;
   template_type: "quick" | "full" | "blank";
+  delivery_mode: DeliveryMode;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +35,12 @@ export interface NodeData {
   position_x: number;
   position_y: number;
   sort_order: number;
+  source_type?: SourceType;
+  source_artifact_id?: string;
+  imported_at?: string;
+  parser_version?: string;
+  generation_status?: GenerationStatus;
+  override_status?: OverrideStatus;
   updated_at: string;
 }
 
@@ -65,6 +88,12 @@ export interface TaskData {
   labels: string[]; // JSON stringified array in DB, parsed in app
   status: "todo" | "in_progress" | "done";
   is_manual: boolean;
+  task_origin?: TaskOrigin;
+  external_source?: "jira" | "linear";
+  external_task_id?: string;
+  external_status?: string;
+  matched_generated_task_id?: string;
+  match_to_generated?: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -90,6 +119,19 @@ export interface Attachment {
   created_at: string;
 }
 
+export interface SourceArtifact {
+  id: string;
+  project_id: string;
+  node_id: string;
+  source_type: SourceType;
+  title: string;
+  raw_content: string;
+  normalized_data: Record<string, unknown>;
+  parser_version: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const db = new Dexie("archway") as Dexie & {
   projects: EntityTable<Project, "id">;
   nodes: EntityTable<NodeData, "id">;
@@ -98,6 +140,7 @@ const db = new Dexie("archway") as Dexie & {
   tasks: EntityTable<TaskData, "id">;
   attachments: EntityTable<Attachment, "id">;
   validationWarnings: EntityTable<ValidationWarning, "id">;
+  sourceArtifacts: EntityTable<SourceArtifact, "id">;
 };
 
 // Schema declaration for version 1
@@ -168,5 +211,53 @@ db.version(5).stores({
   validationWarnings:
     "id, project_id, source_node_id, target_node_type, severity, rule_id",
 });
+
+// Schema declaration for version 6 (Source artifacts + delivery mode)
+db.version(6)
+  .stores({
+    projects: "id, name, template_type, delivery_mode, created_at, updated_at",
+    nodes:
+      "id, project_id, type, status, sort_order, source_type, generation_status, override_status, imported_at",
+    nodeContents: "id, node_id",
+    edges: "id, project_id, source_node_id, target_node_id",
+    tasks:
+      "id, project_id, source_node_id, source_item_id, status, feature_name, priority_tier, group_key, is_manual, task_origin, external_source, external_task_id, match_to_generated, sort_order",
+    attachments: "id, node_id, filename, mime_type, created_at",
+    validationWarnings:
+      "id, project_id, source_node_id, target_node_type, severity, rule_id",
+    sourceArtifacts:
+      "id, project_id, node_id, source_type, parser_version, created_at, updated_at",
+  })
+  .upgrade(async (tx) => {
+    await tx
+      .table("projects")
+      .toCollection()
+      .modify((project: Project) => {
+        if (!project.delivery_mode) {
+          project.delivery_mode = "agile";
+        }
+      });
+
+    await tx
+      .table("nodes")
+      .toCollection()
+      .modify((node: NodeData) => {
+        if (!node.generation_status) {
+          node.generation_status = "none";
+        }
+        if (!node.override_status) {
+          node.override_status = "none";
+        }
+      });
+
+    await tx
+      .table("tasks")
+      .toCollection()
+      .modify((task: TaskData) => {
+        if (!task.task_origin) {
+          task.task_origin = task.is_manual ? "manual" : "generated";
+        }
+      });
+  });
 
 export { db };

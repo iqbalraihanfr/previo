@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ListChecks,
+  Upload,
 } from "lucide-react";
 import {
   exportTasksToCSV,
@@ -21,8 +22,9 @@ import {
 import { useTaskBoard } from "./task-board/hooks/useTaskBoard";
 import { TaskBoardSummary } from "./task-board/components/TaskBoardSummary";
 import { TaskBoardFilters } from "./task-board/components/TaskBoardFilters";
+import { TaskBacklogImportDialog } from "./task-board/components/TaskBacklogImportDialog";
 import { TaskItem } from "./task-board/components/TaskItem";
-import { PriorityFilter } from "./task-board/types";
+import { resolveBacklogImport } from "@/lib/sourceIntake";
 
 function priorityLabel(priority: string) {
   switch (priority.toLowerCase()) {
@@ -70,17 +72,29 @@ export function TaskBoardEditor({
     sourceOptions,
     nodes,
     tasks,
+    reconciliation,
+    deliveryMode,
+    deliveryModeLabel,
+    deliveryPlan,
+    sprintProposal,
     updateTask,
     deleteTask,
     addManualTask,
+    importBacklogTasks,
     regenerateAllTasks,
   } = useTaskBoard(node);
 
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, TaskData[]> = {};
     if (grouping === "flat") return { "All Tasks": filteredTasks };
+    if (grouping === "methodology") {
+      return Object.fromEntries(
+        deliveryPlan.map((group) => [group.title, group.tasks]),
+      );
+    }
 
     filteredTasks.forEach((task) => {
       let key = "Other";
@@ -114,7 +128,7 @@ export function TaskBoardEditor({
         return a.localeCompare(b);
       })
     );
-  }, [filteredTasks, grouping, nodes]);
+  }, [deliveryPlan, filteredTasks, grouping, nodes]);
 
   const handleExport = (format: string) => {
     switch (format) {
@@ -126,7 +140,10 @@ export function TaskBoardEditor({
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-card/40 backdrop-blur-md shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.15)] overflow-hidden">
+    <div
+      className="flex h-full w-full flex-col bg-card/40 backdrop-blur-md shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.15)] overflow-hidden"
+      data-testid="task-board-editor"
+    >
       <div className="border-b border-border/70 px-6 py-6 bg-card/10">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3">
@@ -135,7 +152,10 @@ export function TaskBoardEditor({
                 Task Board
               </span>
               <span className="rounded-full bg-accent/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-accent-foreground/70">
-                Execution planning
+                {deliveryModeLabel}
+              </span>
+              <span className="rounded-full bg-background/70 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-muted-foreground/80">
+                {deliveryMode}
               </span>
             </div>
 
@@ -163,6 +183,16 @@ export function TaskBoardEditor({
 
       <div className="border-b border-border/60 bg-muted/10 px-6 py-3">
         <TaskBoardSummary summary={summary} />
+        {(summary.imported > 0 || reconciliation.unmatched > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border/60 bg-background/60 px-2.5 py-1">
+              {reconciliation.matched} matched import(s)
+            </span>
+            <span className="rounded-full border border-border/60 bg-background/60 px-2.5 py-1">
+              {reconciliation.unmatched} unmatched import(s)
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="border-b border-border/60 px-6 py-4 bg-card/5">
@@ -179,6 +209,7 @@ export function TaskBoardEditor({
           onSourceChange={setSourceFilter}
           sourceOptions={sourceOptions}
           onAddTask={addManualTask}
+          onImport={() => setShowImportDialog(true)}
           onExport={handleExport}
         />
 
@@ -222,6 +253,49 @@ export function TaskBoardEditor({
                   <div key={`${idxA}-${idxB}-${index}`} className="flex items-center justify-between px-2.5 py-1.5 bg-background/40 rounded-lg border border-border/40">
                     <span className="text-[11px] font-medium truncate max-w-[280px]">“{tasks[idxA]?.title}” ↔ “{tasks[idxB]?.title}”</span>
                     <span className="text-[9px] font-bold text-muted-foreground/60">{score}% match</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {grouping === "methodology" && (
+            <div
+              className="rounded-2xl border border-border/60 bg-background/40 px-6 py-5"
+              data-testid="task-board-methodology-card"
+            >
+              <h3 className="text-sm font-semibold text-foreground">
+                Planning view: {deliveryModeLabel}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                The canonical task list stays the same. This view only changes how tasks are grouped and sequenced for delivery.
+              </p>
+            </div>
+          )}
+
+          {deliveryMode === "agile" && sprintProposal.length > 0 && (
+            <div
+              className="rounded-2xl border border-border/60 bg-background/40 px-6 py-5"
+              data-testid="task-board-sprint-proposal"
+            >
+              <div className="flex items-center gap-2">
+                <Upload className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Sprint Proposal
+                </h3>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {sprintProposal.slice(0, 4).map((proposal) => (
+                  <div
+                    key={proposal.id}
+                    className="rounded-xl border border-border/50 bg-background/70 px-4 py-3"
+                  >
+                    <p className="text-sm font-semibold text-foreground">
+                      {proposal.title}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {proposal.tasks.length} task(s)
+                    </p>
                   </div>
                 ))}
               </div>
@@ -338,6 +412,21 @@ export function TaskBoardEditor({
         variant="default"
         loading={isRegenerating}
         onConfirm={regenerateAllTasks}
+      />
+
+      <TaskBacklogImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onResolve={(sourceType, rawContent) =>
+          resolveBacklogImport({ sourceType, rawContent })
+        }
+        onApply={(result) => {
+          void importBacklogTasks({
+            sourceType: result.sourceType,
+            rawContent: result.rawContent,
+          });
+          setShowImportDialog(false);
+        }}
       />
     </div>
   );

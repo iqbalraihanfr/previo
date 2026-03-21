@@ -1,12 +1,13 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Link2, Info } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { useSequenceLogic } from "./sequence/hooks/useSequenceLogic";
+import {
+  useSequenceLogic,
+  type SequenceFields,
+} from "./sequence/hooks/useSequenceLogic";
 import { ParticipantItem } from "./sequence/components/ParticipantItem";
 import { MessageItem } from "./sequence/components/MessageItem";
 import {
@@ -16,24 +17,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { StructuredEditorProps } from "./editorTypes";
+
+type UseCaseReference = { id?: string; name?: string };
 
 function useUseCases(projectId?: string) {
-  return useLiveQuery(
-    async () => {
-      if (!projectId) return [];
+  return (
+    useLiveQuery(async () => {
+      if (!projectId) return [] as UseCaseReference[];
       const node = await db.nodes
         .where({ project_id: projectId, type: "use_cases" })
         .first();
-      if (!node) return [];
+      if (!node) return [] as UseCaseReference[];
       const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return content?.structured_fields?.useCases || [];
-    },
-    [projectId],
-    [],
+      return (content?.structured_fields?.useCases || []) as UseCaseReference[];
+    }, [projectId]) ?? []
   );
 }
 
-export function SequenceEditor({ fields, onChange, projectId }: EditorProps) {
+type SequenceEditorProps = StructuredEditorProps<SequenceFields>;
+
+export function SequenceEditor({
+  fields,
+  onChange,
+  projectId,
+}: SequenceEditorProps) {
   const useCases = useUseCases(projectId);
   const {
     participants,
@@ -75,15 +83,21 @@ export function SequenceEditor({ fields, onChange, projectId }: EditorProps) {
           </div>
           <Select
             value={fields.related_use_case || "none"}
-            onValueChange={(val) => onChange({ ...fields, related_use_case: val })}
+            onValueChange={(val) =>
+              onChange({ ...fields, related_use_case: val === "none" ? "" : (val ?? "") })
+            }
           >
             <SelectTrigger className="h-12 border-none bg-background rounded-2xl font-bold shadow-lg shadow-primary/5">
               <SelectValue placeholder="Link to existing Use Case..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none" className="font-bold">Unlinked</SelectItem>
-              {useCases.map((uc: any, i: number) => (
-                <SelectItem key={uc.id} value={uc.id} className="font-bold">
+              {useCases.map((uc, i: number) => (
+                <SelectItem
+                  key={String(uc.id ?? `uc-${i + 1}`)}
+                  value={String(uc.id ?? `uc-${i + 1}`)}
+                  className="font-bold"
+                >
                   UC-{String(i + 1).padStart(3, "0")}: {uc.name || "Untitled"}
                 </SelectItem>
               ))}

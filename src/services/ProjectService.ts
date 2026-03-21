@@ -1,73 +1,14 @@
-import { db, NodeData, NodeContent, TaskData } from "@/lib/db";
+import { db, NodeData, NodeContent, TaskData, type DeliveryMode } from "@/lib/db";
 import { MERMAID_TEMPLATES } from "@/components/editors/panel/constants";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 import type { ContentTemplate } from "@/lib/contentTemplates";
+import { PROJECT_TEMPLATES } from "@/features/dashboard/projectTemplates";
 import { generateTasksFromNode } from "@/services/taskEngine";
 import { ProjectRepository } from "@/repositories/ProjectRepository";
 import { NodeRepository, NodeContentRepository } from "@/repositories/NodeRepository";
 import { EdgeRepository } from "@/repositories/EdgeRepository";
 import { TaskRepository } from "@/repositories/TaskRepository";
 import { ValidationWarningRepository, AttachmentRepository } from "@/repositories/MiscRepository";
-
-export interface ProjectTemplate {
-  label: string;
-  description: string;
-  nodes: { type: string; label: string; x?: number; y?: number }[];
-  edges: { from: string; to: string }[];
-}
-
-export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
-  quick: {
-    label: "Quick Start",
-    description: "Brief → Requirements → ERD → Task Board → Summary.",
-    nodes: [
-      { type: "project_brief", label: "Project Brief", x: 0, y: 0 },
-      { type: "requirements", label: "Requirements", x: 350, y: 0 },
-      { type: "erd", label: "ERD", x: 700, y: 0 },
-      { type: "task_board", label: "Task Board", x: 1050, y: 0 },
-      { type: "summary", label: "Summary", x: 1400, y: 0 },
-    ],
-    edges: [
-      { from: "project_brief", to: "requirements" },
-      { from: "requirements", to: "erd" },
-      { from: "requirements", to: "task_board" },
-      { from: "erd", to: "task_board" },
-      { from: "task_board", to: "summary" },
-    ],
-  },
-  full: {
-    label: "Full Architecture",
-    description: "Complete architecture workflow.",
-    nodes: [
-      { type: "project_brief", label: "Project Brief", x: 0, y: 0 },
-      { type: "requirements", label: "Requirements", x: 300, y: 0 },
-      { type: "user_stories", label: "User Stories", x: 600, y: 0 },
-      { type: "use_cases", label: "Use Case", x: 0, y: 150 },
-      { type: "flowchart", label: "Flowchart", x: 300, y: 150 },
-      { type: "dfd", label: "DFD", x: 0, y: 300 },
-      { type: "erd", label: "ERD", x: 300, y: 300 },
-      { type: "sequence", label: "Sequence", x: 600, y: 300 },
-      { type: "task_board", label: "Task Board", x: 0, y: 450 },
-      { type: "summary", label: "Summary", x: 300, y: 450 },
-    ],
-    edges: [
-      { from: "project_brief", to: "requirements" },
-      { from: "requirements", to: "user_stories" },
-      { from: "user_stories", to: "use_cases" },
-      { from: "use_cases", to: "flowchart" },
-      { from: "use_cases", to: "dfd" },
-      { from: "erd", to: "sequence" },
-      { from: "sequence", to: "task_board" },
-      { from: "task_board", to: "summary" },
-    ],
-  },
-  blank: {
-    label: "Blank Canvas",
-    description: "Start empty and build your own flow.",
-    nodes: [],
-    edges: [],
-  },
-};
 
 /** Node types that the task engine can generate tasks from */
 const TASK_GENERATING_TYPES = new Set([
@@ -84,10 +25,18 @@ export class ProjectService {
     name: string;
     description: string;
     templateKey: string;
+    deliveryMode?: DeliveryMode;
     initialBriefContent?: ProjectBriefFields;
     contentTemplate?: ContentTemplate;
   }): Promise<string> {
-    const { name, description, templateKey, initialBriefContent, contentTemplate } = params;
+    const {
+      name,
+      description,
+      templateKey,
+      deliveryMode = "agile",
+      initialBriefContent,
+      contentTemplate,
+    } = params;
     const projectId = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -103,6 +52,7 @@ export class ProjectService {
           name,
           description,
           template_type: templateKey as "quick" | "full" | "blank",
+          delivery_mode: deliveryMode,
           created_at: now,
           updated_at: now,
         });
@@ -155,6 +105,8 @@ export class ProjectService {
             position_x: nodeTpl.x || 0,
             position_y: nodeTpl.y || 0,
             sort_order: template.nodes.indexOf(nodeTpl),
+            generation_status: "none",
+            override_status: "none",
             updated_at: now,
           });
 
@@ -179,6 +131,8 @@ export class ProjectService {
               position_x: nodeTpl.x || 0,
               position_y: nodeTpl.y || 0,
               sort_order: template.nodes.indexOf(nodeTpl),
+              generation_status: "none",
+              override_status: "none",
               updated_at: now,
             };
             seededNodes.push({ node: nodeData, content: nodeContent });
@@ -209,6 +163,7 @@ export class ProjectService {
         const rawTasks = generateTasksFromNode(node, content, projectId);
         const tasks: TaskData[] = rawTasks.map((t) => ({
           ...t,
+          task_origin: "generated",
           id: crypto.randomUUID(),
           created_at: now,
           updated_at: now,
@@ -237,6 +192,7 @@ export class ProjectService {
         db.validationWarnings,
         db.tasks,
         db.attachments,
+        db.sourceArtifacts,
       ],
       async () => {
         const projectNodes = await NodeRepository.findAllByProjectId(projectId);
@@ -247,6 +203,7 @@ export class ProjectService {
         await EdgeRepository.deleteByProjectId(projectId);
         await ValidationWarningRepository.deleteByProjectId(projectId);
         await TaskRepository.deleteByProjectId(projectId);
+        await db.sourceArtifacts.where({ project_id: projectId }).delete();
 
         if (nodeIds.length > 0) {
           await NodeContentRepository.deleteByNodeIds(nodeIds);

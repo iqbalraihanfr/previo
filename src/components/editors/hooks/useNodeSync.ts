@@ -1,9 +1,24 @@
 import { useState, useEffect, useRef } from "react";
-import { db, type NodeData, type NodeContent, type TaskData } from "@/lib/db";
+import {
+  db,
+  type NodeData,
+  type NodeContent,
+  type TaskData,
+  type SourceType,
+} from "@/lib/db";
 import { generateTasksFromNode } from "@/services/taskEngine";
 import { crossValidateAll } from "@/services/ValidationService";
 import { generateMermaid } from "@/lib/diagramGenerators";
+import { createSourceArtifactInput } from "@/lib/sourceIntake";
 import { DIAGRAM_NODES } from "../panel/constants";
+
+export interface PendingSourceSync {
+  mode: "imported" | "generated";
+  sourceType: SourceType;
+  rawContent: string;
+  parserVersion: string;
+  title: string;
+}
 
 interface UseNodeSyncParams {
   node: NodeData;
@@ -13,6 +28,8 @@ interface UseNodeSyncParams {
   mermaidSyntax: string;
   sqlSchema: string;
   guidedFields: Record<string, unknown>;
+  pendingSourceSync: PendingSourceSync | null;
+  onSourceSyncCommitted: () => void;
 }
 
 export function useNodeSync({
@@ -23,6 +40,8 @@ export function useNodeSync({
   mermaidSyntax,
   sqlSchema,
   guidedFields,
+  pendingSourceSync,
+  onSourceSyncCommitted,
 }: UseNodeSyncParams) {
   const isDiagram = DIAGRAM_NODES.includes(node.type);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +78,12 @@ export function useNodeSync({
       sqlSchema !== ((contentSql as string | undefined) || "") ||
       JSON.stringify(restGuidedFields) !==
         JSON.stringify(restContentGuidedFields);
+    const hasCanonicalChanges =
+      mermaidSyntax !==
+        (content.mermaid_manual || content.mermaid_auto || "") ||
+      sqlSchema !== ((contentSql as string | undefined) || "") ||
+      JSON.stringify(restGuidedFields) !==
+        JSON.stringify(restContentGuidedFields);
 
     const autoMermaid = isDiagram
       ? generateMermaid(node.type, guidedFields)
@@ -87,7 +112,43 @@ export function useNodeSync({
         updated_at: now,
       });
 
-      await db.nodes.update(node.id, { updated_at: now });
+      if (pendingSourceSync) {
+        const artifactId = crypto.randomUUID();
+        await db.sourceArtifacts.add({
+          id: artifactId,
+          created_at: now,
+          updated_at: now,
+          ...createSourceArtifactInput({
+            projectId: node.project_id,
+            nodeId: node.id,
+            sourceType: pendingSourceSync.sourceType,
+            title: pendingSourceSync.title,
+            rawContent: pendingSourceSync.rawContent,
+            normalizedData: updatedFields,
+          }),
+        });
+
+        await db.nodes.update(node.id, {
+          source_type: pendingSourceSync.sourceType,
+          source_artifact_id: artifactId,
+          imported_at: now,
+          parser_version: pendingSourceSync.parserVersion,
+          generation_status: pendingSourceSync.mode,
+          override_status: "none",
+          updated_at: now,
+        });
+      } else if (
+        node.source_type &&
+        node.override_status !== "manual_override" &&
+        hasCanonicalChanges
+      ) {
+        await db.nodes.update(node.id, {
+          override_status: "manual_override",
+          updated_at: now,
+        });
+      } else {
+        await db.nodes.update(node.id, { updated_at: now });
+      }
 
       const updatedContent: NodeContent = {
         ...content,
@@ -142,6 +203,7 @@ export function useNodeSync({
             priority: generatedTask.priority,
             labels: generatedTask.labels,
             status: generatedTask.status,
+            task_origin: "generated",
             sort_order: generatedTask.sort_order,
             updated_at: now,
           });
@@ -149,6 +211,7 @@ export function useNodeSync({
         } else {
           tasksToPut.push({
             ...generatedTask,
+            task_origin: "generated",
             id: crypto.randomUUID(),
             created_at: now,
             updated_at: now,
@@ -169,6 +232,9 @@ export function useNodeSync({
       }
 
       await crossValidateAll(node.project_id);
+      if (pendingSourceSync) {
+        onSourceSyncCommitted();
+      }
 
       setIsSaving(false);
       setLastSaved(new Date());
@@ -187,6 +253,8 @@ export function useNodeSync({
     node,
     guidedFields,
     isDiagram,
+    onSourceSyncCommitted,
+    pendingSourceSync,
     setContent,
   ]);
 

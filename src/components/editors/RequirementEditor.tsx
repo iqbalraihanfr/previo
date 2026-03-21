@@ -1,22 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, ListChecks } from "lucide-react";
-import { EditorProps } from "./ProjectBriefEditor";
+import type { StructuredEditorProps } from "./editorTypes";
 
-import { useRequirementLogic } from "./requirement/hooks/useRequirementLogic";
+import {
+  useRequirementLogic,
+  type RequirementFields,
+  type RequirementFieldItem,
+  type RequirementType,
+} from "./requirement/hooks/useRequirementLogic";
 import { RequirementItem } from "./requirement/components/RequirementItem";
 import { RequirementValidationHeader } from "./requirement/components/RequirementValidationHeader";
+
+type RequirementEditorProps = StructuredEditorProps<RequirementFields>;
 
 export function RequirementEditor({
   fields,
   onChange,
   projectId,
-}: EditorProps) {
-  const [activeTab, setActiveTab] = useState<"FR" | "NFR">("FR");
+}: RequirementEditorProps) {
+  const [activeTab, setActiveTab] = useState<RequirementType>("FR");
   
   const {
     items,
@@ -26,17 +32,17 @@ export function RequirementEditor({
     addItem,
     updateItem,
     removeItem,
-  } = useRequirementLogic(projectId!, fields, onChange);
+  } = useRequirementLogic(projectId, fields, onChange);
 
-  const activeItems = items.filter((i: any) => (i.type || "FR") === activeTab);
-  const hasMust = items.some((i: any) => i.priority === "Must");
+  const activeItems = items.filter((i) => (i.type || "FR") === activeTab);
+  const hasMust = items.some((i) => i.priority === "Must");
 
-  const getDisplayId = (item: any) => {
+  const getDisplayId = (item: RequirementFieldItem) => {
     if ((item.type || "FR") === "FR") {
-      const idx = frItems.findIndex((i: any) => i.id === item.id);
+      const idx = frItems.findIndex((i) => i.id === item.id);
       return `FR-${String(idx + 1).padStart(3, "0")}`;
     }
-    const idx = nfrItems.findIndex((i: any) => i.id === item.id);
+    const idx = nfrItems.findIndex((i) => i.id === item.id);
     return `NFR-${String(idx + 1).padStart(3, "0")}`;
   };
 
@@ -44,7 +50,10 @@ export function RequirementEditor({
     <div className="workspace-scroll flex-1 overflow-y-auto px-8 py-10 w-full bg-card/5">
       <div className="max-w-4xl mx-auto space-y-12">
         {/* Header Segment */}
-        <div className="space-y-4 border-b border-border/70 pb-10">
+        <div
+          className="space-y-4 border-b border-border/70 pb-10"
+          id="requirements-overview"
+        >
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-primary">
               System Specification
@@ -65,18 +74,20 @@ export function RequirementEditor({
         </div>
 
         {/* Validation Header */}
-        <RequirementValidationHeader
-          frCount={frItems.length}
-          nfrCount={nfrItems.length}
-          hasMust={hasMust}
-        />
+        <div id="requirements-validation">
+          <RequirementValidationHeader
+            frCount={frItems.length}
+            nfrCount={nfrItems.length}
+            hasMust={hasMust}
+          />
+        </div>
 
         {/* Requirements Workspace */}
-        <div className="space-y-8">
+        <div className="space-y-8" id="requirements-items">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <Tabs 
               value={activeTab} 
-              onValueChange={(v) => setActiveTab(v as any)}
+              onValueChange={(v) => setActiveTab(v as RequirementType)}
               className="w-full md:w-auto"
             >
               <TabsList className="h-12 bg-muted/50 p-1.5 rounded-2xl shadow-sm inline-flex">
@@ -105,11 +116,10 @@ export function RequirementEditor({
           </div>
 
           <div className="space-y-12 pb-20">
-            {activeItems.map((item: any, idx: number) => (
+            {activeItems.map((item) => (
               <RequirementItem
                 key={item.id}
                 item={item}
-                index={idx}
                 type={activeTab}
                 displayId={getDisplayId(item)}
                 scopeInItems={scopeInItems}

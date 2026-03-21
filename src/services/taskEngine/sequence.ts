@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { TaskData } from "@/lib/db";
-import { mapPriorityToTier } from "./utils";
 
 export function generateSequenceTasks(
   nodeId: string,

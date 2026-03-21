@@ -34,7 +34,7 @@ export function FlowStepItem({ step, onUpdate, onRemove }: FlowStepItemProps) {
       <div className="w-32">
         <Select
           value={step.type}
-          onValueChange={(val) => onUpdate({ type: val as any })}
+          onValueChange={(val) => onUpdate({ type: val as FlowStep["type"] })}
         >
           <SelectTrigger className="h-9 border-none bg-primary/5 rounded-xl font-bold uppercase tracking-widest text-[9px]">
             <div className="flex items-center gap-2">

@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 interface ParticipantItemProps {
   participant: Participant;
@@ -41,7 +40,7 @@ export function ParticipantItem({
       <div className="w-40">
         <Select
           value={participant.type}
-          onValueChange={(val) => onUpdate({ type: val as any })}
+          onValueChange={(val) => onUpdate({ type: val as Participant["type"] })}
         >
           <SelectTrigger className="h-10 border-none bg-primary/5 rounded-xl font-bold uppercase tracking-widest text-[10px]">
             <div className="flex items-center gap-2">
