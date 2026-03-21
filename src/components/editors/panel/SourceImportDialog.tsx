@@ -350,6 +350,531 @@ function renderRequirementsReview(
   );
 }
 
+function renderUserStoriesReview(
+  resolved: ResolvedNodeImport,
+  onChange: (fields: Record<string, unknown>) => void,
+) {
+  const items = Array.isArray(resolved.fields.items) ? resolved.fields.items : [];
+  const requirementOptions = resolved.reviewContext?.requirementOptions ?? [];
+
+  return (
+    <div
+      className="space-y-3 rounded-2xl border border-border/70 bg-background/70 p-4"
+      data-testid="source-import-user-stories-review"
+    >
+      {items.map((item, index) => {
+        const story = item as Record<string, unknown>;
+
+        const updateItem = (updates: Record<string, unknown>) => {
+          const nextItems = items.map((currentItem, currentIndex) =>
+            currentIndex === index ? { ...currentItem, ...updates } : currentItem,
+          );
+          onChange({
+            ...resolved.fields,
+            items: nextItems,
+          });
+        };
+
+        return (
+          <div
+            key={String(story.id ?? `story-${index}`)}
+            className="rounded-xl border border-border/60 bg-background/80 p-4"
+            data-testid={`import-review-story-${index}`}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Role
+                </label>
+                <Input
+                  value={String(story.role ?? "")}
+                  onChange={(event) => updateItem({ role: event.target.value })}
+                  data-testid={`import-review-story-role-${index}`}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Related Requirement
+                </label>
+                {requirementOptions.length > 0 ? (
+                  <Select
+                    value={String(story.related_requirement ?? "__none__") || "__none__"}
+                    onValueChange={(value) =>
+                      updateItem({
+                        related_requirement: value === "__none__" ? "" : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-10 rounded-xl"
+                      data-testid={`import-review-story-requirement-${index}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unlinked</SelectItem>
+                      {requirementOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={String(story.related_requirement ?? "")}
+                    onChange={(event) =>
+                      updateItem({ related_requirement: event.target.value })
+                    }
+                    data-testid={`import-review-story-requirement-${index}`}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3">
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Goal
+                </label>
+                <Input
+                  value={String(story.goal ?? "")}
+                  onChange={(event) => updateItem({ goal: event.target.value })}
+                  data-testid={`import-review-story-goal-${index}`}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Benefit
+                </label>
+                <Input
+                  value={String(story.benefit ?? "")}
+                  onChange={(event) => updateItem({ benefit: event.target.value })}
+                  data-testid={`import-review-story-benefit-${index}`}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Acceptance Criteria
+                </label>
+                <Textarea
+                  value={listToMultiline(story.acceptance_criteria)}
+                  onChange={(event) =>
+                    updateItem({
+                      acceptance_criteria: multilineToList(event.target.value),
+                    })
+                  }
+                  className="min-h-[100px]"
+                  data-testid={`import-review-story-criteria-${index}`}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderErdReview(
+  resolved: ResolvedNodeImport,
+  onChange: (fields: Record<string, unknown>) => void,
+) {
+  const entities = Array.isArray(resolved.fields.entities) ? resolved.fields.entities : [];
+  const relationships = Array.isArray(resolved.fields.relationships)
+    ? resolved.fields.relationships
+    : [];
+
+  const updateEntity = (index: number, updates: Record<string, unknown>) => {
+    const nextEntities = entities.map((entity, entityIndex) =>
+      entityIndex === index ? { ...entity, ...updates } : entity,
+    );
+    onChange({ ...resolved.fields, entities: nextEntities });
+  };
+
+  const updateRelationship = (index: number, updates: Record<string, unknown>) => {
+    const nextRelationships = relationships.map((relationship, relationshipIndex) =>
+      relationshipIndex === index ? { ...relationship, ...updates } : relationship,
+    );
+    onChange({ ...resolved.fields, relationships: nextRelationships });
+  };
+
+  return (
+    <div
+      className="space-y-4 rounded-2xl border border-border/70 bg-background/70 p-4"
+      data-testid="source-import-erd-review"
+    >
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Entities
+        </p>
+        {entities.map((entity, index) => {
+          const currentEntity = entity as Record<string, unknown>;
+          const attributes = Array.isArray(currentEntity.attributes)
+            ? currentEntity.attributes
+            : [];
+
+          return (
+            <div
+              key={String(currentEntity.id ?? `entity-${index}`)}
+              className="rounded-xl border border-border/60 bg-background/80 p-4"
+            >
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px]">
+                <div className="grid gap-2">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Entity Name
+                  </label>
+                  <Input
+                    value={String(currentEntity.name ?? "")}
+                    onChange={(event) => updateEntity(index, { name: event.target.value })}
+                    data-testid={`import-review-entity-name-${index}`}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Attributes
+                  </label>
+                  <div className="rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground">
+                    {attributes.length}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                {attributes
+                  .slice(0, 4)
+                  .map((attribute) => {
+                    const currentAttribute = attribute as Record<string, unknown>;
+                    return `${String(currentAttribute.name ?? "Unnamed")} : ${String(currentAttribute.type ?? "unknown")}`;
+                  })
+                  .join(" • ") || "No parsed attributes yet."}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Relationships
+        </p>
+        {relationships.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/60 px-4 py-4 text-sm text-muted-foreground">
+            No relationships were parsed from the imported schema yet.
+          </div>
+        ) : (
+          relationships.map((relationship, index) => {
+            const currentRelationship = relationship as Record<string, unknown>;
+            return (
+              <div
+                key={String(currentRelationship.id ?? `relationship-${index}`)}
+                className="rounded-xl border border-border/60 bg-background/80 p-4"
+              >
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Input
+                    value={String(currentRelationship.from ?? "")}
+                    onChange={(event) =>
+                      updateRelationship(index, { from: event.target.value })
+                    }
+                    data-testid={`import-review-relationship-from-${index}`}
+                  />
+                  <Select
+                    value={String(currentRelationship.type ?? "one-to-many")}
+                    onValueChange={(value) =>
+                      updateRelationship(index, { type: value })
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-10 rounded-xl"
+                      data-testid={`import-review-relationship-type-${index}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one-to-one">one-to-one</SelectItem>
+                      <SelectItem value="one-to-many">one-to-many</SelectItem>
+                      <SelectItem value="many-to-one">many-to-one</SelectItem>
+                      <SelectItem value="many-to-many">many-to-many</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={String(currentRelationship.to ?? "")}
+                    onChange={(event) =>
+                      updateRelationship(index, { to: event.target.value })
+                    }
+                    data-testid={`import-review-relationship-to-${index}`}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function renderFlowchartReview(
+  resolved: ResolvedNodeImport,
+  onChange: (fields: Record<string, unknown>) => void,
+) {
+  const flows = Array.isArray(resolved.fields.flows) ? resolved.fields.flows : [];
+  const useCaseOptions = resolved.reviewContext?.useCaseOptions ?? [];
+
+  return (
+    <div
+      className="space-y-3 rounded-2xl border border-border/70 bg-background/70 p-4"
+      data-testid="source-import-flowchart-review"
+    >
+      {flows.map((flow, index) => {
+        const currentFlow = flow as Record<string, unknown>;
+        const steps = Array.isArray(currentFlow.steps) ? currentFlow.steps : [];
+        const connections = Array.isArray(currentFlow.connections)
+          ? currentFlow.connections
+          : [];
+
+        const updateFlow = (updates: Record<string, unknown>) => {
+          const nextFlows = flows.map((currentItem, currentIndex) =>
+            currentIndex === index ? { ...currentItem, ...updates } : currentItem,
+          );
+          onChange({
+            ...resolved.fields,
+            flows: nextFlows,
+          });
+        };
+
+        return (
+          <div
+            key={String(currentFlow.id ?? `flow-${index}`)}
+            className="rounded-xl border border-border/60 bg-background/80 p-4"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Flow Name
+                </label>
+                <Input
+                  value={String(currentFlow.name ?? "")}
+                  onChange={(event) => updateFlow({ name: event.target.value })}
+                  data-testid={`import-review-flow-name-${index}`}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Related Use Case
+                </label>
+                {useCaseOptions.length > 0 ? (
+                  <Select
+                    value={String(currentFlow.related_use_case ?? "__none__") || "__none__"}
+                    onValueChange={(value) =>
+                      updateFlow({
+                        related_use_case: value === "__none__" ? "" : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-10 rounded-xl"
+                      data-testid={`import-review-flow-use-case-${index}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unlinked</SelectItem>
+                      {useCaseOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={String(currentFlow.related_use_case ?? "")}
+                    onChange={(event) =>
+                      updateFlow({ related_use_case: event.target.value })
+                    }
+                    data-testid={`import-review-flow-use-case-${index}`}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Trigger
+              </label>
+              <Input
+                value={String(currentFlow.trigger ?? "")}
+                onChange={(event) => updateFlow({ trigger: event.target.value })}
+                data-testid={`import-review-flow-trigger-${index}`}
+              />
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 bg-background px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Steps
+                </p>
+                <p className="mt-1 text-sm text-foreground">{steps.length}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {steps
+                    .slice(0, 4)
+                    .map((step) => String((step as Record<string, unknown>).label ?? "Unnamed"))
+                    .join(" • ") || "No parsed steps yet."}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Connections
+                </p>
+                <p className="mt-1 text-sm text-foreground">{connections.length}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {connections
+                    .slice(0, 3)
+                    .map((connection) => {
+                      const currentConnection = connection as Record<string, unknown>;
+                      return `${String(currentConnection.from ?? "?")} -> ${String(currentConnection.to ?? "?")}`;
+                    })
+                    .join(" • ") || "No explicit connections yet."}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderSequenceReview(
+  resolved: ResolvedNodeImport,
+  onChange: (fields: Record<string, unknown>) => void,
+) {
+  const participants = Array.isArray(resolved.fields.participants)
+    ? resolved.fields.participants
+    : [];
+  const messages = Array.isArray(resolved.fields.messages) ? resolved.fields.messages : [];
+  const useCaseOptions = resolved.reviewContext?.useCaseOptions ?? [];
+
+  return (
+    <div
+      className="space-y-4 rounded-2xl border border-border/70 bg-background/70 p-4"
+      data-testid="source-import-sequence-review"
+    >
+      <div className="grid gap-2">
+        <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Related Use Case
+        </label>
+        {useCaseOptions.length > 0 ? (
+          <Select
+            value={String(resolved.fields.related_use_case ?? "__none__") || "__none__"}
+            onValueChange={(value) =>
+              onChange({
+                ...resolved.fields,
+                related_use_case: value === "__none__" ? "" : value,
+              })
+            }
+          >
+            <SelectTrigger className="h-10 rounded-xl" data-testid="import-review-sequence-use-case">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Unlinked</SelectItem>
+              {useCaseOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            value={String(resolved.fields.related_use_case ?? "")}
+            onChange={(event) =>
+              onChange({
+                ...resolved.fields,
+                related_use_case: event.target.value,
+              })
+            }
+            data-testid="import-review-sequence-use-case"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-xl border border-border/60 bg-background/80 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Participants
+          </p>
+          <div className="mt-3 space-y-2">
+            {participants.map((participant, index) => {
+              const currentParticipant = participant as Record<string, unknown>;
+              return (
+                <div key={`participant-${index}`} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_120px]">
+                  <Input
+                    value={String(currentParticipant.name ?? "")}
+                    onChange={(event) => {
+                      const updated = participants.map((currentItem, currentIndex) =>
+                        currentIndex === index
+                          ? { ...currentItem, name: event.target.value }
+                          : currentItem,
+                      );
+                      onChange({ ...resolved.fields, participants: updated });
+                    }}
+                    data-testid={`import-review-sequence-participant-${index}`}
+                  />
+                  <Input
+                    value={String(currentParticipant.type ?? "")}
+                    onChange={(event) => {
+                      const updated = participants.map((currentItem, currentIndex) =>
+                        currentIndex === index
+                          ? { ...currentItem, type: event.target.value }
+                          : currentItem,
+                      );
+                      onChange({ ...resolved.fields, participants: updated });
+                    }}
+                    data-testid={`import-review-sequence-participant-type-${index}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-background/80 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Messages
+          </p>
+          <div className="mt-3 space-y-2">
+            {messages.slice(0, 6).map((message, index) => {
+              const currentMessage = message as Record<string, unknown>;
+              return (
+                <div key={String(currentMessage.id ?? `message-${index}`)} className="rounded-xl border border-border/60 bg-background px-3 py-3">
+                  <p className="text-xs text-muted-foreground">
+                    {String(currentMessage.from ?? "?")} {"->"} {String(currentMessage.to ?? "?")}
+                  </p>
+                  <Input
+                    value={String(currentMessage.content ?? "")}
+                    onChange={(event) => {
+                      const updated = messages.map((currentItem, currentIndex) =>
+                        currentIndex === index
+                          ? { ...currentItem, content: event.target.value }
+                          : currentItem,
+                      );
+                      onChange({ ...resolved.fields, messages: updated });
+                    }}
+                    className="mt-2"
+                    data-testid={`import-review-sequence-message-${index}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SourceImportDialog({
   open,
   onOpenChange,
@@ -371,6 +896,7 @@ export function SourceImportDialog({
     [resolved],
   );
   const unresolvedCount = resolved?.unresolvedFields.length ?? 0;
+  const issueCount = resolved?.issues.length ?? 0;
 
   const reset = () => {
     setSourceType(supportedSources[0] ?? "manual_structured");
@@ -490,6 +1016,20 @@ export function SourceImportDialog({
                 <p className="mt-2 text-xs leading-6 text-muted-foreground">
                   Resolve missing fields before this import becomes canonical data for the node.
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold text-foreground">
+                    {SOURCE_TYPE_LABELS[resolved.sourceType]}
+                  </span>
+                  <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold text-foreground">
+                    Parser {resolved.parserVersion}
+                  </span>
+                  <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold text-foreground">
+                    {issueCount} issue(s)
+                  </span>
+                  <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold text-foreground">
+                    {unresolvedCount} unresolved field(s)
+                  </span>
+                </div>
                 <div className="mt-3 grid gap-2">
                   {previewRows.map((row) => (
                     <div
@@ -549,6 +1089,34 @@ export function SourceImportDialog({
 
               {resolved.nodeType === "requirements" &&
                 renderRequirementsReview(resolved, (fields) =>
+                  setResolved((current) =>
+                    current ? updateResolvedFields(current, fields) : current,
+                  ),
+                )}
+
+              {resolved.nodeType === "user_stories" &&
+                renderUserStoriesReview(resolved, (fields) =>
+                  setResolved((current) =>
+                    current ? updateResolvedFields(current, fields) : current,
+                  ),
+                )}
+
+              {resolved.nodeType === "erd" &&
+                renderErdReview(resolved, (fields) =>
+                  setResolved((current) =>
+                    current ? updateResolvedFields(current, fields) : current,
+                  ),
+                )}
+
+              {resolved.nodeType === "flowchart" &&
+                renderFlowchartReview(resolved, (fields) =>
+                  setResolved((current) =>
+                    current ? updateResolvedFields(current, fields) : current,
+                  ),
+                )}
+
+              {resolved.nodeType === "sequence" &&
+                renderSequenceReview(resolved, (fields) =>
                   setResolved((current) =>
                     current ? updateResolvedFields(current, fields) : current,
                   ),

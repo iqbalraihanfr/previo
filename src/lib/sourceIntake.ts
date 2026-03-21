@@ -41,6 +41,8 @@ export interface ImportReviewIssue {
 
 export interface ImportReviewContext {
   briefScopeOptions?: string[];
+  requirementOptions?: Array<{ value: string; label: string }>;
+  useCaseOptions?: Array<{ value: string; label: string }>;
 }
 
 function parseCsv(raw: string) {
@@ -664,6 +666,271 @@ function buildRequirementImportReview(
   return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
 }
 
+function buildStoryImportReview(
+  fields: Record<string, unknown>,
+  context?: ImportReviewContext,
+) {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+  const items = Array.isArray(fields.items) ? fields.items : [];
+  const requirementOptions = new Set(
+    (context?.requirementOptions ?? []).map((option) => option.value.toLowerCase()),
+  );
+
+  if (items.length === 0) {
+    issues.push({
+      field: "items",
+      severity: "error",
+      message: "No user stories were parsed from the imported source.",
+    });
+    unresolvedFields.push("items");
+    return { issues, unresolvedFields };
+  }
+
+  items.forEach((item, index) => {
+    const story = item as Record<string, unknown>;
+    const role = asTrimmedString(story.role);
+    const goal = asTrimmedString(story.goal);
+    const benefit = asTrimmedString(story.benefit);
+    const relatedRequirement = asTrimmedString(story.related_requirement);
+    const fieldBase = `items[${index}]`;
+
+    if (!role) {
+      unresolvedFields.push(`${fieldBase}.role`);
+      issues.push({
+        field: `${fieldBase}.role`,
+        severity: "warning",
+        message: `Story ${index + 1} does not have a target persona yet.`,
+      });
+    }
+
+    if (!goal) {
+      unresolvedFields.push(`${fieldBase}.goal`);
+      issues.push({
+        field: `${fieldBase}.goal`,
+        severity: "error",
+        message: `Story ${index + 1} is missing its goal statement.`,
+      });
+    }
+
+    if (!benefit) {
+      issues.push({
+        field: `${fieldBase}.benefit`,
+        severity: "warning",
+        message: `Story ${index + 1} has no explicit benefit yet.`,
+      });
+    }
+
+    if (requirementOptions.size > 0 && !relatedRequirement) {
+      unresolvedFields.push(`${fieldBase}.related_requirement`);
+      issues.push({
+        field: `${fieldBase}.related_requirement`,
+        severity: "warning",
+        message: `Story ${index + 1} is not linked to any imported requirement.`,
+      });
+    } else if (
+      relatedRequirement &&
+      requirementOptions.size > 0 &&
+      !requirementOptions.has(relatedRequirement.toLowerCase())
+    ) {
+      unresolvedFields.push(`${fieldBase}.related_requirement`);
+      issues.push({
+        field: `${fieldBase}.related_requirement`,
+        severity: "warning",
+        message: `Story ${index + 1} points to a requirement id that is not present in the current requirements node.`,
+      });
+    }
+  });
+
+  return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
+}
+
+function buildERDImportReview(fields: Record<string, unknown>) {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+  const entities = Array.isArray(fields.entities) ? fields.entities : [];
+  const relationships = Array.isArray(fields.relationships) ? fields.relationships : [];
+
+  if (entities.length === 0) {
+    issues.push({
+      field: "entities",
+      severity: "error",
+      message: "No entities were parsed from the imported schema.",
+    });
+    unresolvedFields.push("entities");
+    return { issues, unresolvedFields };
+  }
+
+  entities.forEach((entity, index) => {
+    const currentEntity = entity as Record<string, unknown>;
+    const attributes = Array.isArray(currentEntity.attributes)
+      ? currentEntity.attributes
+      : [];
+    const fieldBase = `entities[${index}]`;
+
+    if (!asTrimmedString(currentEntity.name)) {
+      unresolvedFields.push(`${fieldBase}.name`);
+      issues.push({
+        field: `${fieldBase}.name`,
+        severity: "error",
+        message: `Entity ${index + 1} is missing a name.`,
+      });
+    }
+
+    if (attributes.length === 0) {
+      issues.push({
+        field: `${fieldBase}.attributes`,
+        severity: "warning",
+        message: `Entity ${index + 1} has no parsed attributes yet.`,
+      });
+    }
+  });
+
+  if (relationships.length === 0 && entities.length > 1) {
+    issues.push({
+      field: "relationships",
+      severity: "warning",
+      message: "No relationships were parsed from the schema yet.",
+    });
+  }
+
+  return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
+}
+
+function buildFlowchartImportReview(
+  fields: Record<string, unknown>,
+  context?: ImportReviewContext,
+) {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+  const flows = Array.isArray(fields.flows) ? fields.flows : [];
+  const useCaseOptions = new Set(
+    (context?.useCaseOptions ?? []).map((option) => option.value.toLowerCase()),
+  );
+
+  if (flows.length === 0) {
+    issues.push({
+      field: "flows",
+      severity: "error",
+      message: "No flow definitions were parsed from the imported Mermaid source.",
+    });
+    unresolvedFields.push("flows");
+    return { issues, unresolvedFields };
+  }
+
+  flows.forEach((flow, index) => {
+    const currentFlow = flow as Record<string, unknown>;
+    const steps = Array.isArray(currentFlow.steps) ? currentFlow.steps : [];
+    const connections = Array.isArray(currentFlow.connections)
+      ? currentFlow.connections
+      : [];
+    const relatedUseCase = asTrimmedString(currentFlow.related_use_case);
+    const fieldBase = `flows[${index}]`;
+
+    if (!asTrimmedString(currentFlow.name)) {
+      unresolvedFields.push(`${fieldBase}.name`);
+      issues.push({
+        field: `${fieldBase}.name`,
+        severity: "warning",
+        message: `Flow ${index + 1} has no explicit name yet.`,
+      });
+    }
+
+    if (steps.length === 0) {
+      unresolvedFields.push(`${fieldBase}.steps`);
+      issues.push({
+        field: `${fieldBase}.steps`,
+        severity: "error",
+        message: `Flow ${index + 1} has no parsed steps.`,
+      });
+    }
+
+    if (connections.length === 0 && steps.length > 1) {
+      issues.push({
+        field: `${fieldBase}.connections`,
+        severity: "warning",
+        message: `Flow ${index + 1} still needs explicit logical connections.`,
+      });
+    }
+
+    if (useCaseOptions.size > 0 && !relatedUseCase) {
+      unresolvedFields.push(`${fieldBase}.related_use_case`);
+      issues.push({
+        field: `${fieldBase}.related_use_case`,
+        severity: "warning",
+        message: `Flow ${index + 1} is not linked to a use case yet.`,
+      });
+    } else if (
+      relatedUseCase &&
+      useCaseOptions.size > 0 &&
+      !useCaseOptions.has(relatedUseCase.toLowerCase())
+    ) {
+      unresolvedFields.push(`${fieldBase}.related_use_case`);
+      issues.push({
+        field: `${fieldBase}.related_use_case`,
+        severity: "warning",
+        message: `Flow ${index + 1} points to a use case id that is not present in the current use cases node.`,
+      });
+    }
+  });
+
+  return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
+}
+
+function buildSequenceImportReview(
+  fields: Record<string, unknown>,
+  context?: ImportReviewContext,
+) {
+  const issues: ImportReviewIssue[] = [];
+  const unresolvedFields: string[] = [];
+  const participants = Array.isArray(fields.participants) ? fields.participants : [];
+  const messages = Array.isArray(fields.messages) ? fields.messages : [];
+  const relatedUseCase = asTrimmedString(fields.related_use_case);
+  const useCaseOptions = new Set(
+    (context?.useCaseOptions ?? []).map((option) => option.value.toLowerCase()),
+  );
+
+  if (participants.length === 0) {
+    unresolvedFields.push("participants");
+    issues.push({
+      field: "participants",
+      severity: "error",
+      message: "No sequence participants were parsed from the imported Mermaid source.",
+    });
+  }
+
+  if (messages.length === 0) {
+    unresolvedFields.push("messages");
+    issues.push({
+      field: "messages",
+      severity: "error",
+      message: "No sequence interactions were parsed from the imported Mermaid source.",
+    });
+  }
+
+  if (useCaseOptions.size > 0 && !relatedUseCase) {
+    unresolvedFields.push("related_use_case");
+    issues.push({
+      field: "related_use_case",
+      severity: "warning",
+      message: "The imported sequence is not linked to a use case yet.",
+    });
+  } else if (
+    relatedUseCase &&
+    useCaseOptions.size > 0 &&
+    !useCaseOptions.has(relatedUseCase.toLowerCase())
+  ) {
+    unresolvedFields.push("related_use_case");
+    issues.push({
+      field: "related_use_case",
+      severity: "warning",
+      message: "The imported sequence points to a use case id that is not present in the current use cases node.",
+    });
+  }
+
+  return { issues, unresolvedFields: Array.from(new Set(unresolvedFields)) };
+}
+
 function buildImportReview(
   nodeType: string,
   fields: Record<string, unknown>,
@@ -675,6 +942,22 @@ function buildImportReview(
 
   if (nodeType === "requirements") {
     return buildRequirementImportReview(fields, context);
+  }
+
+  if (nodeType === "user_stories") {
+    return buildStoryImportReview(fields, context);
+  }
+
+  if (nodeType === "erd") {
+    return buildERDImportReview(fields);
+  }
+
+  if (nodeType === "flowchart") {
+    return buildFlowchartImportReview(fields, context);
+  }
+
+  if (nodeType === "sequence") {
+    return buildSequenceImportReview(fields, context);
   }
 
   return {
@@ -733,8 +1016,34 @@ export async function resolveNodeImport(params: {
     title = "Imported requirements";
     reviewContext = { briefScopeOptions };
   } else if (nodeType === "user_stories") {
+    let requirementOptions: Array<{ value: string; label: string }> = [];
+    try {
+      const requirementsNode = await db.nodes
+        .where({ project_id: params.projectId, type: "requirements" })
+        .first();
+      const requirementsContent = requirementsNode
+        ? await db.nodeContents.where({ node_id: requirementsNode.id }).first()
+        : null;
+      const requirementItems = Array.isArray(
+        (requirementsContent?.structured_fields as Record<string, unknown> | undefined)?.items,
+      )
+        ? ((requirementsContent?.structured_fields as Record<string, unknown>).items as Record<
+            string,
+            unknown
+          >[])
+        : [];
+      requirementOptions = requirementItems
+        .filter((item) => asTrimmedString(item.type || "FR").toUpperCase() === "FR")
+        .map((item, index) => ({
+          value: asTrimmedString(item.id) || `FR-${String(index + 1).padStart(3, "0")}`,
+          label: `FR-${String(index + 1).padStart(3, "0")} - ${asTrimmedString(item.description) || "Untitled requirement"}`,
+        }));
+    } catch {
+      requirementOptions = [];
+    }
     fields = { items: parseUserStoriesCsv(rawContent) };
     title = "Imported user stories";
+    reviewContext = { requirementOptions };
   } else if (nodeType === "erd") {
     const schemaFields =
       sourceType === "dbml" ? parseDbmlToERD(rawContent) : parseSqlToERD(rawContent);
@@ -744,13 +1053,61 @@ export async function resolveNodeImport(params: {
     fields = schemaFields as Record<string, unknown>;
     title = "Imported schema";
   } else if (nodeType === "flowchart") {
+    let useCaseOptions: Array<{ value: string; label: string }> = [];
+    try {
+      const useCaseNode = await db.nodes
+        .where({ project_id: params.projectId, type: "use_cases" })
+        .first();
+      const useCaseContent = useCaseNode
+        ? await db.nodeContents.where({ node_id: useCaseNode.id }).first()
+        : null;
+      const useCases = Array.isArray(
+        (useCaseContent?.structured_fields as Record<string, unknown> | undefined)?.useCases,
+      )
+        ? ((useCaseContent?.structured_fields as Record<string, unknown>).useCases as Record<
+            string,
+            unknown
+          >[])
+        : [];
+      useCaseOptions = useCases.map((useCase, index) => ({
+        value: asTrimmedString(useCase.id) || `uc-${index + 1}`,
+        label: `UC-${String(index + 1).padStart(3, "0")} - ${asTrimmedString(useCase.name) || "Untitled use case"}`,
+      }));
+    } catch {
+      useCaseOptions = [];
+    }
     fields = parseMermaidFlowchart(rawContent);
     title = "Imported flowchart";
     mermaidSyntax = rawContent;
+    reviewContext = { useCaseOptions };
   } else if (nodeType === "sequence") {
+    let useCaseOptions: Array<{ value: string; label: string }> = [];
+    try {
+      const useCaseNode = await db.nodes
+        .where({ project_id: params.projectId, type: "use_cases" })
+        .first();
+      const useCaseContent = useCaseNode
+        ? await db.nodeContents.where({ node_id: useCaseNode.id }).first()
+        : null;
+      const useCases = Array.isArray(
+        (useCaseContent?.structured_fields as Record<string, unknown> | undefined)?.useCases,
+      )
+        ? ((useCaseContent?.structured_fields as Record<string, unknown>).useCases as Record<
+            string,
+            unknown
+          >[])
+        : [];
+      useCaseOptions = useCases.map((useCase, index) => ({
+        value: asTrimmedString(useCase.id) || `uc-${index + 1}`,
+        label: `UC-${String(index + 1).padStart(3, "0")} - ${asTrimmedString(useCase.name) || "Untitled use case"}`,
+      }));
+    } catch {
+      useCaseOptions = [];
+    }
     fields = parseMermaidSequence(rawContent);
     title = "Imported sequence";
     mermaidSyntax = rawContent;
+    reviewContext = { useCaseOptions };
   } else if (nodeType === "use_cases") {
     fields = parseUseCaseText(rawContent);
     title = "Imported use cases";

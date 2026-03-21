@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type NodeData } from "@/lib/db";
 import { getNodeCapability } from "@/lib/nodeCapabilities";
@@ -38,13 +38,16 @@ import { useMermaidRenderer } from "./hooks/useMermaidRenderer";
 import { useAttachments } from "./hooks/useAttachments";
 import { MermaidEditor } from "./panel/MermaidEditor";
 import { NotesEditor } from "./panel/NotesEditor";
+import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
 
 export function NodeEditorPanel({
   node,
+  navigationIntent,
   onCloseAction,
   onDeleteAction,
 }: {
   node: NodeData;
+  navigationIntent?: WorkspaceNavigationIntent | null;
   onCloseAction: () => void;
   onDeleteAction?: () => void;
 }) {
@@ -138,8 +141,30 @@ export function NodeEditorPanel({
   });
   const sectionLinks = getEditorSectionLinks(currentNode.type);
 
+  const intentForCurrentNode =
+    navigationIntent?.nodeId === currentNode.id ? navigationIntent : null;
   const resolvedMode =
-    activeMode === "entry" && hasCanonicalEntryData ? "review" : activeMode;
+    activeMode === "entry" && hasCanonicalEntryData
+      ? "review"
+      : intentForCurrentNode &&
+          hasGuidedEditor &&
+          capability.supportsManualStructured &&
+          activeMode !== "entry"
+        ? "editing"
+        : activeMode;
+
+  useEffect(() => {
+    if (!intentForCurrentNode?.sectionId) return;
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(intentForCurrentNode.sectionId ?? "")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [intentForCurrentNode]);
 
   const handleStatusChange = async (newStatus: string | null) => {
     if (!newStatus) return;
@@ -328,6 +353,22 @@ export function NodeEditorPanel({
         onCloseAction={onCloseAction}
         onDeleteAction={onDeleteAction}
       />
+
+      {intentForCurrentNode && (
+        <div className="border-b border-border/60 bg-primary/5 px-6 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+            Focused review
+          </p>
+          <p className="mt-1 text-sm text-foreground">
+            {intentForCurrentNode.itemLabel ?? currentNode.label}
+          </p>
+          {intentForCurrentNode.reason && (
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {intentForCurrentNode.reason}
+            </p>
+          )}
+        </div>
+      )}
 
       {hasGuidedEditor && resolvedMode !== "entry" && (
         <NodeSourceToolbar

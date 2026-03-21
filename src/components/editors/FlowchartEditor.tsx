@@ -64,7 +64,7 @@ export function FlowchartEditor({
   return (
     <div className="flex flex-col gap-10 p-8 w-full workspace-scroll pb-24 h-full">
       {/* Header */}
-      <div className="space-y-6">
+      <div className="space-y-6" id="flowchart-overview">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
@@ -89,7 +89,7 @@ export function FlowchartEditor({
         </div>
       )}
 
-      <div className="space-y-12">
+      <div className="space-y-12" id="flowchart-flows">
         {flows.map((flow, flowIdx) => (
           <div key={flow.id} className="relative group animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Flow Card */}

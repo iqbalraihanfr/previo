@@ -27,8 +27,11 @@ describe("node capabilities", () => {
   });
 
   it("separates manual entry policy by node maturity", () => {
-    expect(NODE_CAPABILITIES.requirements.manualEntryMode).toBe("secondary");
-    expect(NODE_CAPABILITIES.erd.manualEntryMode).toBe("secondary");
+    expect(NODE_CAPABILITIES.requirements.manualEntryMode).toBe("review_only");
+    expect(NODE_CAPABILITIES.erd.manualEntryMode).toBe("review_only");
+    expect(NODE_CAPABILITIES.user_stories.manualEntryMode).toBe("review_only");
+    expect(NODE_CAPABILITIES.flowchart.manualEntryMode).toBe("review_only");
+    expect(NODE_CAPABILITIES.sequence.manualEntryMode).toBe("review_only");
     expect(NODE_CAPABILITIES.use_cases.manualEntryMode).toBe("review_only");
     expect(NODE_CAPABILITIES.dfd.manualEntryMode).toBe("review_only");
   });

@@ -70,7 +70,7 @@ export function SequenceEditor({
   return (
     <div className="flex flex-col gap-10 p-8 w-full workspace-scroll pb-24 h-full">
       {/* Header & Meta */}
-      <div className="space-y-6">
+      <div className="space-y-6" id="sequence-overview">
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
           <h2 className="text-2xl font-black tracking-tighter uppercase italic opacity-20">Sequence Flow</h2>
@@ -107,7 +107,7 @@ export function SequenceEditor({
       </div>
 
       {/* Participants Section */}
-      <div className="space-y-6">
+      <div className="space-y-6" id="sequence-participants">
         <div className="flex items-center justify-between px-2">
           <div className="space-y-1">
             <h3 className="text-sm font-black uppercase tracking-widest">Participants</h3>
@@ -144,7 +144,7 @@ export function SequenceEditor({
       </div>
 
       {/* Messages Section */}
-      <div className="space-y-6">
+      <div className="space-y-6" id="sequence-messages">
         <div className="flex items-center justify-between px-2">
           <div className="space-y-1">
             <h3 className="text-sm font-black uppercase tracking-widest">Interaction Timeline</h3>

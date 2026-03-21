@@ -35,7 +35,7 @@ export function UserStoryEditor({
     <div className="workspace-scroll flex-1 overflow-y-auto px-8 py-10 w-full bg-card/5">
       <div className="max-w-4xl mx-auto space-y-12">
         {/* Header Segment */}
-        <div className="space-y-4 border-b border-border/70 pb-10">
+        <div className="space-y-4 border-b border-border/70 pb-10" id="user-stories-overview">
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-readable-2xs font-bold uppercase tracking-widest text-primary">
               Narrative Model
@@ -58,7 +58,7 @@ export function UserStoryEditor({
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between" id="user-stories-registry">
           <div className="space-y-1">
             <h3 className="text-sm font-bold tracking-tight">Narrative Registry</h3>
             <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">
