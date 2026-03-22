@@ -4,6 +4,7 @@ import {
   resolveBacklogImport,
   resolveNodeImport,
 } from "../../src/lib/sourceIntake";
+import { db } from "../../src/lib/db";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -72,6 +73,82 @@ describe("source intake adapters", () => {
         },
       ],
     });
+  });
+
+  test("parses Markdown requirement tables and infers related scope from brief scope", async () => {
+    vi.spyOn(db.nodes, "where").mockReturnValue({
+      first: vi.fn().mockResolvedValue({ id: "brief-1" }),
+    } as never);
+    vi.spyOn(db.nodeContents, "where").mockReturnValue({
+      first: vi.fn().mockResolvedValue({
+        structured_fields: {
+          scope_in: ["Homepage", "Work", "Admin Panel"],
+        },
+      }),
+    } as never);
+
+    const result = await resolveNodeImport({
+      nodeType: "requirements",
+      sourceType: "requirements_doc",
+      rawContent: [
+        "# Requirements",
+        "",
+        "### Category: Homepage (/)",
+        "| ID | Description | Priority |",
+        "| --- | --- | --- |",
+        '| FR-001 | Hero section shows headline and CTA "Read my Notes" | Must |',
+        "",
+        "### Category: Admin Panel (/admin)",
+        "| ID | Description | Priority |",
+        "| --- | --- | --- |",
+        "| FR-002 | CRUD notes via admin form | Must |",
+        "",
+        "## Non-Functional Requirements",
+        "| ID | Category | Description | Metric | Target |",
+        "| --- | --- | --- | --- | --- |",
+        "| NFR-001 | Performance | Page load time | LCP | < 3 detik |",
+        "",
+        "---",
+        "",
+        "| Priority | Functional | Non-Functional | Total |",
+        "| --- | --- | --- | --- |",
+        "| Must | 2 | 1 | 3 |",
+      ].join("\n"),
+      projectId: "project-1",
+    });
+
+    expect(result.fields).toMatchObject({
+      items: [
+        {
+          id: "req-1",
+          type: "FR",
+          priority: "Must",
+          category: "Homepage (/)",
+          related_scope: "Homepage",
+        },
+        {
+          id: "req-2",
+          type: "FR",
+          priority: "Must",
+          category: "Admin Panel (/admin)",
+          related_scope: "Admin Panel",
+        },
+        {
+          id: "req-3",
+          type: "NFR",
+          priority: "Should",
+          category: "Performance",
+          metric: "LCP",
+          target: "< 3 detik",
+        },
+      ],
+    });
+    expect(result.reviewContext?.importNotes).toEqual(
+      expect.arrayContaining([
+        "Detected Markdown table requirements and normalized them into Previo fields.",
+        "Auto-linked 2 requirement(s) to brief scope items using category or section matches.",
+      ]),
+    );
   });
 
   test("parses user story csv and backlog csv imports", async () => {

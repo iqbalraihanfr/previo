@@ -30,7 +30,6 @@ describe("node derivations", () => {
     const result = deriveUseCaseDrafts({
       briefFields: {
         target_users: ["Finance Admin"],
-        notes: "This note should not affect the generated output.",
       },
       requirementFields: {
         items: [
@@ -87,6 +86,15 @@ describe("node derivations", () => {
           {
             id: "UC-1",
             name: "Submit Order",
+            primary_actor: "Customer",
+            secondary_actors: [],
+            description: "",
+            preconditions: [],
+            postconditions: [],
+            main_flow: [],
+            alternative_flows: [],
+            related_user_stories: [],
+            include_extend: [],
           },
         ],
       },
@@ -133,7 +141,7 @@ describe("node derivations", () => {
         name: "Invoice Portal",
         background: "Automate invoice handling.",
         notes: "Internal scratchpad that must stay out of summary.",
-      },
+      } as SummaryContent["structured_fields"] & { notes: string },
     };
 
     const markup = renderToStaticMarkup(

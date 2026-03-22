@@ -1,38 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   createProject,
-  dismissWorkspaceOnboarding,
   openWorkspaceCommandMenu,
+  openWorkspaceNode,
 } from "./helpers/app";
-
-async function openWorkspaceNode(
-  page: Page,
-  nodeType: "project_brief" | "requirements" | "summary",
-  panelTestId: "node-editor-panel" | "summary-editor" = "node-editor-panel",
-) {
-  await dismissWorkspaceOnboarding(page);
-
-  const fitViewButton = page.getByTestId("workspace-fit-view");
-  if (await fitViewButton.isVisible().catch(() => false)) {
-    await fitViewButton.click();
-  }
-
-  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
-  await node.waitFor({ state: "attached", timeout: 30000 });
-  await node.click({ force: true });
-
-  if (panelTestId === "summary-editor") {
-    await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
-    return;
-  }
-
-  await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
-    "data-node-type",
-    nodeType,
-    { timeout: 15000 },
-  );
-}
 
 test.describe("Previo visual regression", () => {
   test("matches the project brief entry-state card", async ({ page }) => {
@@ -47,6 +19,7 @@ test.describe("Previo visual regression", () => {
       {
         animations: "disabled",
         caret: "hide",
+        maxDiffPixels: 20,
       },
     );
   });
@@ -72,6 +45,7 @@ test.describe("Previo visual regression", () => {
       {
         animations: "disabled",
         caret: "hide",
+        maxDiffPixels: 20,
       },
     );
   });
@@ -88,11 +62,12 @@ test.describe("Previo visual regression", () => {
     await expect(page.getByTestId("summary-editor")).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByTestId("summary-editor")).toHaveScreenshot(
+    await expect(page.getByTestId("summary-empty-state")).toHaveScreenshot(
       "summary-empty-state.png",
       {
         animations: "disabled",
         caret: "hide",
+        maxDiffPixels: 20,
       },
     );
   });

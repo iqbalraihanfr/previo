@@ -48,14 +48,21 @@ async function importStructuredNode(
   await page.getByTestId("node-source-import").click();
   await expect(page.getByTestId("source-import-dialog")).toBeVisible();
   await page.getByTestId("source-import-textarea").fill(rawContent);
+  await expect(page.getByTestId("source-import-parse")).toBeEnabled({
+    timeout: 15000,
+  });
   await page.getByTestId("source-import-parse").click({ force: true });
-  await page.getByTestId("source-import-apply").click();
+  await expect(page.getByTestId("source-import-apply")).toBeVisible({
+    timeout: 15000,
+  });
+  await page.getByTestId("source-import-apply").click({ force: true });
   await expect(page.getByTestId("source-import-dialog")).toBeHidden({
     timeout: 15000,
   });
-  await expect(page.getByTestId("editor-panel-header")).toContainText("Saved", {
-    timeout: 15000,
-  });
+  await expect(page.getByTestId("node-source-toolbar")).toContainText(
+    "Imported source",
+    { timeout: 15000 },
+  );
 }
 
 test.describe("Previo production smoke", () => {

@@ -42,6 +42,51 @@ export async function openWorkspaceCommandMenu(page: Page) {
   await expect(commandMenu).toBeVisible({ timeout: 5000 });
 }
 
+export async function openWorkspaceNode(
+  page: Page,
+  nodeType: string,
+  panelTestId: "node-editor-panel" | "task-board-editor" | "summary-editor" =
+    "node-editor-panel",
+) {
+  await dismissWorkspaceOnboarding(page);
+
+  const closeButton = page.getByTestId("editor-close-panel");
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
+
+  await openWorkspaceCommandMenu(page);
+  const commandNode = page.getByTestId(`workspace-command-node-${nodeType}`);
+  const openedFromCommand = await commandNode
+    .waitFor({ state: "visible", timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (openedFromCommand) {
+    await commandNode.click();
+  } else {
+    const fitViewButton = page.getByTestId("workspace-fit-view");
+    if (await fitViewButton.isVisible().catch(() => false)) {
+      await fitViewButton.click();
+    }
+
+    const node = page.getByTestId(`workspace-node-${nodeType}`).first();
+    await node.waitFor({ state: "attached", timeout: 30000 });
+    await node.click({ force: true });
+  }
+
+  if (panelTestId === "node-editor-panel") {
+    await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
+      "data-node-type",
+      nodeType,
+      { timeout: 15000 },
+    );
+    return;
+  }
+
+  await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
+}
+
 export async function returnToDashboard(page: Page) {
   await page.goto("/", { waitUntil: "load" });
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
@@ -81,10 +126,10 @@ export async function createProject(
 
   const createDialog = page.getByTestId("create-project-dialog");
   const openDialogTriggers = [
-    page.getByRole("button", { name: /^create project$/i }),
-    page.getByRole("button", { name: /^new project$/i }),
     page.getByTestId("dashboard-empty-new-project"),
     page.getByTestId("dashboard-new-project"),
+    page.getByRole("button", { name: /^new project$/i }).last(),
+    page.getByRole("button", { name: /^create project$/i }).last(),
   ];
 
   let dialogOpened = false;
@@ -108,6 +153,26 @@ export async function createProject(
         break;
       }
     }
+  }
+
+  if (!dialogOpened) {
+    await page.evaluate(() => {
+      const candidate =
+        document.querySelector('[data-testid="dashboard-new-project"]') ??
+        document.querySelector('[data-testid="dashboard-empty-new-project"]') ??
+        Array.from(document.querySelectorAll("button")).find((button) => {
+          const label = button.textContent?.trim().toLowerCase() ?? "";
+          return label === "new project" || label === "create project";
+        });
+
+      if (candidate instanceof HTMLButtonElement) {
+        candidate.click();
+      }
+    });
+    dialogOpened = await createDialog
+      .waitFor({ state: "visible", timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
   }
 
   expect(dialogOpened).toBeTruthy();

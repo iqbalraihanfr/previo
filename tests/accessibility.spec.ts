@@ -33,11 +33,10 @@ test.describe("Previo accessibility smoke", () => {
     await page.goto("/", { waitUntil: "load" });
     await expect(page.getByTestId("dashboard-screen")).toBeVisible();
 
-    const createProjectButton = page.getByRole("button", {
-      name: /create project|new project/i,
-    });
-    await expect(createProjectButton.first()).toBeVisible();
-    await createProjectButton.first().click();
+    await expect(
+      page.getByRole("button", { name: /create project|new project/i }).first(),
+    ).toBeVisible();
+    await page.getByTestId("dashboard-new-project").click();
 
     const dialog = page.getByTestId("create-project-dialog");
     await expect(dialog).toBeVisible();

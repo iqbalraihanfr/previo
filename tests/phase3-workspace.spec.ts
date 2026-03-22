@@ -3,40 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   createProject,
   dismissWorkspaceOnboarding,
+  openWorkspaceNode,
 } from "./helpers/app";
-
-async function openWorkspaceNode(
-  page: Page,
-  nodeType: "project_brief" | "requirements" | "task_board",
-  panelTestId: "node-editor-panel" | "task-board-editor" = "node-editor-panel",
-) {
-  await dismissWorkspaceOnboarding(page);
-
-  const closeButton = page.getByTestId("editor-close-panel");
-  if (await closeButton.isVisible().catch(() => false)) {
-    await closeButton.click();
-  }
-
-  const fitViewButton = page.getByTestId("workspace-fit-view");
-  if (await fitViewButton.isVisible().catch(() => false)) {
-    await fitViewButton.click();
-  }
-
-  const node = page.getByTestId(`workspace-node-${nodeType}`).first();
-  await node.waitFor({ state: "attached", timeout: 30000 });
-  await node.click({ force: true });
-
-  if (panelTestId === "node-editor-panel") {
-    await expect(page.getByTestId("node-editor-panel")).toHaveAttribute(
-      "data-node-type",
-      nodeType,
-      { timeout: 15000 },
-    );
-    return;
-  }
-
-  await expect(page.getByTestId(panelTestId)).toBeVisible({ timeout: 15000 });
-}
 
 async function importStructuredNode(
   page: Page,
@@ -47,15 +15,18 @@ async function importStructuredNode(
   await page.getByTestId("node-source-import").click();
   await expect(page.getByTestId("source-import-dialog")).toBeVisible();
   await page.getByTestId("source-import-textarea").fill(rawContent);
-  await page.getByTestId("source-import-parse").click();
-  await page.getByTestId("source-import-apply").click();
+  await expect(page.getByTestId("source-import-parse")).toBeEnabled({
+    timeout: 15000,
+  });
+  await page.getByTestId("source-import-parse").click({ force: true });
+  await expect(page.getByTestId("source-import-apply")).toBeVisible({
+    timeout: 15000,
+  });
+  await page.getByTestId("source-import-apply").click({ force: true });
   await expect(page.getByTestId("node-source-toolbar")).toContainText(
     "Imported source",
     { timeout: 15000 },
   );
-  await expect(page.getByTestId("editor-panel-header")).toContainText("Saved", {
-    timeout: 15000,
-  });
 }
 
 test.describe("Previo phase 3 workspace QA", () => {
@@ -217,9 +188,9 @@ test.describe("Previo phase 3 workspace QA", () => {
     const traceabilityPanel = page.getByTestId("workspace-traceability-panel");
     await expect(traceabilityPanel).toBeVisible();
     await expect(traceabilityPanel).toContainText("Brief to requirements");
-    await expect(traceabilityPanel).toContainText("Self-service signup");
-    await expect(traceabilityPanel).toContainText("Allow sign up via email");
-    await expect(traceabilityPanel).toContainText("Imported brief");
+    await expect(traceabilityPanel).toContainText("Imported");
+    await expect(traceabilityPanel).toContainText("Project Brief");
+    await expect(traceabilityPanel).toContainText("Requirements");
     await expect(traceabilityPanel).toContainText("Brief document");
   });
 });

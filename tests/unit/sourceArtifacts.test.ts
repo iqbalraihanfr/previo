@@ -28,10 +28,13 @@ describe("source artifact metadata", () => {
       project_id: "project-1",
       node_id: "node-1",
       source_type: "requirements_doc",
+      target_node_type: undefined,
+      import_status: "pending",
       title: "Requirements doc",
       raw_content: "",
       normalized_data: {},
       parser_version: SOURCE_ARTIFACT_PARSER_VERSION,
+      content_schema_version: 1,
     });
   });
 });
