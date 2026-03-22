@@ -12,6 +12,7 @@ import type {
 } from "@/lib/db";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ModeToggle } from "@/components/mode-toggle";
+import { AIConfigurationNotice } from "@/components/ai/AIConfigurationNotice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/features/dashboard/components/CreateProjectDialog";
@@ -224,6 +225,10 @@ export function DashboardScreen() {
           filterBy={filterBy}
           onFilterChange={setFilterBy}
         />
+
+        <div className="mb-3">
+          <AIConfigurationNotice />
+        </div>
 
         <section className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">

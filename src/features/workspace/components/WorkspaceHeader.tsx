@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/mode-toggle";
+import { AIConfigurationNotice } from "@/components/ai/AIConfigurationNotice";
 
 import type { Project, NodeData, NodeContent } from "@/lib/db";
 import { exportProjectToMarkdown, exportProjectToPDF } from "@/lib/exportEngine";
@@ -272,6 +273,10 @@ export function WorkspaceHeader({
 
           <ModeToggle />
         </div>
+      </div>
+
+      <div className="mt-3">
+        <AIConfigurationNotice variant="compact" />
       </div>
     </header>
   );

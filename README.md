@@ -69,6 +69,43 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
+## AI Setup
+
+Previo has two feature categories:
+
+- `Local-first features`
+  Project storage, canonical nodes, traceability, validation, task planning, summary review, exports, and deterministic parsers such as CSV, DBML, Mermaid, and most structured imports.
+- `AI-assisted features`
+  Document extraction, writing assistance, and SQL fallback parsing when deterministic parsing is not enough.
+
+If you want AI-assisted features, copy the example env file and add your own provider key:
+
+```bash
+cp .env.example .env.local
+```
+
+Supported providers:
+
+```bash
+# Anthropic
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your_key
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+# or Google
+AI_PROVIDER=google
+GOOGLE_GENERATIVE_AI_API_KEY=your_key
+GOOGLE_MODEL=gemini-3-flash-preview
+```
+
+Restart `pnpm dev` after updating `.env.local`.
+
+Without an AI key, the app still works for the local-first planning flow, but these AI-assisted paths remain unavailable:
+
+- project brief document extraction
+- AI writing assistance
+- SQL parsing fallback when the local parser cannot resolve the schema
+
 ## Available Scripts
 
 ```bash
@@ -84,22 +121,13 @@ pnpm test:e2e:prod
 
 ## Environment
 
-AI-backed features can use either Anthropic or Google models.
+Use [`.env.example`](.env.example) as the starting point for local configuration.
 
-Example `.env.local`:
+Important:
 
-```bash
-AI_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your_key
-ANTHROPIC_MODEL=claude-sonnet-4-6
-
-# or
-AI_PROVIDER=google
-GOOGLE_GENERATIVE_AI_API_KEY=your_key
-GOOGLE_MODEL=gemini-3-flash-preview
-```
-
-If AI keys are not configured, local-first workspace features still remain the primary architecture flow.
+- never commit real provider keys
+- keep secrets in `.env.local`
+- rotate any key that has ever been pasted into a tracked or shared file
 
 ## Quality Gates
 

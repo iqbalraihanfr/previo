@@ -2,6 +2,8 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 
+import { getAIConfigurationStatus } from "@/lib/ai/config";
+
 /**
  * Returns the configured AI model based on AI_PROVIDER env var.
  * Supports "anthropic" (default) and "google".
@@ -12,11 +14,17 @@ import type { LanguageModel } from "ai";
  *   GOOGLE_GENERATIVE_AI_API_KEY=... GOOGLE_MODEL=gemini-2.0-flash (optional)
  */
 export function getModel(): LanguageModel {
-  const provider = process.env.AI_PROVIDER ?? "anthropic";
+  const status = getAIConfigurationStatus();
 
-  if (provider === "google") {
-    return google(process.env.GOOGLE_MODEL ?? "gemini-3-flash-preview");
+  if (!status.configured) {
+    throw new Error(
+      `AI provider is not configured. Set AI_PROVIDER=${status.provider} and ${status.missing.join(", ")} in .env.local.`,
+    );
   }
 
-  return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6");
+  if (status.provider === "google") {
+    return google(status.model);
+  }
+
+  return anthropic(status.model);
 }
