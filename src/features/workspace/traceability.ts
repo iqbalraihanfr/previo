@@ -1,5 +1,18 @@
 import type { NodeContent, NodeData, SourceArtifact } from "@/lib/db";
 import {
+  getCanonicalNodeFields,
+} from "@/lib/canonicalContent";
+import type {
+  DFDFields,
+  ERDFields,
+  FlowchartFields,
+  ProjectBriefFields,
+  RequirementFields,
+  SequenceFields,
+  UseCaseFields,
+  UserStoryFields,
+} from "@/lib/canonical";
+import {
   GENERATION_STATUS_LABELS,
   OVERRIDE_STATUS_LABELS,
   SOURCE_TYPE_LABELS,
@@ -61,10 +74,6 @@ function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function getStructuredFields(content?: NodeContent | null) {
-  return (content?.structured_fields ?? {}) as Record<string, unknown>;
-}
-
 function getContentByType(contents: NodeContent[], nodes: NodeData[], type: string) {
   const node = nodes.find((entry) => entry.type === type);
   if (!node) return null;
@@ -105,44 +114,29 @@ function pickLatestArtifact(
   return explicitArtifact ?? nodeArtifacts[0] ?? null;
 }
 
-function getRequirementItems(fields: Record<string, unknown>) {
+function getRequirementItems(fields: RequirementFields) {
   const items = Array.isArray(fields.items) ? fields.items : [];
-
-  return items
-    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
-    .filter((item) => (asString(item.type) || "FR").toUpperCase() === "FR");
+  return items.filter((item) => (asString(item.type) || "FR").toUpperCase() === "FR");
 }
 
-function getStoryItems(fields: Record<string, unknown>) {
+function getStoryItems(fields: UserStoryFields) {
   const items = Array.isArray(fields.items) ? fields.items : [];
-
-  return items.filter(
-    (item): item is Record<string, unknown> => typeof item === "object" && item !== null,
-  );
+  return items;
 }
 
-function getUseCaseItems(fields: Record<string, unknown>) {
+function getUseCaseItems(fields: UseCaseFields) {
   const items = Array.isArray(fields.useCases) ? fields.useCases : [];
-
-  return items.filter(
-    (item): item is Record<string, unknown> => typeof item === "object" && item !== null,
-  );
+  return items;
 }
 
-function getEntityItems(fields: Record<string, unknown>) {
+function getEntityItems(fields: ERDFields) {
   const items = Array.isArray(fields.entities) ? fields.entities : [];
-
-  return items.filter(
-    (item): item is Record<string, unknown> => typeof item === "object" && item !== null,
-  );
+  return items;
 }
 
-function getDfdNodes(fields: Record<string, unknown>) {
+function getDfdNodes(fields: DFDFields) {
   const nodes = Array.isArray(fields.nodes) ? fields.nodes : [];
-
-  return nodes.filter(
-    (item): item is Record<string, unknown> => typeof item === "object" && item !== null,
-  );
+  return nodes;
 }
 
 function buildRelationSection(params: {
@@ -169,14 +163,14 @@ export function buildWorkspaceTraceabilityModel(params: {
   const erdEntry = getContentByType(contents, nodes, "erd");
   const dfdEntry = getContentByType(contents, nodes, "dfd");
 
-  const briefFields = getStructuredFields(briefEntry?.content);
-  const requirementFields = getStructuredFields(requirementEntry?.content);
-  const storyFields = getStructuredFields(storyEntry?.content);
-  const useCaseFields = getStructuredFields(useCaseEntry?.content);
-  const flowchartFields = getStructuredFields(flowchartEntry?.content);
-  const sequenceFields = getStructuredFields(sequenceEntry?.content);
-  const erdFields = getStructuredFields(erdEntry?.content);
-  const dfdFields = getStructuredFields(dfdEntry?.content);
+  const briefFields = getCanonicalNodeFields("project_brief", briefEntry?.content) as ProjectBriefFields;
+  const requirementFields = getCanonicalNodeFields("requirements", requirementEntry?.content) as RequirementFields;
+  const storyFields = getCanonicalNodeFields("user_stories", storyEntry?.content) as UserStoryFields;
+  const useCaseFields = getCanonicalNodeFields("use_cases", useCaseEntry?.content) as UseCaseFields;
+  const flowchartFields = getCanonicalNodeFields("flowchart", flowchartEntry?.content) as FlowchartFields;
+  const sequenceFields = getCanonicalNodeFields("sequence", sequenceEntry?.content) as SequenceFields;
+  const erdFields = getCanonicalNodeFields("erd", erdEntry?.content) as ERDFields;
+  const dfdFields = getCanonicalNodeFields("dfd", dfdEntry?.content) as DFDFields;
 
   const requirementItems = getRequirementItems(requirementFields);
   const storyItems = getStoryItems(storyFields);
@@ -306,14 +300,9 @@ export function buildWorkspaceTraceabilityModel(params: {
         displayId: buildUseCaseDisplayId(useCaseIndex),
       }))
       .filter(({ useCase }) => {
-        const relatedUserStories = [
-          ...(Array.isArray(useCase.related_user_stories)
-            ? useCase.related_user_stories
-            : []),
-          ...(Array.isArray(useCase.related_stories)
-            ? useCase.related_stories
-            : []),
-        ];
+        const relatedUserStories = Array.isArray(useCase.related_user_stories)
+          ? useCase.related_user_stories
+          : [];
 
         return relatedUserStories.some(
           (relatedStory) =>
@@ -323,14 +312,9 @@ export function buildWorkspaceTraceabilityModel(params: {
       });
 
     const hasUnresolvedUseCases = useCaseItems.some((useCase) => {
-      const relatedStories = [
-        ...(Array.isArray(useCase.related_user_stories)
-          ? useCase.related_user_stories
-          : []),
-        ...(Array.isArray(useCase.related_stories)
-          ? useCase.related_stories
-          : []),
-      ];
+      const relatedStories = Array.isArray(useCase.related_user_stories)
+        ? useCase.related_user_stories
+        : [];
       return relatedStories.length === 0;
     });
     const status: TraceabilitySectionRow["status"] =
@@ -376,10 +360,7 @@ export function buildWorkspaceTraceabilityModel(params: {
     const hasFlowchartLink = Array.isArray(flowchartFields.flows)
       ? flowchartFields.flows.some(
           (flow) =>
-            typeof flow === "object" &&
-            flow !== null &&
-            normalizeValue((flow as Record<string, unknown>).related_use_case) ===
-              normalizeValue(useCase.id),
+            normalizeValue(flow.related_use_case) === normalizeValue(useCase.id),
         )
       : false;
 
@@ -389,9 +370,7 @@ export function buildWorkspaceTraceabilityModel(params: {
       (Array.isArray(flowchartFields.flows)
         ? flowchartFields.flows.some(
             (flow) =>
-              typeof flow === "object" &&
-              flow !== null &&
-              !normalizeValue((flow as Record<string, unknown>).related_use_case),
+              !normalizeValue(flow.related_use_case),
           )
         : false) ||
       (sequenceEntry?.content

@@ -1,11 +1,19 @@
 import { useEffect, useState, useMemo } from "react";
 import type { NodeData } from "@/lib/db";
-import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
+import type {
+  DFDFlow,
+  DFDFields,
+  ERDFields,
+  FlowchartFields,
+  ProjectBriefFields,
+  RequirementFields,
+  SequenceFields,
+  UseCaseFields,
+  UserStoryFields,
+} from "@/lib/canonical";
 
 import type {
-  SummaryStructuredFields,
   SummaryContent,
-  DFDFlow,
 } from "./types";
 
 import {
@@ -270,7 +278,7 @@ export function renderProjectBrief(fields: ProjectBriefFields) {
   );
 }
 
-export function renderRequirements(fields: SummaryStructuredFields) {
+export function renderRequirements(fields: RequirementFields) {
   const items = getRequirementItems(fields);
 
   if (items.length === 0) {
@@ -302,7 +310,7 @@ export function renderRequirements(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderUserStories(fields: SummaryStructuredFields) {
+export function renderUserStories(fields: UserStoryFields) {
   const items = getUserStoryItems(fields);
 
   if (items.length === 0) {
@@ -329,7 +337,7 @@ export function renderUserStories(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderUseCases(fields: SummaryStructuredFields) {
+export function renderUseCases(fields: UseCaseFields) {
   const useCases = getUseCaseItems(fields);
 
   if (useCases.length === 0) {
@@ -433,7 +441,7 @@ export function renderUseCases(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderERDSummary(fields: SummaryStructuredFields) {
+export function renderERDSummary(fields: ERDFields) {
   const entities = getERDEntities(fields);
 
   if (entities.length === 0) {
@@ -493,7 +501,7 @@ export function renderERDSummary(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderFlowchartSummary(fields: SummaryStructuredFields) {
+export function renderFlowchartSummary(fields: FlowchartFields) {
   const flows = getFlowchartFlows(fields);
 
   if (flows.length === 0) {
@@ -533,7 +541,7 @@ export function renderFlowchartSummary(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderSequenceSummary(fields: SummaryStructuredFields) {
+export function renderSequenceSummary(fields: SequenceFields) {
   const rawParticipants = Array.isArray(fields.participants)
     ? fields.participants
     : [];
@@ -583,7 +591,7 @@ export function renderSequenceSummary(fields: SummaryStructuredFields) {
   );
 }
 
-export function renderDFDSummary(fields: SummaryStructuredFields) {
+export function renderDFDSummary(fields: DFDFields) {
   const nodes = getDFDNodes(fields);
   const flows = Array.isArray(fields.flows)
     ? fields.flows.filter((item): item is DFDFlow => isObject(item))
@@ -640,26 +648,27 @@ export function NodeSummarySection({
   const diagramSyntax = asString(
     content.mermaid_manual || content.mermaid_auto,
   );
-  const sqlSchema = asString(fields.sql);
+  const sqlSchema =
+    node.type === "erd" ? asString((fields as ERDFields).sql) : "";
 
   const guidedSummary = useMemo(() => {
     switch (node.type) {
       case "project_brief":
         return renderProjectBrief(fields as ProjectBriefFields);
       case "requirements":
-        return renderRequirements(fields);
+        return renderRequirements(fields as RequirementFields);
       case "user_stories":
-        return renderUserStories(fields);
+        return renderUserStories(fields as UserStoryFields);
       case "use_cases":
-        return renderUseCases(fields);
+        return renderUseCases(fields as UseCaseFields);
       case "erd":
-        return renderERDSummary(fields);
+        return renderERDSummary(fields as ERDFields);
       case "flowchart":
-        return renderFlowchartSummary(fields);
+        return renderFlowchartSummary(fields as FlowchartFields);
       case "sequence":
-        return renderSequenceSummary(fields);
+        return renderSequenceSummary(fields as SequenceFields);
       case "dfd":
-        return renderDFDSummary(fields);
+        return renderDFDSummary(fields as DFDFields);
       default:
         return null;
     }

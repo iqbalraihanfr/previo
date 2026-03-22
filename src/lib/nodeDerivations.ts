@@ -1,40 +1,41 @@
-import { db, type NodeContent } from "@/lib/db";
+import type {
+  ERDFields,
+  ProjectBriefFields,
+  RequirementFields,
+  UseCaseFields,
+  UserStoryFields,
+} from "@/lib/canonical";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
 import type { RequirementItem, StoryItem, UseCaseDraft } from "@/lib/sourceArtifacts";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-async function getNodeContentByType(projectId: string, type: string) {
-  const node = await db.nodes.where({ project_id: projectId, type }).first();
+async function getNodeContentByType(
+  projectId: string,
+  type: "project_brief" | "requirements" | "user_stories" | "use_cases" | "erd",
+) {
+  const node = await NodeRepository.findByProjectAndType(projectId, type);
   if (!node) return null;
-  const content = await db.nodeContents.where({ node_id: node.id }).first();
+  const content = await NodeContentRepository.findByNodeId(node.id);
   return content ?? null;
 }
 
-function getStructuredFields(content: NodeContent | null) {
-  return ((content?.structured_fields ?? {}) as Record<string, unknown>) || {};
-}
-
 export function deriveUseCaseDrafts(params: {
-  briefFields?: Record<string, unknown>;
-  requirementFields?: Record<string, unknown>;
-  storyFields?: Record<string, unknown>;
+  briefFields?: ProjectBriefFields;
+  requirementFields?: RequirementFields;
+  storyFields?: UserStoryFields;
 }) {
   const {
-    briefFields = {},
-    requirementFields = {},
-    storyFields = {},
+    briefFields,
+    requirementFields,
+    storyFields,
   } = params;
-  const targetUsers = Array.isArray(briefFields.target_users)
-    ? (briefFields.target_users as string[])
-    : [];
-  const stories = Array.isArray(storyFields.items)
-    ? (storyFields.items as StoryItem[])
-    : [];
-  const requirements = Array.isArray(requirementFields.items)
-    ? (requirementFields.items as RequirementItem[])
-    : [];
+  const targetUsers = briefFields?.target_users ?? [];
+  const stories = (storyFields?.items ?? []) as StoryItem[];
+  const requirements = (requirementFields?.items ?? []) as RequirementItem[];
 
   const actors = uniqueStrings([
     ...targetUsers,
@@ -78,24 +79,18 @@ export function deriveUseCaseDrafts(params: {
 }
 
 export function deriveDFDModel(params: {
-  briefFields?: Record<string, unknown>;
-  useCaseFields?: Record<string, unknown>;
-  erdFields?: Record<string, unknown>;
+  briefFields?: ProjectBriefFields;
+  useCaseFields?: UseCaseFields;
+  erdFields?: ERDFields;
 }) {
   const {
-    briefFields = {},
-    useCaseFields = {},
-    erdFields = {},
+    briefFields,
+    useCaseFields,
+    erdFields,
   } = params;
-  const targetUsers = Array.isArray(briefFields.target_users)
-    ? (briefFields.target_users as string[])
-    : [];
-  const useCases = Array.isArray(useCaseFields.useCases)
-    ? (useCaseFields.useCases as Array<Record<string, unknown>>)
-    : [];
-  const entities = Array.isArray(erdFields.entities)
-    ? (erdFields.entities as Array<Record<string, unknown>>)
-    : [];
+  const targetUsers = briefFields?.target_users ?? [];
+  const useCases = useCaseFields?.useCases ?? [];
+  const entities = erdFields?.entities ?? [];
 
   const nodes = [
     ...targetUsers.map((user) => ({
@@ -155,9 +150,12 @@ export async function generateUseCaseDrafts(projectId: string) {
   ]);
 
   return deriveUseCaseDrafts({
-    briefFields: getStructuredFields(briefContent),
-    requirementFields: getStructuredFields(requirementContent),
-    storyFields: getStructuredFields(storyContent),
+    briefFields: getCanonicalNodeFields("project_brief", briefContent ?? undefined),
+    requirementFields: getCanonicalNodeFields(
+      "requirements",
+      requirementContent ?? undefined,
+    ),
+    storyFields: getCanonicalNodeFields("user_stories", storyContent ?? undefined),
   });
 }
 
@@ -169,8 +167,8 @@ export async function generateDFDFromProject(projectId: string) {
   ]);
 
   return deriveDFDModel({
-    briefFields: getStructuredFields(briefContent),
-    useCaseFields: getStructuredFields(useCaseContent),
-    erdFields: getStructuredFields(erdContent),
+    briefFields: getCanonicalNodeFields("project_brief", briefContent ?? undefined),
+    useCaseFields: getCanonicalNodeFields("use_cases", useCaseContent ?? undefined),
+    erdFields: getCanonicalNodeFields("erd", erdContent ?? undefined),
   });
 }

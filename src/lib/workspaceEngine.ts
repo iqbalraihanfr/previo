@@ -1,4 +1,10 @@
 import { db } from "./db";
+import { type NodeType } from "./canonical";
+import { createNodeContentRecord } from "./canonicalContent";
+import { AttachmentRepository, ValidationWarningRepository } from "@/repositories/MiscRepository";
+import { EdgeRepository } from "@/repositories/EdgeRepository";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
+import { TaskRepository } from "@/repositories/TaskRepository";
 
 /**
  * Workspace Engine handles node and edge operations within a project workspace.
@@ -7,7 +13,7 @@ import { db } from "./db";
 
 export async function addNode(params: {
   projectId: string;
-  type: string;
+  type: NodeType;
   label: string;
   x: number;
   y: number;
@@ -18,7 +24,7 @@ export async function addNode(params: {
   const now = new Date().toISOString();
 
   await db.transaction("rw", [db.nodes, db.nodeContents], async () => {
-    await db.nodes.add({
+    await NodeRepository.create({
       id: nodeId,
       project_id: projectId,
       type,
@@ -30,14 +36,14 @@ export async function addNode(params: {
       updated_at: now,
     });
 
-    await db.nodeContents.add({
-      id: crypto.randomUUID(),
-      node_id: nodeId,
-      structured_fields: {},
-      mermaid_auto: "",
-      mermaid_manual: "",
-      updated_at: now,
-    });
+    await NodeContentRepository.create(
+      createNodeContentRecord({
+        id: crypto.randomUUID(),
+        nodeId,
+        nodeType: type,
+        updatedAt: now,
+      }),
+    );
   });
 
   return nodeId;
@@ -48,30 +54,21 @@ export async function deleteNode(nodeId: string) {
     "rw",
     [db.nodes, db.nodeContents, db.tasks, db.attachments, db.edges, db.validationWarnings],
     async () => {
-      // 1. Delete node
-      await db.nodes.delete(nodeId);
-
-      // 2. Delete related content
-      await db.nodeContents.where({ node_id: nodeId }).delete();
-
-      // 3. Delete related tasks
-      await db.tasks.where({ source_node_id: nodeId }).delete();
-
-      // 4. Delete related attachments
-      await db.attachments.where({ node_id: nodeId }).delete();
-
-      // 5. Delete related edges (where this node is source or target)
-      await db.edges.where("source_node_id").equals(nodeId).delete();
-      await db.edges.where("target_node_id").equals(nodeId).delete();
-      
-      // 6. Delete validation warnings for this node
-      await db.validationWarnings.where({ source_node_id: nodeId }).delete();
+      await NodeRepository.delete(nodeId);
+      await NodeContentRepository.deleteByNodeId(nodeId);
+      const tasks = await TaskRepository.findBySourceNodeId(nodeId);
+      if (tasks.length > 0) {
+        await TaskRepository.bulkDelete(tasks.map((task) => task.id));
+      }
+      await AttachmentRepository.deleteByNodeIds([nodeId]);
+      await EdgeRepository.deleteByNodeId(nodeId);
+      await ValidationWarningRepository.deleteBySourceNodeId(nodeId);
     }
   );
 }
 
 export async function updateNodePosition(nodeId: string, x: number, y: number) {
-  await db.nodes.update(nodeId, {
+  await NodeRepository.update(nodeId, {
     position_x: x,
     position_y: y,
     updated_at: new Date().toISOString(),
@@ -83,11 +80,6 @@ export async function connectNodes(params: {
   source: string;
   target: string;
 }) {
-  const { projectId, source, target } = params;
-  await db.edges.add({
-    id: crypto.randomUUID(),
-    project_id: projectId,
-    source_node_id: source,
-    target_node_id: target,
-  });
+  void params;
+  // Canonical workflow edges are derived from template definitions.
 }

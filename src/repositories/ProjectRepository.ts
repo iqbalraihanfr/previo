@@ -20,4 +20,8 @@ export class ProjectRepository {
   static async delete(id: string): Promise<void> {
     return db.projects.delete(id);
   }
+
+  static async bulkDelete(ids: string[]): Promise<void> {
+    await db.projects.bulkDelete(ids);
+  }
 }

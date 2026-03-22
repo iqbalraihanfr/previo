@@ -1,4 +1,15 @@
-import type { NodeContent, NodeData, ValidationWarning } from "@/lib/db";
+import type {
+  NodeContent,
+  NodeData,
+  ReadinessSnapshot,
+  ValidationWarning,
+} from "@/lib/db";
+import {
+  type ProjectBriefFields,
+  type RequirementFieldItem,
+  type RequirementFields,
+} from "@/lib/canonical";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
 
 export type ReadinessIssueCategory =
   | "blocking"
@@ -27,6 +38,8 @@ export interface ReadinessModel {
   nextActions: string[];
 }
 
+export const READINESS_GENERATION_VERSION = 1;
+
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -42,10 +55,9 @@ function getNodeByType(nodes: NodeData[], type: string) {
   return nodes.find((node) => node.type === type) ?? null;
 }
 
-function getFieldsByNodeId(contents: NodeContent[], nodeId?: string | null) {
-  if (!nodeId) return {} as Record<string, unknown>;
-  return (contents.find((content) => content.node_id === nodeId)?.structured_fields ??
-    {}) as Record<string, unknown>;
+function getContentByNodeId(contents: NodeContent[], nodeId?: string | null) {
+  if (!nodeId) return undefined;
+  return contents.find((content) => content.node_id === nodeId);
 }
 
 export function buildProjectReadinessModel(params: {
@@ -60,18 +72,21 @@ export function buildProjectReadinessModel(params: {
 
   const briefNode = getNodeByType(nodes, "project_brief");
   const requirementsNode = getNodeByType(nodes, "requirements");
-  const briefFields = getFieldsByNodeId(contents, briefNode?.id);
-  const requirementFields = getFieldsByNodeId(contents, requirementsNode?.id);
+  const briefFields: ProjectBriefFields = getCanonicalNodeFields(
+    "project_brief",
+    getContentByNodeId(contents, briefNode?.id),
+  );
+  const requirementFields: RequirementFields = getCanonicalNodeFields(
+    "requirements",
+    getContentByNodeId(contents, requirementsNode?.id),
+  );
   const scopeIn = asStringList(briefFields.scope_in);
   const targetUsers = asStringList(briefFields.target_users);
   const objectives = asStringList(briefFields.objectives);
-  const requirementItems = Array.isArray(requirementFields.items)
-    ? requirementFields.items
-    : [];
+  const requirementItems = requirementFields.items ?? [];
   const frItems = requirementItems.filter((item) => {
-    const requirement = item as Record<string, unknown>;
-    return asString(requirement.type || "FR").toUpperCase() === "FR";
-  }) as Record<string, unknown>[];
+    return asString(item.type || "FR").toUpperCase() === "FR";
+  }) as RequirementFieldItem[];
 
   if (briefNode) {
     if (!asString(briefFields.name)) {
@@ -248,5 +263,27 @@ export function buildProjectReadinessModel(params: {
     coverageGaps,
     qualityWarnings,
     nextActions,
+  };
+}
+
+export function buildReadinessSnapshot(params: {
+  projectId: string;
+  readiness: ReadinessModel;
+  computedAt?: string;
+}): ReadinessSnapshot {
+  const computedAt = params.computedAt ?? new Date().toISOString();
+
+  return {
+    id: params.projectId,
+    project_id: params.projectId,
+    status: params.readiness.status,
+    status_label: params.readiness.statusLabel,
+    status_summary: params.readiness.statusSummary,
+    blockers_count: params.readiness.blockers.length,
+    coverage_gaps_count: params.readiness.coverageGaps.length,
+    quality_warnings_count: params.readiness.qualityWarnings.length,
+    next_actions: params.readiness.nextActions,
+    computed_at: computedAt,
+    generation_version: READINESS_GENERATION_VERSION,
   };
 }

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { db, type NodeData, type NodeContent, type Attachment } from "@/lib/db";
+import { type NodeData, type NodeContent, type Attachment } from "@/lib/db";
+import { createNodeContentRecord, getCanonicalFieldsForNode } from "@/lib/canonicalContent";
 import { MERMAID_TEMPLATES, DIAGRAM_NODES } from "../panel/constants";
+import { AttachmentRepository } from "@/repositories/MiscRepository";
+import { NodeContentRepository } from "@/repositories/NodeRepository";
 
 export function useNodeEditorData(node: NodeData) {
   const isDiagram = DIAGRAM_NODES.includes(node.type);
@@ -19,28 +22,27 @@ export function useNodeEditorData(node: NodeData) {
 
     const loadData = async () => {
       setIsLoading(true);
-      let data = await db.nodeContents.where({ node_id: node.id }).first();
+      let data = await NodeContentRepository.findByNodeId(node.id);
 
       if (!data) {
         const newId = crypto.randomUUID();
         const now = new Date().toISOString();
-        const initialContent: NodeContent = {
+        const initialContent: NodeContent = createNodeContentRecord({
           id: newId,
-          node_id: node.id,
-          structured_fields: {},
-          mermaid_auto: isDiagram ? MERMAID_TEMPLATES[node.type] || "" : "",
-          mermaid_manual: "",
-          updated_at: now,
-        };
+          nodeId: node.id,
+          nodeType: node.type,
+          mermaidAuto: isDiagram ? MERMAID_TEMPLATES[node.type] || "" : "",
+          updatedAt: now,
+        });
 
-        await db.nodeContents.add(initialContent);
+        await NodeContentRepository.create(initialContent);
         data = initialContent;
       }
 
-      const atts = await db.attachments.where({ node_id: node.id }).toArray();
+      const atts = await AttachmentRepository.findAllByNodeId(node.id);
 
       if (isMounted) {
-        const structuredFields = (data.structured_fields || {}) as Record<
+        const structuredFields = getCanonicalFieldsForNode(node, data) as Record<
           string,
           unknown
         >;
@@ -108,7 +110,10 @@ export function useNodeEditorData(node: NodeData) {
           }
 
           if (migrated) {
-            await db.nodeContents.update(data.id, { structured_fields: sf });
+            await NodeContentRepository.update(data.id, {
+              structured_fields: sf,
+              reviewed_at: nowIso(),
+            });
           }
         }
 
@@ -123,7 +128,7 @@ export function useNodeEditorData(node: NodeData) {
     return () => {
       isMounted = false;
     };
-  }, [node.id, node.type, node.status, isDiagram]);
+  }, [isDiagram, node]);
 
   return {
     content,
@@ -142,4 +147,8 @@ export function useNodeEditorData(node: NodeData) {
     setAttachments,
     isLoading,
   };
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }

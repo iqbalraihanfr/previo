@@ -12,4 +12,9 @@ export class EdgeRepository {
   static async deleteByProjectId(projectId: string): Promise<number> {
     return db.edges.where({ project_id: projectId }).delete();
   }
+
+  static async deleteByNodeId(nodeId: string): Promise<void> {
+    await db.edges.where("source_node_id").equals(nodeId).delete();
+    await db.edges.where("target_node_id").equals(nodeId).delete();
+  }
 }

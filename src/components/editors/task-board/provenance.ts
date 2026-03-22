@@ -1,6 +1,16 @@
 "use client";
 
 import type { NodeContent, NodeData, TaskData } from "@/lib/db";
+import {
+  type DFDFields,
+  type ERDFields,
+  type FlowchartFields,
+  type RequirementFields,
+  type SequenceFields,
+  type UseCaseFields,
+  type UserStoryFields,
+} from "@/lib/canonical";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
 
 export interface TaskProvenance {
   title: string;
@@ -26,10 +36,6 @@ function slugifyValue(value: unknown) {
     .replace(/^-+|-+$/g, "");
 }
 
-function getStructuredFields(content?: NodeContent | null) {
-  return (content?.structured_fields ?? {}) as Record<string, unknown>;
-}
-
 function buildRequirementDisplayId(index: number) {
   return `FR-${String(index + 1).padStart(3, "0")}`;
 }
@@ -46,39 +52,36 @@ function resolveRequirementProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const items = Array.isArray(fields.items) ? fields.items : [];
-  const requirements = items.filter((item) => {
-    const requirement = item as Record<string, unknown>;
-    return normalizeValue(requirement.type || "FR") === "fr";
-  });
+  const fields: RequirementFields = getCanonicalNodeFields(
+    "requirements",
+    content ?? undefined,
+  );
+  const requirements = (fields.items ?? []).filter(
+    (item) => normalizeValue(item.type || "FR") === "fr",
+  );
 
   const explicitMatch = requirements.find((item, index) => {
-    const requirement = item as Record<string, unknown>;
     const displayId = buildRequirementDisplayId(index).toLowerCase();
-    const internalId = normalizeValue(requirement.id);
+    const internalId = normalizeValue(item.id);
     const sourceItemId = normalizeValue(task.source_item_id);
     return (
-      sourceItemId === normalizeValue(`fr-${requirement.id}`) ||
+      sourceItemId === normalizeValue(`fr-${item.id}`) ||
       sourceItemId === normalizeValue(`fr-${index}`) ||
       sourceItemId.includes(internalId) ||
       sourceItemId.includes(displayId)
     );
-  }) as Record<string, unknown> | undefined;
+  });
 
   const featureMatch =
     explicitMatch ??
-    (requirements.find((item) => {
-      const requirement = item as Record<string, unknown>;
+    requirements.find((item) => {
       return (
-        normalizeValue(requirement.category) === normalizeValue(task.feature_name) ||
-        normalizeValue(requirement.related_scope) === normalizeValue(task.feature_name)
+        normalizeValue(item.category) === normalizeValue(task.feature_name) ||
+        normalizeValue(item.related_scope) === normalizeValue(task.feature_name)
       );
-    }) as Record<string, unknown> | undefined);
+    });
 
-  const requirement =
-    featureMatch ??
-    (requirements[0] as Record<string, unknown> | undefined);
+  const requirement = featureMatch ?? requirements[0];
 
   if (!requirement) {
     return {
@@ -111,15 +114,14 @@ function resolveStoryProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const items = Array.isArray(fields.items) ? fields.items : [];
-  const stories = items.filter(
-    (item): item is Record<string, unknown> =>
-      typeof item === "object" && item !== null,
+  const fields: UserStoryFields = getCanonicalNodeFields(
+    "user_stories",
+    content ?? undefined,
   );
+  const stories = fields.items ?? [];
 
   const matchedStory =
-    (stories.find((story, index) => {
+    stories.find((story, index) => {
       const sourceItemId = normalizeValue(task.source_item_id);
       const storyId = normalizeValue(story.id);
       const displayId = buildStoryDisplayId(index).toLowerCase();
@@ -129,8 +131,7 @@ function resolveStoryProvenance(
         sourceItemId.includes(displayId) ||
         (goal.length > 0 && sourceItemId.includes(goal.slice(0, 24)))
       );
-    }) as Record<string, unknown> | undefined) ??
-    (stories[0] as Record<string, unknown> | undefined);
+    }) ?? stories[0];
 
   if (!matchedStory) {
     return {
@@ -161,22 +162,23 @@ function resolveUseCaseProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const useCases = Array.isArray(fields.useCases) ? fields.useCases : [];
+  const fields: UseCaseFields = getCanonicalNodeFields(
+    "use_cases",
+    content ?? undefined,
+  );
+  const useCases = fields.useCases ?? [];
   const matchedUseCase =
-    (useCases.find((useCase, index) => {
-      const currentUseCase = useCase as Record<string, unknown>;
+    useCases.find((useCase, index) => {
       const sourceItemId = normalizeValue(task.source_item_id);
-      const useCaseId = normalizeValue(currentUseCase.id);
+      const useCaseId = normalizeValue(useCase.id);
       const displayId = buildUseCaseDisplayId(index).toLowerCase();
-      const name = normalizeValue(currentUseCase.name);
+      const name = normalizeValue(useCase.name);
       return (
         sourceItemId.includes(useCaseId) ||
         sourceItemId.includes(displayId) ||
         (name.length > 0 && sourceItemId.includes(name.slice(0, 24)))
       );
-    }) as Record<string, unknown> | undefined) ??
-    (useCases[0] as Record<string, unknown> | undefined);
+    }) ?? useCases[0];
 
   if (!matchedUseCase) {
     return {
@@ -208,19 +210,21 @@ function resolveFlowchartProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const flows = Array.isArray(fields.flows) ? fields.flows : [];
+  const fields: FlowchartFields = getCanonicalNodeFields(
+    "flowchart",
+    content ?? undefined,
+  );
+  const flows = fields.flows ?? [];
   const sourceItemId = normalizeValue(task.source_item_id);
   const orderMatch = sourceItemId.match(/^flowchart-step-(\d+)-/);
   const targetOrder = orderMatch ? Number(orderMatch[1]) : null;
   let currentOrder = 0;
 
   for (const flow of flows) {
-    const currentFlow = flow as Record<string, unknown>;
-    const steps = Array.isArray(currentFlow.steps) ? currentFlow.steps : [];
-    for (const step of steps) {
-      const currentStep = step as Record<string, unknown>;
-      const stepLabel = asString(currentStep.label);
+      const currentFlow = flow;
+      const steps = currentFlow.steps ?? [];
+      for (const step of steps) {
+      const stepLabel = asString(step.label);
       const stepSlug = slugifyValue(stepLabel);
       if (
         (targetOrder !== null && currentOrder === targetOrder) ||
@@ -254,18 +258,21 @@ function resolveSequenceProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const participants = Array.isArray(fields.participants) ? fields.participants : [];
-  const messages = Array.isArray(fields.messages) ? fields.messages : [];
+  const fields: SequenceFields = getCanonicalNodeFields(
+    "sequence",
+    content ?? undefined,
+  );
+  const participants = fields.participants ?? [];
+  const messages = fields.messages ?? [];
   const relatedUseCase = asString(fields.related_use_case);
   const sourceItemId = normalizeValue(task.source_item_id);
 
   if (sourceItemId.startsWith("seq-service-")) {
     const matchedParticipant =
-      (participants.find((participant) =>
-        sourceItemId.includes(slugifyValue((participant as Record<string, unknown>).name)),
-      ) as Record<string, unknown> | undefined) ??
-      (participants[0] as Record<string, unknown> | undefined);
+      participants.find((participant) =>
+        sourceItemId.includes(slugifyValue(participant.name)),
+      ) ??
+      participants[0];
 
     if (matchedParticipant) {
       const name = asString(matchedParticipant.name);
@@ -283,10 +290,10 @@ function resolveSequenceProvenance(
   if (messageIndexMatch) {
     const messageIndex = Number(messageIndexMatch[1]);
     const matchedMessage =
-      (messages[messageIndex] as Record<string, unknown> | undefined) ??
-      (messages.find((message) =>
-        sourceItemId.includes(slugifyValue((message as Record<string, unknown>).content)),
-      ) as Record<string, unknown> | undefined);
+      messages[messageIndex] ??
+      messages.find((message) =>
+        sourceItemId.includes(slugifyValue(message.content)),
+      );
 
     if (matchedMessage) {
       const contentLabel = asString(matchedMessage.content);
@@ -308,15 +315,14 @@ function resolveSequenceProvenance(
   if (sourceItemId.startsWith("seq-alt-")) {
     const matchedAlt =
       (messages.find((message) => {
-        const currentMessage = message as Record<string, unknown>;
         return (
-          normalizeValue(currentMessage.group) === "alt" &&
-          sourceItemId.includes(slugifyValue(currentMessage.group_label))
+          normalizeValue(message.group) === "alt" &&
+          sourceItemId.includes(slugifyValue(message.group_label))
         );
-      }) as Record<string, unknown> | undefined) ??
-      (messages.find(
-        (message) => normalizeValue((message as Record<string, unknown>).group) === "alt",
-      ) as Record<string, unknown> | undefined);
+      })) ??
+      messages.find(
+        (message) => normalizeValue(message.group) === "alt",
+      );
 
     if (matchedAlt) {
       const groupLabel = asString(matchedAlt.group_label) || "Alternative flow";
@@ -341,9 +347,9 @@ function resolveErdProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const entities = Array.isArray(fields.entities) ? fields.entities : [];
-  const relationships = Array.isArray(fields.relationships) ? fields.relationships : [];
+  const fields: ERDFields = getCanonicalNodeFields("erd", content ?? undefined);
+  const entities = fields.entities ?? [];
+  const relationships = fields.relationships ?? [];
   const sourceItemId = normalizeValue(task.source_item_id);
 
   if (
@@ -352,16 +358,14 @@ function resolveErdProvenance(
     sourceItemId.startsWith("erd-seed-")
   ) {
     const matchedEntity =
-      (entities.find((entity) =>
-        sourceItemId.includes(slugifyValue((entity as Record<string, unknown>).name)),
-      ) as Record<string, unknown> | undefined) ??
-      (entities[0] as Record<string, unknown> | undefined);
+      entities.find((entity) =>
+        sourceItemId.includes(slugifyValue(entity.name)),
+      ) ??
+      entities[0];
 
     if (matchedEntity) {
       const entityName = asString(matchedEntity.name);
-      const attributes = Array.isArray(matchedEntity.attributes)
-        ? matchedEntity.attributes
-        : [];
+      const attributes = matchedEntity.attributes ?? [];
       return {
         title: "Generated from ERD Entity",
         sourceLabel: entityName || "Entity",
@@ -376,14 +380,13 @@ function resolveErdProvenance(
 
   if (sourceItemId.startsWith("erd-rel-") || sourceItemId.startsWith("erd-pivot-")) {
     const matchedRelationship =
-      (relationships.find((relationship) => {
-        const currentRelationship = relationship as Record<string, unknown>;
+      relationships.find((relationship) => {
         const slug = slugifyValue(
-          `${asString(currentRelationship.from)} ${asString(currentRelationship.to)}`,
+          `${asString(relationship.from)} ${asString(relationship.to)}`,
         );
         return slug.length > 0 && sourceItemId.includes(slug);
-      }) as Record<string, unknown> | undefined) ??
-      (relationships[0] as Record<string, unknown> | undefined);
+      }) ??
+      relationships[0];
 
     if (matchedRelationship) {
       const from = asString(matchedRelationship.from);
@@ -415,8 +418,8 @@ function resolveDfdProvenance(
   task: TaskData,
   content: NodeContent | null,
 ): TaskProvenance {
-  const fields = getStructuredFields(content);
-  const nodes = Array.isArray(fields.nodes) ? fields.nodes : [];
+  const fields: DFDFields = getCanonicalNodeFields("dfd", content ?? undefined);
+  const nodes = fields.nodes ?? [];
   const sourceItemId = normalizeValue(task.source_item_id);
 
   const typeMatch = sourceItemId.match(/^dfd-(process|ext)-(\d+)-/);
@@ -430,7 +433,7 @@ function resolveDfdProvenance(
   let currentOrder = 0;
 
   for (const node of nodes) {
-    const currentNode = node as Record<string, unknown>;
+    const currentNode = node;
     const nodeType = asString(currentNode.type).toLowerCase();
     if (targetType && nodeType !== targetType) continue;
 
@@ -481,6 +484,23 @@ export function resolveTaskProvenance(params: {
 
   if (task.task_origin !== "generated" || !task.source_node_id) {
     return null;
+  }
+
+  if (task.generation_rule && task.source_node_type) {
+    const sourceNode = nodes.find((node) => node.id === task.source_node_id) ?? null;
+    return {
+      title:
+        task.source_item_label && task.source_item_label.trim().length > 0
+          ? `Generated from ${task.source_item_label}`
+          : `Generated from ${sourceNode?.label ?? task.source_node_type}`,
+      sourceLabel:
+        task.source_item_label ||
+        sourceNode?.label ||
+        task.source_node_type.replace(/_/g, " "),
+      reason: `Derived by ${task.generation_rule}.`,
+      sourceItemLabel: task.source_item_label,
+      upstreamPath: task.upstream_refs?.map((reference) => reference.replace(":", ": ")) ?? [],
+    };
   }
 
   const sourceNode = nodes.find((node) => node.id === task.source_node_id) ?? null;

@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  db,
   type NodeData,
   type NodeContent,
   type TaskData,
   type SourceType,
 } from "@/lib/db";
+import { getCanonicalNotes, getCanonicalSql } from "@/lib/canonical";
 import { generateTasksFromNode } from "@/services/taskEngine";
 import { crossValidateAll } from "@/services/ValidationService";
 import { generateMermaid } from "@/lib/diagramGenerators";
 import { createSourceArtifactInput } from "@/lib/sourceIntake";
+import { SourceArtifactRepository } from "@/repositories/SourceArtifactRepository";
+import { TaskRepository } from "@/repositories/TaskRepository";
+import { buildProjectReadinessModel, buildReadinessSnapshot } from "@/lib/readiness";
+import { ReadinessSnapshotRepository } from "@/repositories/ReadinessRepository";
+import { ValidationWarningRepository } from "@/repositories/MiscRepository";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
 import { DIAGRAM_NODES } from "../panel/constants";
 
 export interface PendingSourceSync {
@@ -62,8 +68,8 @@ export function useNodeSync({
       unknown
     >;
 
-    const contentSql = contentFields.sql;
-    const contentNotes = contentFields.notes;
+    const contentSql = getCanonicalSql(contentFields);
+    const contentNotes = getCanonicalNotes(contentFields);
 
     const restContentGuidedFields = Object.fromEntries(
       Object.entries(contentFields).filter(
@@ -105,22 +111,25 @@ export function useNodeSync({
         sql: sqlSchema,
       };
 
-      await db.nodeContents.update(content.id, {
+      await NodeContentRepository.update(content.id, {
         mermaid_manual: mermaidSyntax,
         mermaid_auto: autoMermaid,
         structured_fields: updatedFields,
+        content_schema_version: content.content_schema_version ?? 1,
+        reviewed_at: pendingSourceSync ? now : content.reviewed_at,
         updated_at: now,
       });
 
       if (pendingSourceSync) {
         const artifactId = crypto.randomUUID();
-        await db.sourceArtifacts.add({
+        await SourceArtifactRepository.create({
           id: artifactId,
           created_at: now,
           updated_at: now,
           ...createSourceArtifactInput({
             projectId: node.project_id,
             nodeId: node.id,
+            targetNodeType: node.type,
             sourceType: pendingSourceSync.sourceType,
             title: pendingSourceSync.title,
             rawContent: pendingSourceSync.rawContent,
@@ -128,7 +137,7 @@ export function useNodeSync({
           }),
         });
 
-        await db.nodes.update(node.id, {
+        await NodeRepository.update(node.id, {
           source_type: pendingSourceSync.sourceType,
           source_artifact_id: artifactId,
           imported_at: now,
@@ -142,12 +151,12 @@ export function useNodeSync({
         node.override_status !== "manual_override" &&
         hasCanonicalChanges
       ) {
-        await db.nodes.update(node.id, {
+        await NodeRepository.update(node.id, {
           override_status: "manual_override",
           updated_at: now,
         });
       } else {
-        await db.nodes.update(node.id, { updated_at: now });
+        await NodeRepository.update(node.id, { updated_at: now });
       }
 
       const updatedContent: NodeContent = {
@@ -167,9 +176,7 @@ export function useNodeSync({
         node.project_id,
       );
 
-      const existingTasks = await db.tasks
-        .where({ source_node_id: node.id })
-        .toArray();
+      const existingTasks = await TaskRepository.findBySourceNodeId(node.id);
       const existingAutoTasksMap = new Map<
         string,
         TaskData & { source_item_id: string }
@@ -199,11 +206,16 @@ export function useNodeSync({
             ...existing,
             title: generatedTask.title,
             description: generatedTask.description,
+            source_node_type: generatedTask.source_node_type,
+            source_item_label: generatedTask.source_item_label,
             group_key: generatedTask.group_key,
             priority: generatedTask.priority,
             labels: generatedTask.labels,
             status: generatedTask.status,
             task_origin: "generated",
+            generation_rule: generatedTask.generation_rule,
+            generation_version: generatedTask.generation_version,
+            upstream_refs: generatedTask.upstream_refs,
             sort_order: generatedTask.sort_order,
             updated_at: now,
           });
@@ -224,14 +236,33 @@ export function useNodeSync({
         .map((task) => task.id);
 
       if (autoTaskIdsToDelete.length > 0) {
-        await db.tasks.bulkDelete(autoTaskIdsToDelete);
+        await TaskRepository.bulkDelete(autoTaskIdsToDelete);
       }
 
       if (tasksToPut.length > 0) {
-        await db.tasks.bulkPut(tasksToPut);
+        await TaskRepository.bulkPut(tasksToPut);
       }
 
       await crossValidateAll(node.project_id);
+      const [allNodes, warnings] = await Promise.all([
+        NodeRepository.findAllByProjectId(node.project_id),
+        ValidationWarningRepository.findAllByProjectId(node.project_id),
+      ]);
+      const allContents = await NodeContentRepository.findAllByNodeIds(
+        allNodes.map((projectNode) => projectNode.id),
+      );
+      const readiness = buildProjectReadinessModel({
+        nodes: allNodes,
+        contents: allContents,
+        warnings,
+      });
+      await ReadinessSnapshotRepository.upsert(
+        buildReadinessSnapshot({
+          projectId: node.project_id,
+          readiness,
+          computedAt: now,
+        }),
+      );
       if (pendingSourceSync) {
         onSourceSyncCommitted();
       }

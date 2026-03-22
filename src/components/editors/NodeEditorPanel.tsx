@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type NodeData } from "@/lib/db";
+import { type NodeData } from "@/lib/db";
 import { getNodeCapability } from "@/lib/nodeCapabilities";
 import { SOURCE_TYPE_LABELS } from "@/lib/sourceArtifacts";
 import {
@@ -39,6 +39,7 @@ import { useAttachments } from "./hooks/useAttachments";
 import { MermaidEditor } from "./panel/MermaidEditor";
 import { NotesEditor } from "./panel/NotesEditor";
 import type { WorkspaceNavigationIntent } from "@/features/workspace/navigationIntent";
+import { NodeRepository } from "@/repositories/NodeRepository";
 
 export function NodeEditorPanel({
   node,
@@ -51,7 +52,7 @@ export function NodeEditorPanel({
   onCloseAction: () => void;
   onDeleteAction?: () => void;
 }) {
-  const liveNode = useLiveQuery(() => db.nodes.get(node.id), [node.id], node);
+  const liveNode = useLiveQuery(() => NodeRepository.findById(node.id), [node.id], node);
   const currentNode = liveNode ?? node;
   const isDiagram = DIAGRAM_NODES.includes(currentNode.type);
   const isErd = currentNode.type === "erd";
@@ -152,6 +153,15 @@ export function NodeEditorPanel({
           activeMode !== "entry"
         ? "editing"
         : activeMode;
+  const displayedGenerationStatus =
+    pendingSourceSync?.mode ??
+    (derivedNodeType &&
+    resolvedMode !== "entry" &&
+    currentNode.generation_status === "none"
+      ? "generated"
+      : currentNode.generation_status);
+  const displayedSourceType =
+    pendingSourceSync?.sourceType ?? currentNode.source_type;
 
   useEffect(() => {
     if (!intentForCurrentNode?.sectionId) return;
@@ -169,7 +179,7 @@ export function NodeEditorPanel({
   const handleStatusChange = async (newStatus: string | null) => {
     if (!newStatus) return;
     setStatus(newStatus as NodeData["status"]);
-    await db.nodes.update(currentNode.id, {
+    await NodeRepository.update(currentNode.id, {
       status: newStatus as NodeData["status"],
       updated_at: new Date().toISOString(),
     });
@@ -179,6 +189,7 @@ export function NodeEditorPanel({
     result: ResolvedNodeImport,
     mode: PendingSourceSync["mode"],
   ) => {
+    const now = new Date().toISOString();
     setGuidedFields(result.fields);
     if (result.mermaidSyntax) {
       setMermaidSyntax(result.mermaidSyntax);
@@ -189,6 +200,12 @@ export function NodeEditorPanel({
       rawContent: result.rawContent,
       parserVersion: result.parserVersion,
       title: result.title,
+    });
+    void NodeRepository.update(currentNode.id, {
+      source_type: result.sourceType,
+      generation_status: mode,
+      imported_at: now,
+      updated_at: now,
     });
     setIsImportOpen(false);
     setActiveMode("review");
@@ -373,8 +390,8 @@ export function NodeEditorPanel({
       {hasGuidedEditor && resolvedMode !== "entry" && (
         <NodeSourceToolbar
           capability={capability}
-          sourceType={currentNode.source_type}
-          generationStatus={currentNode.generation_status}
+          sourceType={displayedSourceType}
+          generationStatus={displayedGenerationStatus}
           overrideStatus={currentNode.override_status}
           importedAt={currentNode.imported_at}
           actions={actionButtons}

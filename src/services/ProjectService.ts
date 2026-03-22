@@ -7,6 +7,12 @@ import {
   type ProjectDomain,
   type StarterContentIntensity,
 } from "@/lib/db";
+import {
+  PROJECT_SCHEMA_VERSION,
+  type CanonicalNodeFieldMap,
+  type NodeType,
+} from "@/lib/canonical";
+import { createNodeContentRecord } from "@/lib/canonicalContent";
 import { MERMAID_TEMPLATES } from "@/components/editors/panel/constants";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
 import type { ContentTemplate } from "@/lib/contentTemplates";
@@ -21,6 +27,9 @@ import { NodeRepository, NodeContentRepository } from "@/repositories/NodeReposi
 import { EdgeRepository } from "@/repositories/EdgeRepository";
 import { TaskRepository } from "@/repositories/TaskRepository";
 import { ValidationWarningRepository, AttachmentRepository } from "@/repositories/MiscRepository";
+import { SourceArtifactRepository } from "@/repositories/SourceArtifactRepository";
+import { ReadinessSnapshotRepository } from "@/repositories/ReadinessRepository";
+import { buildProjectReadinessModel, buildReadinessSnapshot } from "@/lib/readiness";
 
 /** Node types that the task engine can generate tasks from */
 const TASK_GENERATING_TYPES = new Set([
@@ -105,7 +114,7 @@ export class ProjectService {
       const nodeData: NodeData = {
         id: nodeId,
         project_id: projectId,
-        type: nodeTpl.type,
+        type: nodeTpl.type as NodeType,
         label: nodeTpl.label,
         status: nodeStatus,
         position_x: nodeTpl.x || 0,
@@ -118,12 +127,15 @@ export class ProjectService {
       allNodes.push(nodeData);
 
       const nodeContent: NodeContent = {
-        id: crypto.randomUUID(),
-        node_id: nodeId,
-        structured_fields: structuredFields,
-        mermaid_auto: MERMAID_TEMPLATES[nodeTpl.type] || "",
-        mermaid_manual: mermaidManual,
-        updated_at: now,
+        ...createNodeContentRecord({
+          id: crypto.randomUUID(),
+          nodeId,
+          nodeType: nodeTpl.type as NodeType,
+          structuredFields: structuredFields as CanonicalNodeFieldMap[NodeType],
+          mermaidAuto: MERMAID_TEMPLATES[nodeTpl.type] || "",
+          mermaidManual,
+          updatedAt: now,
+        }),
       };
       allContents.push(nodeContent);
 
@@ -141,6 +153,7 @@ export class ProjectService {
           name,
           description,
           template_type: templateKey,
+          schema_version: PROJECT_SCHEMA_VERSION,
           delivery_mode: deliveryMode,
           domain,
           starter_content_intensity: starterContentIntensity,
@@ -175,6 +188,19 @@ export class ProjectService {
       }
     }
 
+    const readiness = buildProjectReadinessModel({
+      nodes: allNodes,
+      contents: allContents,
+      warnings: [],
+    });
+    await ReadinessSnapshotRepository.upsert(
+      buildReadinessSnapshot({
+        projectId,
+        readiness,
+        computedAt: now,
+      }),
+    );
+
     return projectId;
   }
 
@@ -190,6 +216,7 @@ export class ProjectService {
         db.tasks,
         db.attachments,
         db.sourceArtifacts,
+        db.readinessSnapshots,
       ],
       async () => {
         const projectNodes = await NodeRepository.findAllByProjectId(projectId);
@@ -200,11 +227,13 @@ export class ProjectService {
         await EdgeRepository.deleteByProjectId(projectId);
         await ValidationWarningRepository.deleteByProjectId(projectId);
         await TaskRepository.deleteByProjectId(projectId);
-        await db.sourceArtifacts.where({ project_id: projectId }).delete();
+        await SourceArtifactRepository.deleteByProjectId(projectId);
+        await ReadinessSnapshotRepository.deleteByProjectId(projectId);
 
         if (nodeIds.length > 0) {
           await NodeContentRepository.deleteByNodeIds(nodeIds);
           await AttachmentRepository.deleteByNodeIds(nodeIds);
+          await SourceArtifactRepository.deleteByNodeIds(nodeIds);
         }
       },
     );

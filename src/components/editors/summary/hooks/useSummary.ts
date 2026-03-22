@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { db, NodeData, TaskData, ValidationWarning } from "@/lib/db";
+import { type NodeData, type TaskData, type ValidationWarning, type ReadinessSnapshot } from "@/lib/db";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import { buildProjectReadinessModel } from "@/lib/readiness";
 import { resolveTaskProvenance } from "@/components/editors/task-board/provenance";
@@ -13,15 +13,24 @@ import {
 } from "../helpers";
 import { ProjectSnapshot } from "../types";
 import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
+import { ProjectRepository } from "@/repositories/ProjectRepository";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
+import { TaskRepository } from "@/repositories/TaskRepository";
+import { ReadinessSnapshotRepository } from "@/repositories/ReadinessRepository";
+import { ValidationWarningRepository } from "@/repositories/MiscRepository";
 
 async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> {
-  const [project, projectNodes, allContents, tasks, warnings] = await Promise.all([
-    db.projects.get(projectId),
-    db.nodes.where({ project_id: projectId }).toArray(),
-    db.nodeContents.toArray(),
-    db.tasks.where({ project_id: projectId }).toArray(),
-    db.validationWarnings.where({ project_id: projectId }).toArray(),
-  ]);
+  const [project, projectNodes, tasks, warnings, readinessSnapshot] =
+    await Promise.all([
+      ProjectRepository.findById(projectId),
+      NodeRepository.findAllByProjectId(projectId),
+      TaskRepository.findAllByProjectId(projectId),
+      ValidationWarningRepository.findAllByProjectId(projectId),
+      ReadinessSnapshotRepository.findByProjectId(projectId),
+    ]);
+
+  const nodeIds = projectNodes.map((node) => node.id);
+  const allContents = await NodeContentRepository.findAllByNodeIds(nodeIds);
 
   const displayNodes = projectNodes
     .filter(
@@ -41,6 +50,7 @@ async function loadProjectSnapshot(projectId: string): Promise<ProjectSnapshot> 
     contents,
     tasks,
     warnings,
+    readinessSnapshot: readinessSnapshot ?? null,
   };
 }
 
@@ -52,6 +62,7 @@ export function useSummary(projectId: string) {
     contents: {},
     tasks: [],
     warnings: [],
+    readinessSnapshot: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -105,11 +116,15 @@ export function useSummary(projectId: string) {
       nodes: snapshot.allProjectNodes,
     });
     const sprintProposal = buildAgileSprintProposal(snapshot.tasks);
-    const readiness = buildProjectReadinessModel({
+    const derivedReadiness = buildProjectReadinessModel({
       nodes: snapshot.allProjectNodes,
       contents: Object.values(snapshot.contents),
       warnings: snapshot.warnings,
     });
+    const readiness = normalizeReadinessSnapshot(
+      snapshot.readinessSnapshot,
+      derivedReadiness,
+    );
     const provenanceSummary = snapshot.allProjectNodes.reduce(
       (accumulator, projectNode) => {
         if (projectNode.generation_status === "imported") {
@@ -242,5 +257,20 @@ export function useSummary(projectId: string) {
     snapshot,
     isLoading,
     ...stats,
+  };
+}
+
+function normalizeReadinessSnapshot(
+  snapshot: ReadinessSnapshot | null | undefined,
+  fallback: ReturnType<typeof buildProjectReadinessModel>,
+) {
+  if (!snapshot) return fallback;
+
+  return {
+    ...fallback,
+    status: snapshot.status,
+    statusLabel: snapshot.status_label,
+    statusSummary: snapshot.status_summary,
+    nextActions: snapshot.next_actions,
   };
 }

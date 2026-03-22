@@ -1,7 +1,6 @@
 import { parseDbmlToERD } from "@/lib/parseDbml";
 import { parseSqlToERD } from "@/lib/parseSql";
 import { generateDFDFromProject, generateUseCaseDrafts } from "@/lib/nodeDerivations";
-import { db } from "@/lib/db";
 import {
   SOURCE_ARTIFACT_PARSER_VERSION,
   type BacklogItem,
@@ -11,6 +10,9 @@ import {
 } from "@/lib/sourceArtifacts";
 import type { SourceType } from "@/lib/db";
 import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
+import type { UseCaseFields } from "@/lib/canonical";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
 
 export interface ResolvedNodeImport {
   nodeType: string;
@@ -43,6 +45,7 @@ export interface ImportReviewContext {
   briefScopeOptions?: string[];
   requirementOptions?: Array<{ value: string; label: string }>;
   useCaseOptions?: Array<{ value: string; label: string }>;
+  importNotes?: string[];
 }
 
 function parseCsv(raw: string) {
@@ -133,39 +136,269 @@ function normalizeStatus(value: string) {
   return "todo" as const;
 }
 
-function parseRequirementsLines(raw: string): RequirementItem[] {
-  const lines = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .filter((line) => !line.startsWith("#"));
+function normalizeRequirementPriority(value: string | undefined) {
+  const normalized = normalizePriority(value ?? "");
+  if (normalized === "must") return "Must" as const;
+  if (normalized === "could") return "Could" as const;
+  if (normalized === "wont") return "Wont" as const;
+  return "Should" as const;
+}
 
-  const parsed: Array<RequirementItem | null> = lines.map((line, index) => {
-      const normalized = line.replace(/^[-*]\s*/, "");
-      const [first, category = "", scope = "", metric = "", target = ""] =
-        normalized.split("|").map((part) => part.trim());
-      if (!first) return null;
+function normalizeRequirementType(value: string | undefined) {
+  return value?.trim().toUpperCase() === "NFR" ? "NFR" : "FR";
+}
 
-      const typeMatch = first.match(/\[(FR|NFR)\]/i);
-      const priorityMatch = first.match(/\[(Must|Should|Could|Wont|Won't)\]/i);
-      const description = first
-        .replace(/\[(FR|NFR)\]/gi, "")
-        .replace(/\[(Must|Should|Could|Wont|Won't)\]/gi, "")
-        .trim();
+function normalizeLooseScope(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-      return {
-        id: `req-${index + 1}`,
-        type: (typeMatch?.[1]?.toUpperCase() as "FR" | "NFR") || "FR",
-        description,
-        priority: ((priorityMatch?.[1] ?? "Should").replace("Won't", "Wont") as RequirementItem["priority"]),
-        category: category || "General",
-        related_scope: scope || undefined,
-        metric: metric || undefined,
-        target: target || undefined,
-      };
-    });
+function inferBriefScope(
+  briefScopeOptions: string[],
+  ...candidates: Array<string | undefined>
+) {
+  if (briefScopeOptions.length === 0) return undefined;
 
-  return parsed.filter((item): item is RequirementItem => item !== null);
+  const preparedScopes = briefScopeOptions.map((scope) => ({
+    raw: scope,
+    exact: scope.trim().toLowerCase(),
+    loose: normalizeLooseScope(scope),
+  }));
+
+  for (const candidate of candidates) {
+    const trimmedCandidate = candidate?.trim();
+    if (!trimmedCandidate) continue;
+
+    const exact = trimmedCandidate.toLowerCase();
+    const loose = normalizeLooseScope(trimmedCandidate);
+
+    const exactMatch = preparedScopes.find(
+      (scope) => scope.exact === exact || (loose && scope.loose === loose),
+    );
+    if (exactMatch) return exactMatch.raw;
+
+    if (!loose) continue;
+
+    const partialMatches = preparedScopes.filter(
+      (scope) =>
+        scope.loose.length > 0 &&
+        (scope.loose.includes(loose) || loose.includes(scope.loose)),
+    );
+
+    if (partialMatches.length === 1) {
+      return partialMatches[0]?.raw;
+    }
+  }
+
+  return undefined;
+}
+
+function splitMarkdownTableRow(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|")) return [];
+  const stripped = trimmed.replace(/^\|/, "").replace(/\|$/, "");
+  return stripped.split("|").map((part) => part.trim());
+}
+
+function isMarkdownTableDivider(cells: string[]) {
+  return (
+    cells.length > 0 &&
+    cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")))
+  );
+}
+
+function normalizeTableHeader(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function extractHeadingCategory(line: string) {
+  const match = line.match(/^#{1,6}\s+category\s*:\s*(.+)$/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function buildRequirementItem(params: {
+  description: string;
+  type?: string;
+  priority?: string;
+  category?: string;
+  relatedScope?: string;
+  metric?: string;
+  target?: string;
+}): Omit<RequirementItem, "id"> | null {
+  const description = params.description.trim();
+  if (!description) return null;
+
+  return {
+    type: normalizeRequirementType(params.type),
+    description,
+    priority: normalizeRequirementPriority(params.priority),
+    category: params.category?.trim() || "General",
+    related_scope: params.relatedScope?.trim() || undefined,
+    metric: params.metric?.trim() || undefined,
+    target: params.target?.trim() || undefined,
+  };
+}
+
+function parseStructuredRequirementLine(
+  line: string,
+  currentCategory: string,
+): Omit<RequirementItem, "id"> | null {
+  const normalized = line.replace(/^[-*]\s*/, "");
+  const [first, category = "", scope = "", metric = "", target = ""] =
+    normalized.split("|").map((part) => part.trim());
+  if (!first) return null;
+
+  const typeMatch = first.match(/\[(FR|NFR)\]/i);
+  const priorityMatch = first.match(/\[(Must|Should|Could|Wont|Won't)\]/i);
+  const description = first
+    .replace(/\[(FR|NFR)\]/gi, "")
+    .replace(/\[(Must|Should|Could|Wont|Won't)\]/gi, "")
+    .trim();
+
+  return buildRequirementItem({
+    description,
+    type: typeMatch?.[1],
+    priority: priorityMatch?.[1],
+    category: category || currentCategory || "General",
+    relatedScope: scope || undefined,
+    metric: metric || undefined,
+    target: target || undefined,
+  });
+}
+
+function parseMarkdownRequirementRow(params: {
+  headers: string[];
+  cells: string[];
+  currentCategory: string;
+}): Omit<RequirementItem, "id"> | null {
+  const row = Object.fromEntries(
+    params.headers.map((header, index) => [header, params.cells[index] ?? ""]),
+  );
+
+  const id = String(row.id ?? row.requirement_id ?? "").trim();
+  const description = String(
+    row.description ?? row.requirement ?? row.requirement_text ?? "",
+  ).trim();
+  const category = String(row.category ?? params.currentCategory ?? "").trim();
+  const relatedScope = String(
+    row.related_scope ?? row.relatedscope ?? row.scope ?? row.scope_item ?? "",
+  ).trim();
+  const metric = String(row.metric ?? row.measure ?? "").trim();
+  const target = String(row.target ?? row.threshold ?? "").trim();
+  const explicitType = String(row.type ?? "").trim();
+  const explicitPriority = String(row.priority ?? row.moscow ?? "").trim();
+
+  return buildRequirementItem({
+    description,
+    type: explicitType || (id.toUpperCase().startsWith("NFR-") ? "NFR" : "FR"),
+    priority: explicitPriority,
+    category,
+    relatedScope,
+    metric,
+    target,
+  });
+}
+
+function parseRequirementsLines(
+  raw: string,
+  briefScopeOptions: string[] = [],
+): { items: RequirementItem[]; notes: string[] } {
+  const lines = raw.split(/\r?\n/);
+  const parsed: Array<Omit<RequirementItem, "id">> = [];
+  let currentCategory = "";
+  let currentTableHeaders: string[] | null = null;
+  let usedMarkdownTableParser = false;
+  let inferredScopeCount = 0;
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      currentTableHeaders = null;
+      return;
+    }
+
+    if (/^-{3,}$/.test(line)) {
+      currentTableHeaders = null;
+      return;
+    }
+
+    const headingCategory = extractHeadingCategory(line);
+    if (headingCategory) {
+      currentCategory = headingCategory;
+      currentTableHeaders = null;
+      return;
+    }
+
+    if (line.startsWith("#")) {
+      currentTableHeaders = null;
+      return;
+    }
+
+    if (line.startsWith("|")) {
+      const cells = splitMarkdownTableRow(line);
+      if (cells.length === 0) return;
+      if (isMarkdownTableDivider(cells)) return;
+
+      const normalizedHeaders = cells.map(normalizeTableHeader);
+      const looksLikeHeader = normalizedHeaders.some((header) =>
+        ["id", "description", "priority", "category", "metric", "target", "type", "scope", "related_scope"].includes(
+          header,
+        ),
+      );
+
+      if (!currentTableHeaders || looksLikeHeader) {
+        currentTableHeaders = normalizedHeaders;
+        return;
+      }
+
+      const item = parseMarkdownRequirementRow({
+        headers: currentTableHeaders,
+        cells,
+        currentCategory,
+      });
+      if (item) {
+        parsed.push(item);
+        usedMarkdownTableParser = true;
+      }
+      return;
+    }
+
+    currentTableHeaders = null;
+    const item = parseStructuredRequirementLine(line, currentCategory);
+    if (item) {
+      parsed.push(item);
+    }
+  });
+
+  const items = parsed.map((item, index) => {
+    const inferredScope =
+      item.related_scope || inferBriefScope(briefScopeOptions, item.category, item.description);
+    if (!item.related_scope && inferredScope) {
+      inferredScopeCount += 1;
+    }
+
+    return {
+      id: `req-${index + 1}`,
+      ...item,
+      related_scope: inferredScope,
+    };
+  });
+
+  const notes: string[] = [];
+  if (usedMarkdownTableParser) {
+    notes.push("Detected Markdown table requirements and normalized them into Previo fields.");
+  }
+  if (inferredScopeCount > 0) {
+    notes.push(
+      `Auto-linked ${inferredScopeCount} requirement(s) to brief scope items using category or section matches.`,
+    );
+  }
+
+  return { items, notes };
 }
 
 function parseUserStorySentence(value: string) {
@@ -999,39 +1232,39 @@ export async function resolveNodeImport(params: {
     let briefScopeOptions: string[] = [];
 
     try {
-      const briefNode = await db.nodes
-        .where({ project_id: params.projectId, type: "project_brief" })
-        .first();
+      const briefNode = await NodeRepository.findByProjectAndType(
+        params.projectId,
+        "project_brief",
+      );
       const briefContent = briefNode
-        ? await db.nodeContents.where({ node_id: briefNode.id }).first()
+        ? await NodeContentRepository.findByNodeId(briefNode.id)
         : null;
       briefScopeOptions = asTrimmedStringList(
-        (briefContent?.structured_fields as Record<string, unknown> | undefined)?.scope_in,
+        getCanonicalNodeFields("project_brief", briefContent).scope_in,
       );
     } catch {
       briefScopeOptions = [];
     }
 
-    fields = { items: parseRequirementsLines(rawContent) };
+    const parsedRequirements = parseRequirementsLines(rawContent, briefScopeOptions);
+    fields = { items: parsedRequirements.items };
     title = "Imported requirements";
-    reviewContext = { briefScopeOptions };
+    reviewContext = {
+      briefScopeOptions,
+      importNotes: parsedRequirements.notes,
+    };
   } else if (nodeType === "user_stories") {
     let requirementOptions: Array<{ value: string; label: string }> = [];
     try {
-      const requirementsNode = await db.nodes
-        .where({ project_id: params.projectId, type: "requirements" })
-        .first();
+      const requirementsNode = await NodeRepository.findByProjectAndType(
+        params.projectId,
+        "requirements",
+      );
       const requirementsContent = requirementsNode
-        ? await db.nodeContents.where({ node_id: requirementsNode.id }).first()
+        ? await NodeContentRepository.findByNodeId(requirementsNode.id)
         : null;
-      const requirementItems = Array.isArray(
-        (requirementsContent?.structured_fields as Record<string, unknown> | undefined)?.items,
-      )
-        ? ((requirementsContent?.structured_fields as Record<string, unknown>).items as Record<
-            string,
-            unknown
-          >[])
-        : [];
+      const requirementItems =
+        getCanonicalNodeFields("requirements", requirementsContent).items ?? [];
       requirementOptions = requirementItems
         .filter((item) => asTrimmedString(item.type || "FR").toUpperCase() === "FR")
         .map((item, index) => ({
@@ -1055,20 +1288,15 @@ export async function resolveNodeImport(params: {
   } else if (nodeType === "flowchart") {
     let useCaseOptions: Array<{ value: string; label: string }> = [];
     try {
-      const useCaseNode = await db.nodes
-        .where({ project_id: params.projectId, type: "use_cases" })
-        .first();
+      const useCaseNode = await NodeRepository.findByProjectAndType(
+        params.projectId,
+        "use_cases",
+      );
       const useCaseContent = useCaseNode
-        ? await db.nodeContents.where({ node_id: useCaseNode.id }).first()
+        ? await NodeContentRepository.findByNodeId(useCaseNode.id)
         : null;
-      const useCases = Array.isArray(
-        (useCaseContent?.structured_fields as Record<string, unknown> | undefined)?.useCases,
-      )
-        ? ((useCaseContent?.structured_fields as Record<string, unknown>).useCases as Record<
-            string,
-            unknown
-          >[])
-        : [];
+      const useCases: UseCaseFields["useCases"] =
+        getCanonicalNodeFields("use_cases", useCaseContent).useCases ?? [];
       useCaseOptions = useCases.map((useCase, index) => ({
         value: asTrimmedString(useCase.id) || `uc-${index + 1}`,
         label: `UC-${String(index + 1).padStart(3, "0")} - ${asTrimmedString(useCase.name) || "Untitled use case"}`,
@@ -1083,20 +1311,15 @@ export async function resolveNodeImport(params: {
   } else if (nodeType === "sequence") {
     let useCaseOptions: Array<{ value: string; label: string }> = [];
     try {
-      const useCaseNode = await db.nodes
-        .where({ project_id: params.projectId, type: "use_cases" })
-        .first();
+      const useCaseNode = await NodeRepository.findByProjectAndType(
+        params.projectId,
+        "use_cases",
+      );
       const useCaseContent = useCaseNode
-        ? await db.nodeContents.where({ node_id: useCaseNode.id }).first()
+        ? await NodeContentRepository.findByNodeId(useCaseNode.id)
         : null;
-      const useCases = Array.isArray(
-        (useCaseContent?.structured_fields as Record<string, unknown> | undefined)?.useCases,
-      )
-        ? ((useCaseContent?.structured_fields as Record<string, unknown>).useCases as Record<
-            string,
-            unknown
-          >[])
-        : [];
+      const useCases: UseCaseFields["useCases"] =
+        getCanonicalNodeFields("use_cases", useCaseContent).useCases ?? [];
       useCaseOptions = useCases.map((useCase, index) => ({
         value: asTrimmedString(useCase.id) || `uc-${index + 1}`,
         label: `UC-${String(index + 1).padStart(3, "0")} - ${asTrimmedString(useCase.name) || "Untitled use case"}`,
@@ -1184,6 +1407,7 @@ export async function resolveBacklogImport(params: {
 export function createSourceArtifactInput(params: {
   projectId: string;
   nodeId: string;
+  targetNodeType?: import("@/lib/canonical").NodeType;
   sourceType: SourceType;
   title: string;
   rawContent: string;
@@ -1192,10 +1416,13 @@ export function createSourceArtifactInput(params: {
   return {
     project_id: params.projectId,
     node_id: params.nodeId,
+    target_node_type: params.targetNodeType,
     source_type: params.sourceType,
+    import_status: "accepted",
     title: params.title,
     raw_content: params.rawContent,
     normalized_data: params.normalizedData,
     parser_version: SOURCE_ARTIFACT_PARSER_VERSION,
+    content_schema_version: 1,
   };
 }

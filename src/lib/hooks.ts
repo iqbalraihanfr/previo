@@ -1,5 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db';
+import { getCanonicalNodeFields } from "./canonicalContent";
+import type { ProjectBriefFields, RequirementFields } from "./canonical";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
 
 /**
  * Fetches the Brief node's structured_fields for a given project.
@@ -7,13 +9,15 @@ import { db } from './db';
  * to populate cross-reference dropdowns.
  */
 export function useBriefFields(projectId?: string) {
-  return useLiveQuery(async () => {
+  const result = useLiveQuery(async () => {
     if (!projectId) return null;
-    const briefNode = await db.nodes.where({ project_id: projectId, type: 'project_brief' }).first();
+    const briefNode = await NodeRepository.findByProjectAndType(projectId, "project_brief");
     if (!briefNode) return null;
-    const content = await db.nodeContents.where({ node_id: briefNode.id }).first();
-    return content?.structured_fields || null;
-  }, [projectId], null);
+    const content = await NodeContentRepository.findByNodeId(briefNode.id);
+    return getCanonicalNodeFields("project_brief", content);
+  }, [projectId]);
+
+  return (result ?? null) as ProjectBriefFields | null;
 }
 
 /**
@@ -21,11 +25,13 @@ export function useBriefFields(projectId?: string) {
  * Used by User Stories editor for FR dropdown.
  */
 export function useRequirementsFields(projectId?: string) {
-  return useLiveQuery(async () => {
+  const result = useLiveQuery(async () => {
     if (!projectId) return null;
-    const reqNode = await db.nodes.where({ project_id: projectId, type: 'requirements' }).first();
+    const reqNode = await NodeRepository.findByProjectAndType(projectId, "requirements");
     if (!reqNode) return null;
-    const content = await db.nodeContents.where({ node_id: reqNode.id }).first();
-    return content?.structured_fields || null;
-  }, [projectId], null);
+    const content = await NodeContentRepository.findByNodeId(reqNode.id);
+    return getCanonicalNodeFields("requirements", content);
+  }, [projectId]);
+
+  return (result ?? null) as RequirementFields | null;
 }

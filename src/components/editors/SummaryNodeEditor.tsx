@@ -92,7 +92,10 @@ export function SummaryNodeEditor({
               Analyzing Workspace Archetype...
             </div>
           ) : snapshot.displayNodes.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border/80 bg-background/40 px-6 py-16 text-center shadow-inner">
+            <div
+              className="rounded-3xl border border-dashed border-border/80 bg-background/40 px-6 py-16 text-center shadow-inner"
+              data-testid="summary-empty-state"
+            >
               <h3 className="text-lg font-bold text-foreground/80">Blueprint Empty</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground max-w-xs mx-auto">
                 No specifications found. Populate your project nodes to generate a system summary.

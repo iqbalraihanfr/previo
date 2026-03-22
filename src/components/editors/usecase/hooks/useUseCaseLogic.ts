@@ -1,8 +1,9 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
 import { useBriefFields } from "@/lib/hooks";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import { NodeContentRepository } from "@/repositories/NodeRepository";
 import type { UserStoryFieldItem } from "../../userstory/hooks/useUserStoryLogic";
 
 export interface UseCaseFlowStep {
@@ -45,12 +46,13 @@ export function useUseCaseLogic(
   const userStories =
     useLiveQuery(async () => {
       if (!projectId) return [] as UserStoryFieldItem[];
-      const node = await db.nodes
-        .where({ project_id: projectId, type: "user_stories" })
-        .first();
-      if (!node) return [] as UserStoryFieldItem[];
-      const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return (content?.structured_fields?.items || []) as UserStoryFieldItem[];
+      const content = await NodeContentRepository.findByProjectAndType(
+        projectId,
+        "user_stories",
+      );
+      return (
+        getCanonicalNodeFields("user_stories", content).items || []
+      ) as UserStoryFieldItem[];
     },
     [projectId],
   ) ?? [];

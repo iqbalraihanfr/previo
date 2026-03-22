@@ -1,30 +1,43 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { db, ValidationWarning } from "@/lib/db";
+import { type ValidationWarning } from "@/lib/db";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import type {
+  DFDFields,
+  ERDFields,
+  FlowchartFields,
+  ProjectBriefFields,
+  RequirementFields,
+  SequenceFields,
+  UseCaseFields,
+  UserStoryFields,
+} from "@/lib/canonical";
+import { TaskRepository } from "@/repositories/TaskRepository";
+import { ValidationWarningRepository } from "@/repositories/MiscRepository";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
 
 export async function crossValidateAll(projectId: string): Promise<void> {
-  const nodes = await db.nodes.where({ project_id: projectId }).toArray();
-  const contents = await db.nodeContents
-    .where("node_id")
-    .anyOf(nodes.map((n) => n.id))
-    .toArray();
+  const nodes = await NodeRepository.findAllByProjectId(projectId);
+  const contents = await NodeContentRepository.findAllByNodeIds(
+    nodes.map((node) => node.id),
+  );
 
   const warnings: Omit<ValidationWarning, "id">[] = [];
 
-  const getFields = (type: string) => {
+  const getFields = <T extends Parameters<typeof getCanonicalNodeFields>[0]>(type: T) => {
     const node = nodes.find((n) => n.type === type);
     if (!node) return null;
     const content = contents.find((c) => c.node_id === node.id);
-    return { node, fields: content?.structured_fields || {} };
+    return { node, fields: getCanonicalNodeFields(type, content) };
   };
 
-  const brief = getFields("project_brief");
-  const reqs = getFields("requirements");
-  const stories = getFields("user_stories");
-  const useCases = getFields("use_cases");
-  const erd = getFields("erd");
-  const dfd = getFields("dfd");
-  const flowchart = getFields("flowchart");
-  const sequence = getFields("sequence");
+  const brief = getFields("project_brief") as { node: any; fields: ProjectBriefFields } | null;
+  const reqs = getFields("requirements") as { node: any; fields: RequirementFields } | null;
+  const stories = getFields("user_stories") as { node: any; fields: UserStoryFields } | null;
+  const useCases = getFields("use_cases") as { node: any; fields: UseCaseFields } | null;
+  const erd = getFields("erd") as { node: any; fields: ERDFields } | null;
+  const dfd = getFields("dfd") as { node: any; fields: DFDFields } | null;
+  const flowchart = getFields("flowchart") as { node: any; fields: FlowchartFields } | null;
+  const sequence = getFields("sequence") as { node: any; fields: SequenceFields } | null;
   const taskBoard = getFields("task_board");
 
   // Helper arrays
@@ -33,6 +46,8 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   );
   const storyItems = stories?.fields.items || [];
   const ucItems = useCases?.fields.useCases || [];
+  const briefTargetUsers = brief?.fields.target_users ?? [];
+  const briefScopeIn = brief?.fields.scope_in ?? [];
   const erdEntities = erd?.fields.entities || [];
   const erdRels = erd?.fields.relationships || [];
   const dfdNodes = dfd?.fields.nodes || [];
@@ -44,7 +59,7 @@ export async function crossValidateAll(projectId: string): Promise<void> {
 
   // Existing tasks for CV-16/17
   const allTasks = taskBoard
-    ? await db.tasks.where({ project_id: projectId }).toArray()
+    ? await TaskRepository.findAllByProjectId(projectId)
     : [];
 
   // Rule 1: No Requirements
@@ -60,11 +75,11 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   }
 
   // CV-01: Target user has no stories
-  if (brief && brief.fields.target_users?.length > 0 && stories) {
+  if (brief && briefTargetUsers.length > 0 && stories) {
     const storyRoles = storyItems.map((st: any) =>
       (st.role || "").toLowerCase(),
     );
-    brief.fields.target_users.forEach((user: string) => {
+    briefTargetUsers.forEach((user: string) => {
       if (user && !storyRoles.includes(user.toLowerCase())) {
         warnings.push({
           project_id: projectId,
@@ -79,11 +94,11 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   }
 
   // CV-02: Target user not in any use case
-  if (brief && brief.fields.target_users?.length > 0 && useCases) {
+  if (brief && briefTargetUsers.length > 0 && useCases) {
     const ucActors = (useCases.fields.actors || []).map((a: string) =>
       (a || "").toLowerCase(),
     );
-    brief.fields.target_users.forEach((user: string) => {
+    briefTargetUsers.forEach((user: string) => {
       if (user && !ucActors.includes(user.toLowerCase())) {
         warnings.push({
           project_id: projectId,
@@ -98,13 +113,13 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   }
 
   // CV-03: Scope item has no requirements
-  if (brief && brief.fields.scope_in?.length > 0 && reqs) {
+  if (brief && briefScopeIn.length > 0 && reqs) {
     const coveredScopes = new Set(
       frItems
         .map((i: any) => (i.related_scope || "").toLowerCase())
         .filter(Boolean),
     );
-    brief.fields.scope_in.forEach((scope: string) => {
+    briefScopeIn.forEach((scope: string) => {
       if (scope && !coveredScopes.has(scope.toLowerCase())) {
         warnings.push({
           project_id: projectId,
@@ -147,9 +162,7 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   if (stories && useCases && ucItems.length > 0) {
     const ucRelatedStories = new Set<string>();
     ucItems.forEach((uc: any) => {
-      const relatedStories = (uc.related_user_stories ||
-        uc.related_stories ||
-        []) as string[];
+      const relatedStories = (uc.related_user_stories || []) as string[];
       relatedStories.forEach((storyId: string) =>
         ucRelatedStories.add(storyId),
       );
@@ -224,8 +237,8 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   }
 
   // CV-09: DFD external entity not in Brief target users
-  if (dfd && brief && brief.fields.target_users?.length > 0) {
-    const targetUsersLower = brief.fields.target_users.map((u: string) =>
+  if (dfd && brief && briefTargetUsers.length > 0) {
+    const targetUsersLower = briefTargetUsers.map((u: string) =>
       u.toLowerCase(),
     );
     dfdExtEntities.forEach((n: any) => {
@@ -429,14 +442,5 @@ export async function crossValidateAll(projectId: string): Promise<void> {
   }
 
   // Clear old and insert new
-  await db.transaction("rw", db.validationWarnings, async () => {
-    await db.validationWarnings.where({ project_id: projectId }).delete();
-
-    for (const w of warnings) {
-      await db.validationWarnings.add({
-        ...w,
-        id: crypto.randomUUID(),
-      });
-    }
-  });
+  await ValidationWarningRepository.replaceForProject(projectId, warnings);
 }

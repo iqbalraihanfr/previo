@@ -1,5 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { TaskData, NodeData, NodeContent, Project } from "./db";
+import { getCanonicalFieldsForNode, getCanonicalNodeFields } from "./canonicalContent";
+import type {
+  ERDFields,
+  ProjectBriefFields,
+  RequirementFields,
+  UseCaseFields,
+  UserStoryFields,
+} from "./canonical";
 import { jsPDF } from "jspdf";
 import { toPng } from "html-to-image";
 
@@ -127,7 +135,7 @@ export function compileProjectToMarkdown(
     md += `---\n\n## ${node.label} (${node.type})\n\n`;
 
     if (node.type === "project_brief" && c.structured_fields) {
-      const sf = c.structured_fields;
+      const sf = getCanonicalNodeFields("project_brief", c) as ProjectBriefFields;
       if (sf.name) md += `**Project Name:** ${sf.name}\n\n`;
       if (sf.background) md += `**Background / Why:** ${sf.background}\n\n`;
       if (sf.objectives?.length)
@@ -149,25 +157,31 @@ export function compileProjectToMarkdown(
     }
 
     if (node.type === "requirements" && c.structured_fields?.items) {
-      c.structured_fields.items.forEach((item: any) => {
+      const fields = getCanonicalNodeFields("requirements", c) as RequirementFields;
+      (fields.items ?? []).forEach((item) => {
         md += `- [${item.priority}] ${item.description}\n`;
       });
       md += "\n";
     }
 
     if (node.type === "user_stories" && c.structured_fields?.items) {
-      c.structured_fields.items.forEach((item: any) => {
+      const fields = getCanonicalNodeFields("user_stories", c) as UserStoryFields;
+      (fields.items ?? []).forEach((item) => {
         md += `- **As a** ${item.role}, **I want** ${item.goal}, **so that** ${item.benefit}\n`;
       });
       md += "\n";
     }
 
     if (node.type === "erd" && c.structured_fields?.sql) {
-      md += `### Schema SQL\n\n\`\`\`sql\n${c.structured_fields.sql}\n\`\`\`\n\n`;
+      const fields = getCanonicalNodeFields("erd", c) as ERDFields;
+      if (fields.sql) {
+        md += `### Schema SQL\n\n\`\`\`sql\n${fields.sql}\n\`\`\`\n\n`;
+      }
     }
 
     if (node.type === "use_cases" && c.structured_fields?.useCases) {
-      c.structured_fields.useCases.forEach((uc: any, idx: number) => {
+      const fields = getCanonicalNodeFields("use_cases", c) as UseCaseFields;
+      (fields.useCases ?? []).forEach((uc, idx: number) => {
         const actors = [
           uc.primary_actor,
           ...((uc.secondary_actors as string[]) || []),
@@ -180,8 +194,9 @@ export function compileProjectToMarkdown(
       });
     }
 
-    if (c.structured_fields?.notes) {
-      md += `### Notes\n\n${c.structured_fields.notes}\n\n`;
+    const baseFields = getCanonicalFieldsForNode(node, c);
+    if ("notes" in baseFields && typeof baseFields.notes === "string" && baseFields.notes) {
+      md += `### Notes\n\n${baseFields.notes}\n\n`;
     }
 
     const syntax = c.mermaid_manual || c.mermaid_auto;

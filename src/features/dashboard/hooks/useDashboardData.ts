@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
 import type {
   FilterOption,
   SortOption,
@@ -12,10 +11,12 @@ import {
   buildProjectCards,
   getRecentProject,
 } from "@/features/dashboard/selectors";
+import { ProjectRepository } from "@/repositories/ProjectRepository";
+import { NodeRepository } from "@/repositories/NodeRepository";
 
 export function useDashboardData() {
-  const liveProjects = useLiveQuery(() => db.projects.toArray());
-  const liveAllNodes = useLiveQuery(() => db.nodes.toArray());
+  const liveProjects = useLiveQuery(() => ProjectRepository.findAll());
+  const liveAllNodes = useLiveQuery(() => NodeRepository.findAll());
 
   const projects = useMemo(() => liveProjects ?? [], [liveProjects]);
   const allNodes = useMemo(() => liveAllNodes ?? [], [liveAllNodes]);

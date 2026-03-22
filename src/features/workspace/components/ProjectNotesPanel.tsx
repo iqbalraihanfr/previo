@@ -6,7 +6,7 @@ import { Check, NotebookPen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Project } from "@/lib/db";
-import { db } from "@/lib/db";
+import { persistProjectNotes } from "@/features/workspace/hooks/useProjectNotesPersistence";
 
 interface ProjectNotesPanelProps {
   project: Project;
@@ -26,10 +26,7 @@ export function ProjectNotesPanel({
   latestDraftRef.current = draft;
 
   const persistNotes = async (value: string, syncState = true) => {
-    await db.projects.update(project.id, {
-      project_notes: value,
-      updated_at: new Date().toISOString(),
-    });
+    await persistProjectNotes(project.id, value);
 
     if (syncState) {
       setLastSavedAt(new Date().toISOString());

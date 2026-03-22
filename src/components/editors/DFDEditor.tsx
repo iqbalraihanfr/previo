@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Plus, Info, Settings, User, Database } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import { NodeContentRepository } from "@/repositories/NodeRepository";
 import { useDFDLogic, type DFDFields } from "./dfd/hooks/useDFDLogic";
 import { DFDNodeItem } from "./dfd/components/DFDNodeItem";
 import { DFDFlowItem } from "./dfd/components/DFDFlowItem";
@@ -13,12 +14,11 @@ function useUseCases(projectId?: string) {
   return useLiveQuery(
     async () => {
       if (!projectId) return [];
-      const node = await db.nodes
-        .where({ project_id: projectId, type: "use_cases" })
-        .first();
-      if (!node) return [];
-      const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return content?.structured_fields?.useCases || [];
+      const content = await NodeContentRepository.findByProjectAndType(
+        projectId,
+        "use_cases",
+      );
+      return getCanonicalNodeFields("use_cases", content).useCases || [];
     },
     [projectId],
     [],
@@ -29,12 +29,11 @@ function useERDEntities(projectId?: string) {
   return useLiveQuery(
     async () => {
       if (!projectId) return [];
-      const node = await db.nodes
-        .where({ project_id: projectId, type: "erd" })
-        .first();
-      if (!node) return [];
-      const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return content?.structured_fields?.entities || [];
+      const content = await NodeContentRepository.findByProjectAndType(
+        projectId,
+        "erd",
+      );
+      return getCanonicalNodeFields("erd", content).entities || [];
     },
     [projectId],
     [],

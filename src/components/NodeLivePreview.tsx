@@ -1,8 +1,18 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import type { RequirementItem, ERDEntity, ERDRelationship, FlowchartFlow, SequenceParticipant, SequenceMessage, DFDNode } from "@/components/editors/summary/types";
+import type {
+  DFDNode,
+  ERDEntity,
+  ERDRelationship,
+  Flow as FlowchartFlow,
+  Message as SequenceMessage,
+  Participant as SequenceParticipant,
+  RequirementFieldItem as RequirementItem,
+} from "@/lib/canonical";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import { NodeContentRepository } from "@/repositories/NodeRepository";
+import { TaskRepository } from "@/repositories/TaskRepository";
 
 type PreviewProps = {
   nodeId: string;
@@ -47,14 +57,14 @@ function Pill({ label }: { label: string }) {
 
 export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
   const content = useLiveQuery(
-    () => db.nodeContents.where({ node_id: nodeId }).first(),
+    () => NodeContentRepository.findByNodeId(nodeId),
     [nodeId],
   );
 
   const tasks = useLiveQuery(
     async () => {
       if (nodeType !== "task_board") return undefined;
-      return db.tasks.where({ project_id: projectId }).toArray();
+      return TaskRepository.findAllByProjectId(projectId);
     },
     [nodeType, projectId],
   );
@@ -64,10 +74,9 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     return <div className="h-8" />;
   }
 
-  const fields = content?.structured_fields ?? {};
-
   switch (nodeType) {
     case "project_brief": {
+      const fields = getCanonicalNodeFields("project_brief", content);
       const objectives = (fields.objectives as string[]) ?? [];
       const scopeIn = (fields.scope_in as string[]) ?? [];
       if (objectives.length === 0 && scopeIn.length === 0) return <EmptyHint />;
@@ -81,12 +90,13 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "requirements": {
+      const fields = getCanonicalNodeFields("requirements", content);
       const items = (fields.items as RequirementItem[]) ?? [];
       if (items.length === 0) return <EmptyHint />;
       const fr = items.filter((i) => (i.type ?? "FR") === "FR").length;
       const nfr = items.filter((i) => i.type === "NFR").length;
       const mustUnaddressed = items.filter(
-        (i) => (i.priority === "Must" || i.priority === "must") && (i.type ?? "FR") === "FR",
+        (i) => i.priority === "Must" && (i.type ?? "FR") === "FR",
       ).length;
       return (
         <div className="space-y-1">
@@ -106,6 +116,7 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "erd": {
+      const fields = getCanonicalNodeFields("erd", content);
       const entities = (fields.entities as ERDEntity[]) ?? [];
       const relationships = (fields.relationships as ERDRelationship[]) ?? [];
       if (entities.length === 0) {
@@ -133,6 +144,7 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "flowchart": {
+      const fields = getCanonicalNodeFields("flowchart", content);
       const flows = (fields.flows as FlowchartFlow[]) ?? [];
       if (flows.length > 0) {
         const names = flows.slice(0, 2).map((f) => f.name ?? "Flow");
@@ -151,6 +163,7 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "sequence": {
+      const fields = getCanonicalNodeFields("sequence", content);
       const participants = (fields.participants as SequenceParticipant[]) ?? [];
       const messages = (fields.messages as SequenceMessage[]) ?? [];
       if (participants.length > 0 || messages.length > 0) {
@@ -168,6 +181,7 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "dfd": {
+      const fields = getCanonicalNodeFields("dfd", content);
       const nodes = (fields.nodes as DFDNode[]) ?? [];
       const processes = nodes.filter((n) => n.type === "process").length;
       const datastores = nodes.filter((n) => n.type === "datastore").length;
@@ -186,12 +200,14 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
     }
 
     case "user_stories": {
+      const fields = getCanonicalNodeFields("user_stories", content);
       const items = (fields.items as unknown[]) ?? [];
       if (items.length === 0) return <EmptyHint />;
       return <StatRow><span>{items.length} user stor{items.length !== 1 ? "ies" : "y"}</span></StatRow>;
     }
 
     case "use_cases": {
+      const fields = getCanonicalNodeFields("use_cases", content);
       const useCases = (fields.useCases as unknown[]) ?? [];
       if (useCases.length === 0) return <EmptyHint />;
       return <StatRow><span>{useCases.length} use case{useCases.length !== 1 ? "s" : ""}</span></StatRow>;

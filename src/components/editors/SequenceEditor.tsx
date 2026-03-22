@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Plus, Link2, Info } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import { NodeContentRepository } from "@/repositories/NodeRepository";
 import {
   useSequenceLogic,
   type SequenceFields,
@@ -25,12 +26,11 @@ function useUseCases(projectId?: string) {
   return (
     useLiveQuery(async () => {
       if (!projectId) return [] as UseCaseReference[];
-      const node = await db.nodes
-        .where({ project_id: projectId, type: "use_cases" })
-        .first();
-      if (!node) return [] as UseCaseReference[];
-      const content = await db.nodeContents.where({ node_id: node.id }).first();
-      return (content?.structured_fields?.useCases || []) as UseCaseReference[];
+      const content = await NodeContentRepository.findByProjectAndType(
+        projectId,
+        "use_cases",
+      );
+      return (getCanonicalNodeFields("use_cases", content).useCases || []) as UseCaseReference[];
     }, [projectId]) ?? []
   );
 }

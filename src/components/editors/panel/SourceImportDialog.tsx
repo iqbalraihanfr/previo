@@ -94,6 +94,24 @@ function multilineToList(value: string) {
     .filter(Boolean);
 }
 
+function getSourceImportGuidance(sourceType: SourceType) {
+  if (sourceType === "requirements_doc") {
+    return {
+      title: "Recommended formats",
+      description:
+        "Previo can parse requirements from structured lines or Markdown tables, then ask you to confirm any inferred scope links.",
+      examples: [
+        "[FR] [Must] User can log in | Authentication | User authentication",
+        "| ID | Description | Priority |",
+        "| FR-001 | Navbar shows logo and links | Must |",
+        "| NFR-001 | Performance | Page load time | LCP | < 3s |",
+      ],
+    };
+  }
+
+  return null;
+}
+
 function renderProjectBriefReview(
   resolved: ResolvedNodeImport,
   onChange: (fields: Record<string, unknown>) => void,
@@ -897,6 +915,7 @@ export function SourceImportDialog({
   );
   const unresolvedCount = resolved?.unresolvedFields.length ?? 0;
   const issueCount = resolved?.issues.length ?? 0;
+  const sourceGuidance = getSourceImportGuidance(sourceType);
 
   const reset = () => {
     setSourceType(supportedSources[0] ?? "manual_structured");
@@ -1000,6 +1019,27 @@ export function SourceImportDialog({
                 hints="Only text-based imports are treated as canonical source input."
               />
 
+              {sourceGuidance && (
+                <div className="rounded-2xl border border-border/70 bg-muted/20 px-4 py-4">
+                  <div className="text-sm font-medium text-foreground">
+                    {sourceGuidance.title}
+                  </div>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                    {sourceGuidance.description}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {sourceGuidance.examples.map((example) => (
+                      <pre
+                        key={example}
+                        className="overflow-x-auto rounded-xl border border-border/50 bg-background/80 px-3 py-2 text-xs text-foreground/80"
+                      >
+                        {example}
+                      </pre>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {error && (
                 <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                   {error}
@@ -1014,7 +1054,7 @@ export function SourceImportDialog({
                   Review imported structure
                 </div>
                 <p className="mt-2 text-xs leading-6 text-muted-foreground">
-                  Resolve missing fields before this import becomes canonical data for the node.
+                  Confirm parsed fields and inferred mappings before this import becomes canonical data for the node.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold text-foreground">
@@ -1030,6 +1070,18 @@ export function SourceImportDialog({
                     {unresolvedCount} unresolved field(s)
                   </span>
                 </div>
+                {(resolved.reviewContext?.importNotes?.length ?? 0) > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {resolved.reviewContext?.importNotes?.map((note) => (
+                      <div
+                        key={note}
+                        className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs leading-6 text-foreground/80"
+                      >
+                        {note}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-3 grid gap-2">
                   {previewRows.map((row) => (
                     <div
@@ -1059,6 +1111,9 @@ export function SourceImportDialog({
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                     Import review issues
                   </div>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                    Parsing succeeded. The items below still need confirmation or cleanup before save.
+                  </p>
                   <div className="mt-3 space-y-2">
                     {resolved.issues.map((issue) => (
                       <div

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { db, type Attachment } from "@/lib/db";
+import { type Attachment } from "@/lib/db";
+import { AttachmentRepository } from "@/repositories/MiscRepository";
 
 export function useAttachments(
   nodeId: string,
@@ -22,7 +23,7 @@ export function useAttachments(
           data: file,
           created_at: now,
         };
-        await db.attachments.add(attachment);
+        await AttachmentRepository.create(attachment);
         newAtts.push(attachment);
       }
 
@@ -33,7 +34,7 @@ export function useAttachments(
 
   const deleteAttachment = useCallback(
     async (attId: string) => {
-      await db.attachments.delete(attId);
+      await AttachmentRepository.delete(attId);
       setAttachments((prev) =>
         prev.filter((attachment) => attachment.id !== attId),
       );

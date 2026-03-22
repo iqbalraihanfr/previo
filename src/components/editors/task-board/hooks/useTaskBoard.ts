@@ -1,12 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { db, type NodeContent, type TaskData, type NodeData, type Project } from "@/lib/db";
+import { type NodeContent, type TaskData, type NodeData, type Project } from "@/lib/db";
 import { generateTasksFromNode, detectDuplicateTasks } from "@/services/taskEngine";
 import { buildAgileSprintProposal, buildDeliveryPlan } from "@/lib/methodologyEngine";
 import { resolveBacklogImport } from "@/lib/sourceIntake";
 import { DELIVERY_MODE_LABELS } from "@/lib/sourceArtifacts";
 import { resolveTaskProvenance, type TaskProvenance } from "../provenance";
+import { TaskRepository } from "@/repositories/TaskRepository";
+import { ReadinessSnapshotRepository } from "@/repositories/ReadinessRepository";
+import { buildProjectReadinessModel, buildReadinessSnapshot } from "@/lib/readiness";
+import { NodeContentRepository, NodeRepository } from "@/repositories/NodeRepository";
+import { ProjectRepository } from "@/repositories/ProjectRepository";
+import { ValidationWarningRepository } from "@/repositories/MiscRepository";
 import {
   GroupingMode,
   StatusFilter,
@@ -41,12 +47,14 @@ export function useTaskBoard(node: NodeData) {
   const [duplicates, setDuplicates] = useState<[number, number, number][]>([]);
 
   const loadTasks = useCallback(async () => {
-    const [projectTasks, projectNodes, currentProject, allContents] = await Promise.all([
-      db.tasks.where({ project_id: node.project_id }).toArray(),
-      db.nodes.where({ project_id: node.project_id }).toArray(),
-      db.projects.get(node.project_id),
-      db.nodeContents.toArray(),
+    const [projectTasks, projectNodes, currentProject] = await Promise.all([
+      TaskRepository.findAllByProjectId(node.project_id),
+      NodeRepository.findAllByProjectId(node.project_id),
+      ProjectRepository.findById(node.project_id),
     ]);
+    const allContents = await NodeContentRepository.findAllByNodeIds(
+      projectNodes.map((projectNode) => projectNode.id),
+    );
 
     const sorted = [...projectTasks].sort((a, b) => {
       // Sort by Tier first (P0 -> P3)
@@ -147,15 +155,17 @@ export function useTaskBoard(node: NodeData) {
   }, [nodes, priorityFilter, searchQuery, sourceFilter, statusFilter, tasks]);
 
   const updateTask = async (id: string, updates: Partial<TaskData>) => {
-    await db.tasks.update(id, {
+    await TaskRepository.update(id, {
       ...updates,
       updated_at: new Date().toISOString(),
     });
+    await refreshReadiness();
     await loadTasks();
   };
 
   const deleteTask = async (id: string) => {
-    await db.tasks.delete(id);
+    await TaskRepository.delete(id);
+    await refreshReadiness();
     await loadTasks();
   };
 
@@ -175,11 +185,16 @@ export function useTaskBoard(node: NodeData) {
       labels: [],
       is_manual: true,
       task_origin: "manual",
+      source_node_type: null,
+      generation_rule: "manual-entry",
+      generation_version: 1,
+      upstream_refs: [],
       sort_order: tasks.length,
       created_at: now,
       updated_at: now,
     };
-    await db.tasks.add(newTask);
+    await TaskRepository.create(newTask);
+    await refreshReadiness();
     await loadTasks();
   };
 
@@ -187,9 +202,11 @@ export function useTaskBoard(node: NodeData) {
     setIsRegenerating(true);
     try {
       const autoTasks = tasks.filter((t) => !t.is_manual);
-      await db.tasks.bulkDelete(autoTasks.map((t) => t.id));
+      await TaskRepository.bulkDelete(autoTasks.map((t) => t.id));
 
-      const allContents = await db.nodeContents.toArray();
+      const allContents = await NodeContentRepository.findAllByNodeIds(
+        nodes.map((sourceNode) => sourceNode.id),
+      );
       const allParsedTasks: TaskData[] = [];
       const now = new Date().toISOString();
 
@@ -212,8 +229,9 @@ export function useTaskBoard(node: NodeData) {
 
       // Final insertion
       if (allParsedTasks.length > 0) {
-        await db.tasks.bulkAdd(allParsedTasks);
+        await TaskRepository.bulkCreate(allParsedTasks);
       }
+      await refreshReadiness();
       await loadTasks();
     } finally {
       setIsRegenerating(false);
@@ -252,6 +270,10 @@ export function useTaskBoard(node: NodeData) {
         labels: [],
         is_manual: true,
         task_origin: "imported_backlog",
+        source_node_type: null,
+        generation_rule: "imported-backlog",
+        generation_version: 1,
+        upstream_refs: matchedTask?.source_item_id ? [`generated-task:${matchedTask.source_item_id}`] : [],
         external_source: item.external_source,
         external_task_id: item.external_task_id,
         external_status: item.external_status,
@@ -264,9 +286,10 @@ export function useTaskBoard(node: NodeData) {
     });
 
     if (importedTasks.length > 0) {
-      await db.tasks.bulkAdd(importedTasks);
+      await TaskRepository.bulkCreate(importedTasks);
     }
 
+    await refreshReadiness();
     await loadTasks();
   };
 
@@ -317,4 +340,23 @@ export function useTaskBoard(node: NodeData) {
     importBacklogTasks,
     regenerateAllTasks,
   };
+
+  async function refreshReadiness() {
+    const [allNodes, allContents, warnings] = await Promise.all([
+      NodeRepository.findAllByProjectId(node.project_id),
+      NodeContentRepository.findAllByNodeIds(nodes.map((projectNode) => projectNode.id)),
+      ValidationWarningRepository.findAllByProjectId(node.project_id),
+    ]);
+    const readiness = buildProjectReadinessModel({
+      nodes: allNodes,
+      contents: allContents,
+      warnings,
+    });
+    await ReadinessSnapshotRepository.upsert(
+      buildReadinessSnapshot({
+        projectId: node.project_id,
+        readiness,
+      }),
+    );
+  }
 }

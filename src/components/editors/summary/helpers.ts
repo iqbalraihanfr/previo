@@ -1,16 +1,26 @@
 import type { NodeContent, NodeData } from "@/lib/db";
+import { getCanonicalNodeFields } from "@/lib/canonicalContent";
+import type {
+  DFDFields,
+  DFDNode,
+  ERDFields,
+  ERDEntity,
+  Flow as FlowchartFlow,
+  FlowchartFields,
+  ProjectBriefFields,
+  Message as SequenceMessage,
+  RequirementFieldItem as RequirementItem,
+  RequirementFields,
+  SequenceFields,
+  UseCaseFields,
+  UseCaseItemData as UseCaseItem,
+  UserStoryFieldItem as UserStoryItem,
+  UserStoryFields,
+} from "@/lib/canonical";
 import type {
   CoverageMetric,
-  DFDNode,
-  ERDEntity,
-  FlowchartFlow,
-  RequirementItem,
-  SequenceMessage,
   SummaryContent,
-  SummaryStructuredFields,
   SummaryFraming,
-  UseCaseItem,
-  UserStoryItem,
 } from "./types";
 
 export function isObject(value: unknown): value is Record<string, unknown> {
@@ -26,16 +36,6 @@ export function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function getStructuredFields(
-  content?: NodeContent,
-): SummaryStructuredFields {
-  if (!content || !isObject(content.structured_fields)) {
-    return {} as SummaryStructuredFields;
-  }
-
-  return content.structured_fields as SummaryStructuredFields;
-}
-
 export function getNodeContentMap(
   nodes: NodeData[],
   contents: NodeContent[],
@@ -48,8 +48,8 @@ export function getNodeContentMap(
 
     byNodeId.set(projectNode.id, {
       ...content,
-      structured_fields: getStructuredFields(content),
-    } as SummaryContent);
+      structured_fields: getCanonicalNodeFields(projectNode.type, content),
+    });
   });
 
   return Object.fromEntries(byNodeId.entries());
@@ -57,73 +57,121 @@ export function getNodeContentMap(
 
 export function getNodeByType(
   nodes: NodeData[],
-  type: string,
+  type: NodeData["type"],
 ): NodeData | undefined {
   return nodes.find((entry) => entry.type === type);
 }
 
-export function getFieldsByType(
+function getNodeContentByType(
   nodes: NodeData[],
   contentMap: Record<string, SummaryContent>,
-  type: string,
-): SummaryStructuredFields | null {
+  type: NodeData["type"],
+) {
   const matchedNode = getNodeByType(nodes, type);
-  if (!matchedNode) return null;
-  return contentMap[matchedNode.id]?.structured_fields ?? null;
+  if (!matchedNode) return undefined;
+  return contentMap[matchedNode.id];
 }
 
-export function getRequirementItems(
-  fields: SummaryStructuredFields | null,
-): RequirementItem[] {
-  const raw = fields?.items;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is RequirementItem => isObject(item));
+export function getBriefFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): ProjectBriefFields {
+  return getCanonicalNodeFields(
+    "project_brief",
+    getNodeContentByType(nodes, contentMap, "project_brief"),
+  );
 }
 
-export function getUserStoryItems(
-  fields: SummaryStructuredFields | null,
-): UserStoryItem[] {
-  const raw = fields?.items;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is UserStoryItem => isObject(item));
+export function getRequirementFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): RequirementFields {
+  return getCanonicalNodeFields(
+    "requirements",
+    getNodeContentByType(nodes, contentMap, "requirements"),
+  );
 }
 
-export function getUseCaseItems(
-  fields: SummaryStructuredFields | null,
-): UseCaseItem[] {
-  const raw = fields?.useCases;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is UseCaseItem => isObject(item));
+export function getUserStoryFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): UserStoryFields {
+  return getCanonicalNodeFields(
+    "user_stories",
+    getNodeContentByType(nodes, contentMap, "user_stories"),
+  );
 }
 
-export function getFlowchartFlows(
-  fields: SummaryStructuredFields | null,
-): FlowchartFlow[] {
-  const raw = fields?.flows;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is FlowchartFlow => isObject(item));
+export function getUseCaseFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): UseCaseFields {
+  return getCanonicalNodeFields(
+    "use_cases",
+    getNodeContentByType(nodes, contentMap, "use_cases"),
+  );
 }
 
-export function getERDEntities(
-  fields: SummaryStructuredFields | null,
-): ERDEntity[] {
-  const raw = fields?.entities;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is ERDEntity => isObject(item));
+export function getFlowchartFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): FlowchartFields {
+  return getCanonicalNodeFields(
+    "flowchart",
+    getNodeContentByType(nodes, contentMap, "flowchart"),
+  );
 }
 
-export function getDFDNodes(fields: SummaryStructuredFields | null): DFDNode[] {
-  const raw = fields?.nodes;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is DFDNode => isObject(item));
+export function getSequenceFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): SequenceFields {
+  return getCanonicalNodeFields(
+    "sequence",
+    getNodeContentByType(nodes, contentMap, "sequence"),
+  );
 }
 
-export function getSequenceMessages(
-  fields: SummaryStructuredFields | null,
-): SequenceMessage[] {
-  const raw = fields?.messages;
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is SequenceMessage => isObject(item));
+export function getERDFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): ERDFields {
+  return getCanonicalNodeFields("erd", getNodeContentByType(nodes, contentMap, "erd"));
+}
+
+export function getDFDFields(
+  nodes: NodeData[],
+  contentMap: Record<string, SummaryContent>,
+): DFDFields {
+  return getCanonicalNodeFields("dfd", getNodeContentByType(nodes, contentMap, "dfd"));
+}
+
+export function getRequirementItems(fields: RequirementFields): RequirementItem[] {
+  return fields.items ?? [];
+}
+
+export function getUserStoryItems(fields: UserStoryFields): UserStoryItem[] {
+  return fields.items ?? [];
+}
+
+export function getUseCaseItems(fields: UseCaseFields): UseCaseItem[] {
+  return fields.useCases ?? [];
+}
+
+export function getFlowchartFlows(fields: FlowchartFields): FlowchartFlow[] {
+  return fields.flows ?? [];
+}
+
+export function getERDEntities(fields: ERDFields): ERDEntity[] {
+  return fields.entities ?? [];
+}
+
+export function getDFDNodes(fields: DFDFields): DFDNode[] {
+  return fields.nodes ?? [];
+}
+
+export function getSequenceMessages(fields: SequenceFields): SequenceMessage[] {
+  return fields.messages ?? [];
 }
 
 export function normalizeId(value: unknown): string {
@@ -138,18 +186,14 @@ export function computeCoverage(
   allNodes: NodeData[],
   contentMap: Record<string, SummaryContent>,
 ): CoverageMetric[] {
-  const requirementFields = getFieldsByType(
-    allNodes,
-    contentMap,
-    "requirements",
-  );
-  const userStoryFields = getFieldsByType(allNodes, contentMap, "user_stories");
-  const useCaseFields = getFieldsByType(allNodes, contentMap, "use_cases");
-  const flowchartFields = getFieldsByType(allNodes, contentMap, "flowchart");
-  const sequenceFields = getFieldsByType(allNodes, contentMap, "sequence");
-  const erdFields = getFieldsByType(allNodes, contentMap, "erd");
-  const dfdFields = getFieldsByType(allNodes, contentMap, "dfd");
-  const briefFields = getFieldsByType(allNodes, contentMap, "project_brief");
+  const requirementFields = getRequirementFields(allNodes, contentMap);
+  const userStoryFields = getUserStoryFields(allNodes, contentMap);
+  const useCaseFields = getUseCaseFields(allNodes, contentMap);
+  const flowchartFields = getFlowchartFields(allNodes, contentMap);
+  const sequenceFields = getSequenceFields(allNodes, contentMap);
+  const erdFields = getERDFields(allNodes, contentMap);
+  const dfdFields = getDFDFields(allNodes, contentMap);
+  const briefFields = getBriefFields(allNodes, contentMap);
 
   const requirementItems = getRequirementItems(requirementFields);
   const userStories = getUserStoryItems(userStoryFields);
@@ -195,10 +239,7 @@ export function computeCoverage(
     const relatedStoryIds = new Set<string>();
 
     useCases.forEach((useCase) => {
-      const linkedStories = [
-        ...asStringArray(useCase.related_user_stories),
-        ...asStringArray(useCase.related_stories),
-      ];
+      const linkedStories = asStringArray(useCase.related_user_stories);
 
       linkedStories
         .map((storyId) => normalizeId(storyId))
@@ -240,10 +281,9 @@ export function computeCoverage(
   }
 
   if (useCases.length > 0 || sequenceMessages.length > 0) {
-    const relatedUseCase = normalizeId(sequenceFields?.related_use_case);
+    const relatedUseCase = normalizeId(sequenceFields.related_use_case);
     const sequenceHasContent =
-      sequenceMessages.length > 0 ||
-      asStringArray(sequenceFields?.participants).length > 0;
+      sequenceMessages.length > 0 || (sequenceFields.participants ?? []).length > 0;
 
     const covered = useCases.filter((useCase) => {
       const useCaseId = normalizeId(useCase.id);
@@ -286,7 +326,7 @@ export function computeCoverage(
     });
   }
 
-  const briefTargetUsers = asStringArray(briefFields?.target_users).filter(
+  const briefTargetUsers = (briefFields.target_users ?? []).filter(
     (user) => user.trim().length > 0,
   );
 
@@ -309,7 +349,7 @@ export function computeCoverage(
     });
   }
 
-  const scopeInItems = asStringArray(briefFields?.scope_in).filter(
+  const scopeInItems = (briefFields.scope_in ?? []).filter(
     (scopeItem) => scopeItem.trim().length > 0,
   );
 
@@ -339,10 +379,7 @@ export function extractAPIEndpoints(
   contentMap: Record<string, SummaryContent>,
   allNodes: NodeData[],
 ): string[] {
-  const sequenceNode = getNodeByType(allNodes, "sequence");
-  if (!sequenceNode) return [];
-
-  const sequenceFields = contentMap[sequenceNode.id]?.structured_fields ?? {};
+  const sequenceFields = getSequenceFields(allNodes, contentMap);
   const messages = getSequenceMessages(sequenceFields);
 
   const endpoints = new Set<string>();
@@ -519,6 +556,8 @@ export function buildSummaryFraming({
     topBlockers: topBlockers.map((line) => compactSentence(line)),
     recommendedNextActions: recommendedNextActions.map((line) => compactSentence(line)),
     traceabilityHighlights: traceabilityHighlights.map((line) => compactSentence(line)),
-    implementationProvenance: implementationProvenance.map((line) => compactSentence(line)),
+    implementationProvenance: implementationProvenance.map((line) =>
+      compactSentence(line),
+    ),
   };
 }

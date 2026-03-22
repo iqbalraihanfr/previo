@@ -5,9 +5,9 @@ import type {
   SourceArtifact,
   SourceType,
 } from "@/lib/db";
-import type { ProjectBriefFields } from "@/components/editors/ProjectBriefEditor";
+import { CONTENT_SCHEMA_VERSION, type ProjectBriefFields } from "@/lib/canonical";
 
-export const SOURCE_ARTIFACT_PARSER_VERSION = "v1";
+export const SOURCE_ARTIFACT_PARSER_VERSION = "v2";
 
 export type BriefInput = ProjectBriefFields;
 
@@ -117,9 +117,12 @@ export function createEmptyArtifactInput(
 ): SourceArtifactInput {
   return {
     ...params,
+    target_node_type: undefined,
+    import_status: "pending",
     title: SOURCE_TYPE_LABELS[params.source_type],
     raw_content: "",
     normalized_data: {},
     parser_version: SOURCE_ARTIFACT_PARSER_VERSION,
+    content_schema_version: CONTENT_SCHEMA_VERSION,
   };
 }
