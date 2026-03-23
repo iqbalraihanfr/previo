@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Read(//Users/iqbalrei/.claude/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/iqbalrei/.claude"
+    ]
+  }
+}
