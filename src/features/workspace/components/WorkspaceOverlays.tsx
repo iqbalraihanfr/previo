@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ChevronLeft, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { NodeData } from "@/lib/db";
@@ -7,7 +7,6 @@ interface WorkspaceOverlaysProps {
   showOnboarding: boolean;
   recommendedNextNode: NodeData | null;
   dbWarningsLength: number;
-  dbNodesLength: number;
   showValidationPanel: boolean;
   onDismissOnboarding: () => void;
   onShowHelp: () => void;
@@ -19,13 +18,21 @@ export function WorkspaceOverlays({
   showOnboarding,
   recommendedNextNode,
   dbWarningsLength,
-  dbNodesLength,
   showValidationPanel,
   onDismissOnboarding,
   onShowHelp,
   onJumpNext,
   onToggleValidation,
 }: WorkspaceOverlaysProps) {
+  const showContextualWarning =
+    !showOnboarding && !showValidationPanel && dbWarningsLength > 0;
+  const showSuggestedNext =
+    !showOnboarding &&
+    !showValidationPanel &&
+    dbWarningsLength === 0 &&
+    recommendedNextNode !== null;
+  const suggestedNodeLabel = recommendedNextNode?.label ?? "";
+
   return (
     <>
       {showOnboarding && (
@@ -52,8 +59,13 @@ export function WorkspaceOverlays({
                     Welcome to your architecture workspace
                   </h2>
                   <p className="mt-1 text-sm leading-7 text-muted-foreground">
-                    Click a node to edit it, drag nodes to reorganize your flow,
-                    and use <span className="font-medium text-foreground">Space + drag</span> to pan. Use Import, Generate, or Structured manual depending on the node, keep free notes secondary, and reopen help anytime from the header.
+                    Open a node to start editing, drag nodes to reorganize the
+                    flow, and use{" "}
+                    <span className="font-medium text-foreground">
+                      Space + drag
+                    </span>{" "}
+                    to pan the canvas. Keep Help nearby if you need the workflow
+                    refresher again.
                   </p>
                 </div>
 
@@ -112,26 +124,28 @@ export function WorkspaceOverlays({
       )}
 
       {/* Floating Hotkeys */}
-      <div className="pointer-events-none absolute right-4 top-4 z-20 hidden md:block">
-        <div className="onboarding-card rounded-2xl px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2 text-readable-xs text-muted-foreground">
-            <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-              ⌘K / Ctrl+K search
-            </span>
-            <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-              N next node
-            </span>
-            <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-              F fit view
-            </span>
-            <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
-              ? help
-            </span>
+      {!showOnboarding && (
+        <div className="pointer-events-none absolute right-4 top-4 z-20 hidden md:block">
+          <div className="onboarding-card rounded-2xl px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 text-readable-xs text-muted-foreground">
+              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
+                ⌘K / Ctrl+K search
+              </span>
+              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
+                N next node
+              </span>
+              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
+                F fit view
+              </span>
+              <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
+                ? help
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {!showValidationPanel && dbWarningsLength > 0 && (
+      {showContextualWarning && (
         <div className="pointer-events-none absolute bottom-5 left-15 z-20 hidden md:block">
           <button
             type="button"
@@ -150,22 +164,9 @@ export function WorkspaceOverlays({
         </div>
       )}
 
-      {!showValidationPanel && dbWarningsLength === 0 && dbNodesLength > 0 && (
-        <div className="pointer-events-none absolute bottom-5 left-15 z-20 hidden md:block">
-          <div className="onboarding-card rounded-2xl px-4 py-3">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <p className="text-sm text-muted-foreground">
-                Cross-node validation is clear right now.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Floating Suggested Next Step */}
       <div className="pointer-events-none absolute bottom-4 right-4 z-20 hidden max-w-sm md:block">
-        {recommendedNextNode ? (
+        {showSuggestedNext ? (
           <div className="onboarding-card rounded-2xl p-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -176,7 +177,7 @@ export function WorkspaceOverlays({
                 <p className="text-sm leading-6 text-muted-foreground">
                   Open{" "}
                   <span className="font-medium text-foreground">
-                    {recommendedNextNode.label}
+                    {suggestedNodeLabel}
                   </span>{" "}
                   to keep your documentation flow moving.
                 </p>

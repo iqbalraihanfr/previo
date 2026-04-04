@@ -36,6 +36,7 @@ import { WorkspaceHelpDialog } from "@/components/layout/WorkspaceHelpDialog";
 import { updateNodePosition } from "@/lib/workspaceEngine";
 import { WorkspaceHeader } from "@/features/workspace/components/WorkspaceHeader";
 import { WorkspaceOverlays } from "@/features/workspace/components/WorkspaceOverlays";
+import { WorkspaceSidebar } from "@/features/workspace/components/WorkspaceSidebar";
 import { ProjectNotesPanel } from "@/features/workspace/components/ProjectNotesPanel";
 import { useExcalidrawControls } from "@/features/workspace/hooks/useExcalidrawControls";
 import { useWorkspaceData } from "@/features/workspace/hooks/useWorkspaceData";
@@ -70,6 +71,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     sortedNodes,
     recommendedNextNode,
     doneCount,
+    validationTone,
   } = useWorkspaceData(projectId);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
@@ -305,6 +307,20 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     handleOpenNode(recommendedNextNode);
   }, [handleOpenNode, recommendedNextNode]);
 
+  const handleToggleProjectNotes = useCallback(() => {
+    setSelectedNodeData(null);
+    setEditorCollapsed(false);
+    setShowTraceabilityPanel(false);
+    setShowProjectNotes((value) => !value);
+  }, []);
+
+  const handleToggleTraceability = useCallback(() => {
+    setSelectedNodeData(null);
+    setEditorCollapsed(false);
+    setShowProjectNotes(false);
+    setShowTraceabilityPanel((value) => !value);
+  }, []);
+
   const handleFitView = useCallback(() => {
     reactFlow.fitView({ padding: 0.2, duration: 300 });
   }, [reactFlow]);
@@ -418,6 +434,18 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
         />
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <WorkspaceSidebar
+            validationTone={validationTone}
+            showValidationPanel={showValidationPanel}
+            showProjectNotes={showProjectNotes}
+            showTraceabilityPanel={showTraceabilityPanel}
+            onFitView={handleFitView}
+            onToggleValidation={() => setShowValidationPanel((v) => !v)}
+            onToggleProjectNotes={handleToggleProjectNotes}
+            onToggleTraceability={handleToggleTraceability}
+            onShowHelp={() => setShowHelpDialog(true)}
+          />
+
           {showValidationPanel && (
             <div className="absolute bottom-3 left-3 top-3 z-30 w-[min(420px,calc(100vw-1.5rem))] max-w-full md:left-4 md:w-100">
               <ValidationSummaryPanel
