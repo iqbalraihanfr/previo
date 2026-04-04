@@ -448,18 +448,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
             onShowHelp={() => setShowHelpDialog(true)}
           />
 
-          {showValidationPanel && (
-            <div className="absolute bottom-3 left-3 top-3 z-30 w-[min(420px,calc(100vw-1.5rem))] max-w-full md:left-4 md:w-100">
-              <ValidationSummaryPanel
-                nodes={dbNodes}
-                contents={dbContents}
-                warnings={dbWarnings}
-                onCloseAction={() => setShowValidationPanel(false)}
-                onNodeNavigateAction={handleNavigateWithIntent}
-              />
-            </div>
-          )}
-
           <WorkspaceOverlays
             showOnboarding={showOnboarding}
             recommendedNextNode={!selectedNodeData ? recommendedNextNode : null}
@@ -478,6 +466,17 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
             onKeyDown={handleCanvasWrapperKeyDown}
             data-testid="workspace-canvas"
           >
+            {showValidationPanel && (
+              <div className="absolute bottom-3 left-3 top-3 z-30 w-[min(380px,calc(100vw-1.5rem))] max-w-full">
+                <ValidationSummaryPanel
+                  nodes={dbNodes}
+                  contents={dbContents}
+                  warnings={dbWarnings}
+                  onCloseAction={() => setShowValidationPanel(false)}
+                  onNodeNavigateAction={handleNavigateWithIntent}
+                />
+              </div>
+            )}
             <ReactFlow
               nodes={nodes}
               edges={edges}

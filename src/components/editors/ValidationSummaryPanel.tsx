@@ -25,110 +25,63 @@ type ValidationSummaryPanelProps = {
   onNodeNavigateAction: (intent: WorkspaceNavigationIntent) => void;
 };
 
-function SeveritySummaryCard({
-  label,
-  count,
-  tone,
-  icon,
-}: {
-  label: string;
-  count: number;
-  tone: "error" | "warning" | "info" | "success";
-  icon: React.ReactNode;
-}) {
-  const toneClass =
-    tone === "error"
-      ? "border-destructive/20 bg-destructive/10 text-destructive"
-      : tone === "warning"
-        ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-        : tone === "info"
-          ? "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400"
-          : "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400";
-
-  return (
-    <div className={`rounded-2xl border px-3 py-3 ${toneClass}`}>
-      <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background/75">
-          {icon}
-        </div>
-        <div>
-          <p className="text-readable-xs uppercase tracking-[0.16em] opacity-80">
-            {label}
-          </p>
-          <p className="mt-1 text-2xl font-semibold leading-none">{count}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IssueCard({
+function IssueRow({
   issue,
   onNodeNavigateAction,
 }: {
   issue: ReadinessIssue;
   onNodeNavigateAction: (intent: WorkspaceNavigationIntent) => void;
 }) {
-  const toneClass =
-    issue.category === "blocking"
-      ? "border-destructive/20 bg-destructive/10 text-destructive"
-      : issue.category === "coverage_gap"
-        ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-        : "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-400";
+  const [expanded, setExpanded] = useState(false);
 
-  const categoryLabel =
+  const { icon, labelColor } =
     issue.category === "blocking"
-      ? "Blocking"
+      ? { icon: <AlertCircle className="h-3.5 w-3.5 text-destructive" />, labelColor: "text-destructive" }
       : issue.category === "coverage_gap"
-        ? "Coverage Gap"
-        : "Quality Warning";
+        ? { icon: <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />, labelColor: "text-yellow-700 dark:text-yellow-400" }
+        : { icon: <Info className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />, labelColor: "text-blue-700 dark:text-blue-400" };
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${toneClass}`}>
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background/75">
-          {issue.category === "blocking" ? (
-            <AlertCircle className="h-4 w-4" />
-          ) : issue.category === "coverage_gap" ? (
-            <AlertTriangle className="h-4 w-4" />
-          ) : (
-            <Info className="h-4 w-4" />
-          )}
-        </div>
+    <div className="border-b border-border/50 last:border-0">
+      <button
+        type="button"
+        className="flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className="mt-0.5 shrink-0">{icon}</span>
+        <span className={`flex-1 text-sm font-medium leading-snug ${labelColor}`}>
+          {issue.title}
+        </span>
+        <span className="mt-0.5 shrink-0 text-xs text-muted-foreground">{expanded ? "▲" : "▼"}</span>
+      </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold">{issue.title}</p>
-            <span className="rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              {categoryLabel}
-            </span>
-          </div>
-          <p className="mt-2 text-sm leading-6 opacity-90">{issue.message}</p>
+      {expanded && (
+        <div className="px-4 pb-3 pl-9">
+          <p className="text-sm leading-6 text-muted-foreground">{issue.message}</p>
           {issue.resolutionHint && (
-            <p className="mt-2 text-xs leading-5 opacity-80">{issue.resolutionHint}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground/70">{issue.resolutionHint}</p>
           )}
-          <div className="mt-4 flex items-center justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={() =>
-                onNodeNavigateAction({
-                  nodeId: issue.sourceNodeId,
-                  label: issue.itemLabel ?? issue.title,
-                  sectionId: issue.sectionId,
-                  itemLabel: issue.itemLabel,
-                  reason: issue.resolutionHint ?? issue.message,
-                })
-              }
-              data-testid={`validation-open-node-${issue.sourceNodeId}`}
-            >
-              <ExternalLink className="mr-2 h-3.5 w-3.5" />
-              Open source node
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 h-7 rounded-full text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNodeNavigateAction({
+                nodeId: issue.sourceNodeId,
+                label: issue.itemLabel ?? issue.title,
+                sectionId: issue.sectionId,
+                itemLabel: issue.itemLabel,
+                reason: issue.resolutionHint ?? issue.message,
+              });
+            }}
+            data-testid={`validation-open-node-${issue.sourceNodeId}`}
+          >
+            <ExternalLink className="mr-1.5 h-3 w-3" />
+            Open node
+          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -147,163 +100,106 @@ export function ValidationSummaryPanel({
   );
 
   const filteredIssues = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const allIssues = [
+    const q = searchQuery.trim().toLowerCase();
+    const all = [
       ...readiness.blockers,
       ...readiness.coverageGaps,
       ...readiness.qualityWarnings,
     ];
-
-    return allIssues.filter((issue) => {
-      if (normalizedQuery.length === 0) return true;
-      return (
-        issue.title.toLowerCase().includes(normalizedQuery) ||
-        issue.message.toLowerCase().includes(normalizedQuery)
-      );
-    });
+    if (!q) return all;
+    return all.filter(
+      (i) =>
+        i.title.toLowerCase().includes(q) ||
+        i.message.toLowerCase().includes(q),
+    );
   }, [readiness.blockers, readiness.coverageGaps, readiness.qualityWarnings, searchQuery]);
 
-  const sections = [
-    {
-      id: "blocking",
-      title: "Blocking",
-      items: filteredIssues.filter((issue) => issue.category === "blocking"),
-      toneClass: "text-destructive",
-    },
-    {
-      id: "coverage",
-      title: "Coverage gap",
-      items: filteredIssues.filter((issue) => issue.category === "coverage_gap"),
-      toneClass: "text-yellow-700 dark:text-yellow-400",
-    },
-    {
-      id: "quality",
-      title: "Quality warning",
-      items: filteredIssues.filter((issue) => issue.category === "quality_warning"),
-      toneClass: "text-blue-700 dark:text-blue-400",
-    },
-  ].filter((section) => section.items.length > 0);
+  const totalIssues =
+    readiness.blockers.length +
+    readiness.coverageGaps.length +
+    readiness.qualityWarnings.length;
 
   return (
     <aside
-      className="workspace-drawer workspace-scroll flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-border/70"
+      className="workspace-drawer workspace-scroll flex h-full flex-col overflow-hidden rounded-2xl border border-border/70"
       data-testid="validation-summary-panel"
     >
-      <div className="border-b border-border/70 px-4 py-4 sm:px-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-foreground">
-                  Readiness Summary
-                </h2>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {readiness.statusLabel}. {readiness.statusSummary}
-                </p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search blockers or coverage gaps"
-                className="h-10 rounded-full pl-9"
-                data-testid="validation-search"
-              />
-            </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-full"
-            onClick={onCloseAction}
-            aria-label="Close validation panel"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      {/* Header */}
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border/60 px-4">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
+        <span className="flex-1 text-sm font-semibold text-foreground">
+          Validation
+        </span>
+        {/* Summary pills */}
+        <div className="flex items-center gap-1.5 text-xs">
+          {readiness.blockers.length > 0 && (
+            <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-medium text-destructive">
+              {readiness.blockers.length} blocking
+            </span>
+          )}
+          {readiness.coverageGaps.length > 0 && (
+            <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 font-medium text-yellow-700 dark:text-yellow-400">
+              {readiness.coverageGaps.length} gap
+            </span>
+          )}
+          {totalIssues === 0 && (
+            <span className="rounded-full bg-green-500/10 px-2 py-0.5 font-medium text-green-700 dark:text-green-400">
+              All clear
+            </span>
+          )}
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 rounded-md text-muted-foreground/60 hover:bg-muted"
+          onClick={onCloseAction}
+          aria-label="Close validation panel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <SeveritySummaryCard
-            label="Blocking"
-            count={readiness.blockers.length}
-            tone="error"
-            icon={<AlertCircle className="h-4 w-4" />}
-          />
-          <SeveritySummaryCard
-            label="Coverage gap"
-            count={readiness.coverageGaps.length}
-            tone="warning"
-            icon={<AlertTriangle className="h-4 w-4" />}
-          />
-          <SeveritySummaryCard
-            label="Quality"
-            count={readiness.qualityWarnings.length}
-            tone="info"
-            icon={<Info className="h-4 w-4" />}
-          />
-          <SeveritySummaryCard
-            label="Warnings"
-            count={warnings.length}
-            tone="success"
-            icon={<CheckCircle2 className="h-4 w-4" />}
-          />
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Next actions
+      {/* Status line */}
+      <div className="shrink-0 border-b border-border/50 px-4 py-2.5">
+        <p className="text-xs text-muted-foreground">
+          {readiness.statusLabel}. {readiness.statusSummary}
+        </p>
+        {readiness.nextActions.length > 0 && (
+          <p className="mt-0.5 text-xs font-medium text-foreground/80">
+            → {readiness.nextActions[0]}
           </p>
-          <div className="mt-2 space-y-1">
-            {readiness.nextActions.map((action) => (
-              <p key={action} className="text-sm leading-6 text-foreground/80">
-                {action}
-              </p>
-            ))}
-          </div>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="shrink-0 border-b border-border/50 px-3 py-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search issues…"
+            className="h-8 rounded-lg pl-8 text-xs"
+            data-testid="validation-search"
+          />
         </div>
       </div>
 
-      <div className="workspace-scroll flex-1 overflow-y-auto px-4 py-5 sm:px-5">
-        {sections.length === 0 ? (
-          <div className="rounded-2xl border border-green-500/15 bg-green-500/5 px-4 py-5 text-sm text-green-700 dark:text-green-400">
-            <div className="flex items-center gap-2 font-medium">
-              <CheckCircle2 className="h-4 w-4" />
-              No readiness issues found.
-            </div>
-            <p className="mt-2 text-sm leading-6 opacity-80">
-              The project is ready for the next level of implementation review.
-            </p>
+      {/* Issue list */}
+      <div className="flex-1 overflow-y-auto">
+        {filteredIssues.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center text-sm text-muted-foreground">
+            <CheckCircle2 className="h-6 w-6 text-green-500" />
+            {searchQuery ? "No issues match your search." : "No readiness issues found."}
           </div>
         ) : (
-          <div className="space-y-6">
-            {sections.map((section) => (
-              <section key={section.id} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-sm font-semibold ${section.toneClass}`}>
-                    {section.title}
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    {section.items.length} item(s)
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {section.items.map((issue) => (
-                    <IssueCard
-                      key={issue.id}
-                      issue={issue}
-                      onNodeNavigateAction={onNodeNavigateAction}
-                    />
-                  ))}
-                </div>
-              </section>
+          <div>
+            {filteredIssues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onNodeNavigateAction={onNodeNavigateAction}
+              />
             ))}
           </div>
         )}
