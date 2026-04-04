@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/features/dashboard/components/CreateProjectDialog";
 import { ProjectFilters } from "@/features/dashboard/components/ProjectFilters";
 import { ProjectGrid } from "@/features/dashboard/components/ProjectGrid";
+import { RecentProjectHero } from "@/features/dashboard/components/RecentProjectHero";
 import { useDashboardData } from "@/features/dashboard/hooks/useDashboardData";
 import { type TemplateKey } from "@/features/dashboard/selectors";
 
@@ -29,6 +30,7 @@ type DeleteProjectState = {
 export function DashboardScreen() {
   const router = useRouter();
   const {
+    recentProject,
     projectCards,
     stats,
     searchQuery,
@@ -149,6 +151,22 @@ export function DashboardScreen() {
             </Button>
           </div>
         </header>
+
+        {recentProject && (
+          <RecentProjectHero
+            project={recentProject}
+            doneCount={
+              projectCards.find((c) => c.project.id === recentProject.id)?.doneCount ?? 0
+            }
+            totalCount={
+              projectCards.find((c) => c.project.id === recentProject.id)?.totalCount ?? 0
+            }
+            progressPercent={
+              projectCards.find((c) => c.project.id === recentProject.id)?.progress.percent ?? 0
+            }
+            onOpen={() => router.push(`/workspace/${recentProject.id}`)}
+          />
+        )}
 
         {hasProjects && (
           <>
