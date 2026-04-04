@@ -13,7 +13,6 @@ import type {
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AIConfigurationNotice } from "@/components/ai/AIConfigurationNotice";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreateProjectDialog } from "@/features/dashboard/components/CreateProjectDialog";
 import { ProjectFilters } from "@/features/dashboard/components/ProjectFilters";
@@ -183,43 +182,13 @@ export function DashboardScreen() {
               <AIConfigurationNotice />
             </div>
 
-            <section className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="px-3 py-1 text-readable-xs"
-                >
-                  {projectCards.length} visible
-                </Badge>
-                {filterBy !== "all" && (
-                  <Badge
-                    variant="secondary"
-                    className="px-3 py-1 text-readable-xs"
-                  >
-                    Filter:{" "}
-                    {filterBy === "quick" ? "Quick Start" : "Full Architecture"}
-                  </Badge>
-                )}
-                {searchQuery.trim() && (
-                  <Badge
-                    variant="secondary"
-                    className="px-3 py-1 text-readable-xs"
-                  >
-                    Search: “{searchQuery.trim()}”
-                  </Badge>
-                )}
-              </div>
-
-              <p className="text-sm leading-6 text-muted-foreground">
-                Recent work, filters, and creation live in one tighter shell now.
-              </p>
-            </section>
           </>
         )}
 
         <main className="flex-1">
           <ProjectGrid
             projectCards={projectCards}
+            excludeProjectId={recentProject?.id}
             onProjectClick={(id) => router.push(`/workspace/${id}`)}
             onDeleteRequest={requestDeleteProject}
             onResetFilters={() => {
