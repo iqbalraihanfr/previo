@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Info } from "lucide-react";
 import type { GenerationStatus, OverrideStatus, SourceType } from "@/lib/db";
 import type { NodeCapability } from "@/lib/nodeCapabilities";
 import {
@@ -9,6 +9,11 @@ import {
   OVERRIDE_STATUS_LABELS,
   SOURCE_TYPE_LABELS,
 } from "@/lib/sourceArtifacts";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface NodeSourceToolbarProps {
   capability: NodeCapability;
@@ -37,74 +42,81 @@ export function NodeSourceToolbar({
   actions,
 }: NodeSourceToolbarProps) {
   const lastSyncLabel = formatTimestamp(importedAt);
+  const statusLabel = GENERATION_STATUS_LABELS[generationStatus];
+  const sourceLabel = sourceType ? SOURCE_TYPE_LABELS[sourceType] : null;
 
   return (
     <div
-      className="border-b border-border/50 bg-muted/15 px-6 py-4"
+      className="flex h-9 shrink-0 items-center gap-2 border-b border-border/50 bg-muted/10 px-4"
       data-testid="node-source-toolbar"
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 rounded-[20px] border border-border/60 bg-background/70 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full px-3 py-1">
-              {capability.classification.replace(/_/g, " ")}
-            </Badge>
-            <Badge variant="secondary" className="rounded-full px-3 py-1">
-              State: {GENERATION_STATUS_LABELS[generationStatus]}
-            </Badge>
-            {sourceType && (
-              <Badge variant="secondary" className="rounded-full px-3 py-1">
-                Source: {SOURCE_TYPE_LABELS[sourceType]}
-              </Badge>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 text-sm leading-6 text-muted-foreground">
-            <p>
-              Keep imported and generated structure as the primary source of truth. Free notes stay secondary.
-            </p>
-            <p className="text-xs">
-              {lastSyncLabel
-                ? `Last sync: ${lastSyncLabel}`
-                : "Last sync: not available yet"}
-              {overrideStatus !== "none"
-                ? ` • ${OVERRIDE_STATUS_LABELS[overrideStatus]}`
-                : ""}
-            </p>
-          </div>
+      {/* Status badge */}
+      <span className="rounded-full bg-muted px-2 py-0.5 text-readable-2xs font-medium text-muted-foreground">
+        {sourceLabel ?? statusLabel}
+      </span>
 
-          <details
-            className="rounded-2xl border border-border/50 bg-background/55"
-            data-testid="node-source-provenance-details"
-          >
-            <summary
-              className="cursor-pointer list-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
-              data-testid="node-source-provenance-toggle"
-            >
-              Provenance details
-            </summary>
-            <div className="grid gap-3 border-t border-border/50 px-4 py-4 text-sm text-muted-foreground md:grid-cols-2">
-              <p>
-                <span className="font-medium text-foreground">Classification:</span>{" "}
-                {capability.classification.replace(/_/g, " ")}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Manual entry:</span>{" "}
-                {capability.manualEntryMode.replace(/_/g, " ")}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Last sync:</span>{" "}
-                {lastSyncLabel ?? "not available yet"}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Override state:</span>{" "}
-                {OVERRIDE_STATUS_LABELS[overrideStatus]}
-              </p>
-            </div>
-          </details>
+      {/* Timestamp */}
+      {lastSyncLabel && (
+        <span className="text-readable-2xs text-muted-foreground/60">
+          · synced {lastSyncLabel}
+        </span>
+      )}
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Action buttons (Edit fields, Import source, Generate draft) */}
+      {actions && (
+        <div className="flex items-center gap-1.5">
+          {actions}
         </div>
+      )}
 
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-      </div>
+      {/* Provenance popover */}
+      <Popover>
+        <PopoverTrigger
+          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/50 hover:bg-muted hover:text-muted-foreground"
+          data-testid="node-source-provenance-toggle"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 text-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Source Provenance
+          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-foreground">Classification</span>
+              <span>{capability.classification.replace(/_/g, " ")}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-foreground">State</span>
+              <span>{statusLabel}</span>
+            </div>
+            {sourceLabel && (
+              <div className="flex justify-between gap-2">
+                <span className="font-medium text-foreground">Source</span>
+                <span>{sourceLabel}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-foreground">Last sync</span>
+              <span>{lastSyncLabel ?? "not yet"}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-foreground">Override</span>
+              <span>{OVERRIDE_STATUS_LABELS[overrideStatus]}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="font-medium text-foreground">Manual entry</span>
+              <span>{capability.manualEntryMode.replace(/_/g, " ")}</span>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground/60">
+            Keep imported/generated structure as primary source. Free notes stay secondary.
+          </p>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
