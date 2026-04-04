@@ -1,20 +1,7 @@
+// src/components/ArchwayNode.tsx
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { NodeData, ValidationWarning } from "@/lib/db";
-import { NodeLivePreview } from "./NodeLivePreview";
-import {
-  AlertTriangle,
-  Database,
-  FileText,
-  FolderKanban,
-  GitBranch,
-  ListChecks,
-  ListTodo,
-  Network,
-  ScrollText,
-  Sparkles,
-  Users,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NodeVisualData = NodeData & {
@@ -22,18 +9,41 @@ type NodeVisualData = NodeData & {
   warnings?: ValidationWarning[];
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  project_brief: "Project Brief",
-  requirements: "Requirements",
-  user_stories: "User Stories",
-  use_cases: "Use Cases",
-  flowchart: "Flowchart",
+const TYPE_ABBR: Record<string, string> = {
+  project_brief: "BRIEF",
+  requirements: "REQ",
+  user_stories: "STORIES",
+  use_cases: "USE CASES",
+  flowchart: "FLOW",
   dfd: "DFD",
   erd: "ERD",
-  sequence: "Sequence",
-  task_board: "Task Board",
-  summary: "Summary",
+  sequence: "SEQ",
+  task_board: "TASKS",
+  summary: "SUMMARY",
 };
+
+const ACCENT_COLOR: Record<string, string> = {
+  project_brief: "bg-[var(--node-brief)]",
+  requirements: "bg-[var(--node-requirements)]",
+  user_stories: "bg-[var(--node-stories)]",
+  use_cases: "bg-[var(--node-use-cases)]",
+  flowchart: "bg-[var(--node-flowchart)]",
+  dfd: "bg-[var(--node-dfd)]",
+  erd: "bg-[var(--node-erd)]",
+  sequence: "bg-[var(--node-sequence)]",
+  task_board: "bg-[var(--node-task-board)]",
+  summary: "bg-[var(--node-summary)]",
+};
+
+function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "Done"
+      ? "bg-primary"
+      : status === "In Progress"
+        ? "bg-yellow-500"
+        : "bg-muted-foreground/30";
+  return <span className={cn("h-2 w-2 shrink-0 rounded-full", color)} />;
+}
 
 export const ArchwayNode = memo(
   ({
@@ -44,86 +54,7 @@ export const ArchwayNode = memo(
     selected: boolean;
   }) => {
     const nodeData = data as unknown as NodeVisualData;
-    const warningCount = nodeData.warnings?.length || 0;
-
-    const getTypeIcon = (type: string) => {
-      switch (type) {
-        case "erd":
-          return <Database className="h-5 w-5" />;
-        case "requirements":
-          return <ListChecks className="h-5 w-5" />;
-        case "user_stories":
-          return <Users className="h-5 w-5" />;
-        case "use_cases":
-          return <GitBranch className="h-5 w-5" />;
-        case "flowchart":
-          return <Network className="h-5 w-5" />;
-        case "dfd":
-          return <ScrollText className="h-5 w-5" />;
-        case "sequence":
-          return <Sparkles className="h-5 w-5" />;
-        case "task_board":
-          return <FolderKanban className="h-5 w-5" />;
-        case "summary":
-          return <ListTodo className="h-5 w-5" />;
-        default:
-          return <FileText className="h-5 w-5" />;
-      }
-    };
-
-    const getHeaderColor = (type: string) => {
-      switch (type) {
-        case "project_brief":
-          return "bg-[var(--node-brief)]";
-        case "requirements":
-          return "bg-[var(--node-requirements)]";
-        case "user_stories":
-          return "bg-[var(--node-stories)]";
-        case "use_cases":
-          return "bg-[var(--node-use-cases)]";
-        case "flowchart":
-          return "bg-[var(--node-flowchart)]";
-        case "dfd":
-          return "bg-[var(--node-dfd)]";
-        case "erd":
-          return "bg-[var(--node-erd)]";
-        case "sequence":
-          return "bg-[var(--node-sequence)]";
-        case "task_board":
-          return "bg-[var(--node-task-board)]";
-        case "summary":
-          return "bg-[var(--node-summary)]";
-        default:
-          return "bg-[var(--node-brief)]";
-      }
-    };
-
-    const getNodeMeta = (type: string) => {
-      switch (type) {
-        case "project_brief":
-          return "Project context";
-        case "requirements":
-          return "System rules";
-        case "user_stories":
-          return "User goals";
-        case "use_cases":
-          return "Actor flows";
-        case "flowchart":
-          return "Process map";
-        case "dfd":
-          return "Data movement";
-        case "erd":
-          return "Data model";
-        case "sequence":
-          return "Interaction flow";
-        case "task_board":
-          return "Execution plan";
-        case "summary":
-          return "Delivery review";
-        default:
-          return "Supporting record";
-      }
-    };
+    const hasWarnings = (nodeData.warnings?.length ?? 0) > 0;
 
     return (
       <>
@@ -131,13 +62,13 @@ export const ArchwayNode = memo(
           type="target"
           id="left"
           position={Position.Left}
-          className="w-4 h-4 rounded-full border-2 border-card bg-primary -left-2! top-7! z-10"
+          className="h-3 w-3 rounded-full border-2 border-card bg-primary -left-1.5! top-1/2! z-10"
         />
         <Handle
           type="target"
           id="top"
           position={Position.Top}
-          className="w-4 h-4 rounded-full border-2 border-card bg-primary -top-2! z-10"
+          className="h-3 w-3 rounded-full border-2 border-card bg-primary -top-1.5! z-10"
         />
 
         <div
@@ -146,79 +77,46 @@ export const ArchwayNode = memo(
           data-node-type={nodeData.type}
           data-node-status={nodeData.status}
           className={cn(
-            "flex min-w-[320px] max-w-[340px] flex-col overflow-hidden rounded-[12px] border border-border/70 bg-card shadow-[0_4px_20px_rgba(46,50,48,0.06)] transition-all duration-200",
+            "relative flex min-w-[180px] max-w-[220px] items-center gap-2 overflow-hidden rounded-[8px] border border-border/70 bg-card py-2.5 pl-2 pr-3 shadow-sm transition-all duration-150",
             selected
-              ? "scale-[1.01] ring-2 ring-primary/30 shadow-[0_4px_20px_rgba(46,50,48,0.08)]"
-              : "ring-1 ring-border/55 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(46,50,48,0.07)]",
-            nodeData.isNext ? "focus-guidance focus-guidance-ring" : "",
+              ? "ring-2 ring-primary/40 shadow-md"
+              : "ring-1 ring-border/40 hover:-translate-y-px hover:shadow-md",
+            nodeData.isNext ? "ring-2 ring-primary/60" : "",
           )}
         >
+          {/* Left accent border */}
           <div
             className={cn(
-              "flex items-start justify-between gap-3 px-4 py-3 text-foreground",
-              getHeaderColor(nodeData.type),
+              "h-full w-1 shrink-0 self-stretch rounded-full",
+              ACCENT_COLOR[nodeData.type] ?? "bg-muted-foreground/30",
             )}
-          >
-            <div className="min-w-0 space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-foreground/8 text-foreground">
-                  {getTypeIcon(nodeData.type)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-readable-xs font-semibold uppercase tracking-[0.14em] text-foreground/60">
-                    {TYPE_LABELS[nodeData.type] || "Node"}
-                  </p>
-                  <h3 className="truncate font-serif text-lg font-semibold leading-tight">
-                    {nodeData.label}
-                  </h3>
-                </div>
-              </div>
+            style={{ minHeight: "24px" }}
+          />
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="rounded-full bg-foreground/8 px-2.5 py-1 text-readable-xs font-medium text-foreground/72">
-                  {getNodeMeta(nodeData.type)}
-                </span>
-                {nodeData.isNext && (
-                  <span className="rounded-full bg-primary px-2.5 py-1 text-readable-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground">
-                    Start here
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-0.5">
-              {warningCount > 0 && (
-                <div
-                  className="flex items-center gap-1 rounded-full bg-destructive/12 px-2.5 py-1 text-readable-xs font-semibold text-destructive"
-                  title={`${warningCount} issues found`}
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  <span>
-                    {warningCount} issue{warningCount > 1 ? "s" : ""}
-                  </span>
-                </div>
-              )}
-
-              <div className="rounded-full bg-foreground/8 p-1.5 text-foreground/55">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M5 3l14 9-14 9V3z" />
-                </svg>
-              </div>
-            </div>
+          {/* Content */}
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60">
+              {TYPE_ABBR[nodeData.type] ?? nodeData.type}
+            </p>
+            <p className="truncate text-sm font-semibold leading-tight text-foreground">
+              {nodeData.label}
+            </p>
           </div>
 
-          <div className="border-t border-border/70 bg-card px-4 py-3 text-card-foreground">
-            <NodeLivePreview
-              nodeId={nodeData.id}
-              nodeType={nodeData.type}
-              projectId={nodeData.project_id}
-            />
+          {/* Right indicators */}
+          <div className="flex shrink-0 items-center gap-1">
+            {hasWarnings && (
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-destructive"
+                title={`${nodeData.warnings?.length} issue(s)`}
+              />
+            )}
+            {nodeData.isNext && (
+              <span className="text-[10px] text-primary" title="Recommended next">
+                ✦
+              </span>
+            )}
+            <StatusDot status={nodeData.status} />
           </div>
         </div>
 
@@ -226,13 +124,13 @@ export const ArchwayNode = memo(
           type="source"
           id="right"
           position={Position.Right}
-          className="w-4 h-4 rounded-full border-2 border-card bg-primary -right-2! top-7! z-10"
+          className="h-3 w-3 rounded-full border-2 border-card bg-primary -right-1.5! top-1/2! z-10"
         />
         <Handle
           type="source"
           id="bottom"
           position={Position.Bottom}
-          className="w-4 h-4 rounded-full border-2 border-card bg-primary -bottom-2! z-10"
+          className="h-3 w-3 rounded-full border-2 border-card bg-primary -bottom-1.5! z-10"
         />
       </>
     );
