@@ -326,8 +326,10 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   }, [reactFlow]);
 
   const onNodeDragStop = useCallback(
-    async (_event: ReactMouseEvent, node: FlowNode) => {
-      await updateNodePosition(node.id, node.position.x, node.position.y);
+    async (_event: ReactMouseEvent, _node: FlowNode, draggedNodes: FlowNode[]) => {
+      await Promise.all(
+        draggedNodes.map((n) => updateNodePosition(n.id, n.position.x, n.position.y)),
+      );
     },
     [],
   );
