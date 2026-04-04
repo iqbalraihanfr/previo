@@ -484,6 +484,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
               onNodesChange={onNodesChange}
               onNodeDragStop={onNodeDragStop}
               onNodeClick={onNodeClick}
+              onPaneClick={handleEditorClose}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               defaultEdgeOptions={{
