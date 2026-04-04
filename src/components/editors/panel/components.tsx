@@ -82,88 +82,79 @@ export function EditorPanelHeader({
   onDeleteAction?: () => void;
 }) {
   return (
-    <>
     <div
-      className="flex flex-col border-b border-border/60 bg-card/50 backdrop-blur-md"
+      className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 bg-card/50 px-4 backdrop-blur-md"
       data-testid="editor-panel-header"
     >
-      {/* Top Meta Bar */}
-      <div className="flex h-13 items-center justify-between border-b border-border/40 px-6">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center rounded-lg border border-border/50 bg-background/50 px-2.5 py-1 shadow-sm">
-            <span className="text-readable-2xs font-bold tracking-wider uppercase text-muted-foreground/70">
-              {getNodeTypeLabel(node.type)}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-border/40" />
-          <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger
-              className="h-7 w-auto min-w-[100px] border-none bg-transparent p-0 text-readable-xs font-semibold focus:ring-0"
-              data-testid="editor-status-trigger"
-            >
-              <span className={getStatusTone(status)}>
-                <SelectValue />
-              </span>
-            </SelectTrigger>
-            <SelectContent align="start" className="rounded-xl shadow-xl">
-              <SelectItem value="Empty">Empty</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Done">Done</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <div className="mr-2 flex items-center gap-2">
-            {isSaving ? (
-              <span className="flex items-center gap-1.5 text-readable-2xs font-medium text-muted-foreground/60">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Saving
-              </span>
-            ) : lastSaved ? (
-              <span className="flex items-center gap-1.5 text-readable-2xs font-medium text-emerald-600/80 dark:text-emerald-400/80">
-                <Check className="h-3 w-3" />
-                Saved
-              </span>
-            ) : null}
-          </div>
-
-          <div className="h-6 w-px bg-border/40 mx-1" />
-
-          {onDeleteAction && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onDeleteAction}
-              className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
-              title="Delete Node"
-              data-testid="editor-delete-node"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onCloseAction}
-            className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:bg-muted"
-            title="Close Panel"
-            data-testid="editor-close-panel"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      {/* Type badge */}
+      <div className="flex items-center rounded-md border border-border/50 bg-background/50 px-2 py-0.5">
+        <span className="text-readable-2xs font-bold uppercase tracking-wider text-muted-foreground/70">
+          {getNodeTypeLabel(node.type)}
+        </span>
       </div>
 
-      {/* Title Area */}
-      <div className="px-6 py-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          {node.label}
-        </h2>
+      {/* Node name */}
+      <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+        {node.label}
+      </h2>
+
+      {/* Status inline */}
+      <Select value={status} onValueChange={onStatusChange}>
+        <SelectTrigger
+          className="h-7 w-auto min-w-[90px] border-none bg-transparent p-0 text-readable-xs font-semibold focus:ring-0"
+          data-testid="editor-status-trigger"
+        >
+          <span className={getStatusTone(status)}>
+            <SelectValue />
+          </span>
+        </SelectTrigger>
+        <SelectContent align="end" className="rounded-xl shadow-xl">
+          <SelectItem value="Empty">Empty</SelectItem>
+          <SelectItem value="In Progress">In Progress</SelectItem>
+          <SelectItem value="Done">Done</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Save indicator */}
+      <div className="flex items-center">
+        {isSaving ? (
+          <span className="flex items-center gap-1 text-readable-2xs text-muted-foreground/60">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Saving
+          </span>
+        ) : lastSaved ? (
+          <span className="flex items-center gap-1 text-readable-2xs text-emerald-600/80 dark:text-emerald-400/80">
+            <Check className="h-3 w-3" />
+            Saved
+          </span>
+        ) : null}
       </div>
+
+      {/* Actions */}
+      {onDeleteAction && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDeleteAction}
+          className="h-7 w-7 rounded-md text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+          title="Delete Node"
+          data-testid="editor-delete-node"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onCloseAction}
+        className="h-7 w-7 rounded-md text-muted-foreground/50 hover:bg-muted"
+        title="Close Panel"
+        data-testid="editor-close-panel"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
     </div>
-    </>
   );
 }
 
