@@ -39,23 +39,28 @@ function SidebarIcon({
   testId?: string;
 }) {
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      data-testid={testId}
-      onClick={onClick}
-      className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-        active
-          ? "bg-primary/15 text-primary"
-          : danger
-            ? "text-destructive hover:bg-destructive/10"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        aria-label={label}
+        data-testid={testId}
+        onClick={onClick}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+          active
+            ? "bg-primary/15 text-primary"
+            : danger
+              ? "text-destructive hover:bg-destructive/10"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+      >
+        {children}
+      </button>
+      {/* Tooltip */}
+      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-md ring-1 ring-border/50 transition-opacity delay-150 group-hover:opacity-100">
+        {label}
+      </div>
+    </div>
   );
 }
 
