@@ -70,8 +70,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     sortedNodes,
     recommendedNextNode,
     doneCount,
-    progressPercent,
-    validationTone,
   } = useWorkspaceData(projectId);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
@@ -98,6 +96,7 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
   const [showTraceabilityPanel, setShowTraceabilityPanel] = useState(false);
   const [navigationIntent, setNavigationIntent] =
     useState<WorkspaceNavigationIntent | null>(null);
+  const [showDesktopFlowChrome, setShowDesktopFlowChrome] = useState(false);
 
   const flowWrapperRef = useRef<HTMLDivElement | null>(null);
   const excalidrawControls = useExcalidrawControls();
@@ -143,6 +142,20 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp, isResizing]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const syncViewport = () => setShowDesktopFlowChrome(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewport);
+    };
+  }, []);
 
   const focusNodeInCanvas = useCallback(
     (node: NodeData) => {
@@ -315,20 +328,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
     setEditorCollapsed(false);
   }, []);
 
-  const handleToggleProjectNotes = useCallback(() => {
-    setSelectedNodeData(null);
-    setEditorCollapsed(false);
-    setShowTraceabilityPanel(false);
-    setShowProjectNotes((value) => !value);
-  }, []);
-
-  const handleToggleTraceability = useCallback(() => {
-    setSelectedNodeData(null);
-    setEditorCollapsed(false);
-    setShowProjectNotes(false);
-    setShowTraceabilityPanel((value) => !value);
-  }, []);
-
   const handleNavigateWithIntent = useCallback(
     (intent: WorkspaceNavigationIntent) => {
       const targetNode = dbNodes.find((node) => node.id === intent.nodeId);
@@ -411,22 +410,11 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
           project={project}
           dbNodes={dbNodes}
           dbContents={dbContents}
-          showTraceabilityPanel={showTraceabilityPanel}
           doneCount={doneCount}
-          progressPercent={progressPercent}
           recommendedNextNode={recommendedNextNode}
-          selectedNodeData={selectedNodeData}
-          editorCollapsed={editorCollapsed}
-          validationTone={validationTone}
-          showProjectNotes={showProjectNotes}
           onJumpNext={handleJumpToRecommendedNode}
           onShowCommand={() => setShowCommandDialog(true)}
-          onFitView={handleFitView}
           onShowHelp={() => setShowHelpDialog(true)}
-          onToggleTraceability={handleToggleTraceability}
-          onToggleValidation={() => setShowValidationPanel((value) => !value)}
-          onToggleProjectNotes={handleToggleProjectNotes}
-          onToggleEditor={() => setEditorCollapsed((value) => !value)}
         />
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -446,7 +434,6 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
             showOnboarding={showOnboarding}
             recommendedNextNode={!selectedNodeData ? recommendedNextNode : null}
             dbWarningsLength={dbWarnings.length}
-            dbNodesLength={dbNodes.length}
             showValidationPanel={showValidationPanel}
             onDismissOnboarding={dismissOnboarding}
             onShowHelp={() => setShowHelpDialog(true)}
@@ -492,12 +479,14 @@ function WorkspaceCanvas({ projectId }: { projectId: string }) {
                 size={1}
                 color="var(--workspace-grid)"
               />
-              <Controls position="bottom-left" />
-              <MiniMap
-                position="bottom-right"
-                nodeColor="#52B788"
-                maskColor="rgba(0,0,0,0.55)"
-              />
+              {showDesktopFlowChrome && <Controls position="bottom-left" />}
+              {showDesktopFlowChrome && (
+                <MiniMap
+                  position="bottom-right"
+                  nodeColor="#52B788"
+                  maskColor="rgba(0,0,0,0.55)"
+                />
+              )}
             </ReactFlow>
           </div>
 
