@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Layers3, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,7 @@ export function CreateProjectDialog({
   isCreating = false,
 }: CreateProjectDialogProps) {
   const [activeStep, setActiveStep] = useState<(typeof STEP_ORDER)[number]>("basics");
+  const [isDesktopWizard, setIsDesktopWizard] = useState(false);
 
   const stepIndex = STEP_ORDER.indexOf(activeStep);
   const isFirstStep = stepIndex === 0;
@@ -184,65 +185,111 @@ export function CreateProjectDialog({
     onCreate();
   };
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(min-width: 640px)");
+    const syncViewport = () => setIsDesktopWizard(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewport);
+    };
+  }, []);
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl"
+        className={
+          isDesktopWizard
+            ? "flex max-h-[92dvh] flex-col overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl"
+            : "inset-0 left-0 top-0 flex h-dvh max-h-none max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none p-0 ring-0"
+        }
         data-testid="create-project-dialog"
       >
-        <DialogHeader className="border-b px-6 py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {CREATE_PROJECT_STEPS.map((step, index) => {
-              const isActive = step.key === activeStep;
-              const isCompleted = index < stepIndex;
-
-              return (
-                <button
-                  key={step.key}
-                  type="button"
-                  onClick={() => setActiveStep(step.key)}
-                  data-testid={`create-project-step-${step.key}`}
-                  className={[
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-left transition-colors",
-                    isActive
-                      ? "border-primary bg-primary/10 text-primary"
-                      : isCompleted
-                        ? "border-border/80 bg-muted/60 text-foreground"
-                        : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  <span className="text-readable-2xs font-bold uppercase tracking-[0.16em]">
-                    {index + 1}
-                  </span>
-                  <span className="text-xs font-semibold">{step.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-4 space-y-1">
-            <DialogTitle>Create new project</DialogTitle>
-            <DialogDescription>
-              Build the workspace in four short passes. Workflow and delivery are
-              structural, while domain lives in advanced metadata.
-            </DialogDescription>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="grid gap-6">
-            <div className="flex items-start justify-between gap-4 rounded-[16px] border border-border/70 bg-muted/30 px-4 py-3">
+        <DialogHeader className="sticky top-0 z-20 border-b bg-background/96 px-4 py-4 backdrop-blur-sm sm:px-6">
+          {!isDesktopWizard && (
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-readable-2xs uppercase tracking-[0.18em] text-muted-foreground">
                   Step {stepIndex + 1} of {CREATE_PROJECT_STEPS.length}
                 </p>
-                <h3 className="mt-1 text-base font-semibold text-foreground">
+                <p className="mt-1 text-sm font-semibold text-foreground">
                   {activeStepConfig.label}
-                </h3>
+                </p>
               </div>
-              <p className="max-w-sm text-right text-sm leading-6 text-muted-foreground">
-                {activeStepConfig.helperText}
-              </p>
+              {!isFirstStep && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousStep}
+                  data-testid="create-project-back"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
             </div>
+          )}
+
+          {isDesktopWizard && (
+            <div className="flex flex-wrap items-center gap-2">
+              {CREATE_PROJECT_STEPS.map((step, index) => {
+                const isActive = step.key === activeStep;
+                const isCompleted = index < stepIndex;
+
+                return (
+                  <button
+                    key={step.key}
+                    type="button"
+                    onClick={() => setActiveStep(step.key)}
+                    data-testid={`create-project-step-${step.key}`}
+                    className={[
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-left transition-colors",
+                      isActive
+                        ? "border-primary bg-primary/10 text-primary"
+                        : isCompleted
+                          ? "border-border/80 bg-muted/60 text-foreground"
+                          : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    <span className="text-readable-2xs font-bold uppercase tracking-[0.16em]">
+                      {index + 1}
+                    </span>
+                    <span className="text-xs font-semibold">{step.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-3 space-y-1 sm:mt-4">
+            <DialogTitle>Create new project</DialogTitle>
+            <DialogDescription>
+              Name the project, choose workflow depth, set delivery framing, and
+              launch the workspace.
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          <div className="grid gap-6">
+            {isDesktopWizard && (
+              <div className="flex items-start justify-between gap-4 rounded-[16px] border border-border/70 bg-muted/30 px-4 py-3">
+                <div>
+                  <p className="text-readable-2xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Step {stepIndex + 1} of {CREATE_PROJECT_STEPS.length}
+                  </p>
+                  <h3 className="mt-1 text-base font-semibold text-foreground">
+                    {activeStepConfig.label}
+                  </h3>
+                </div>
+                <p className="max-w-sm text-right text-sm leading-6 text-muted-foreground">
+                  {activeStepConfig.helperText}
+                </p>
+              </div>
+            )}
 
             {activeStep === "basics" && (
               <section
@@ -258,6 +305,9 @@ export function CreateProjectDialog({
                     onChange={(event) => onProjectNameChange(event.target.value)}
                     autoFocus
                   />
+                  <p className="text-readable-xs text-muted-foreground">
+                    Keep it short and recognizable. You can refine the content inside the workspace later.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">
@@ -394,8 +444,7 @@ export function CreateProjectDialog({
                 <div className="space-y-1">
                   <Label>Delivery mode</Label>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Previo keeps one canonical task model, then frames the output
-                    using the delivery style you choose here.
+                    Keep the same workspace structure, then frame the outputs for the delivery style you use most.
                   </p>
                 </div>
 
@@ -433,8 +482,7 @@ export function CreateProjectDialog({
                     <h3 className="font-semibold">Advanced metadata</h3>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Domain is metadata only. It helps seed context and framing,
-                    but it never changes the canonical workflow map.
+                    Domain seeds context and framing. It never changes the canonical workflow map.
                   </p>
                 </div>
 
@@ -505,9 +553,6 @@ export function CreateProjectDialog({
                               </Badge>
                             )}
                           </div>
-                          <p className="mt-3 text-readable-xs text-muted-foreground">
-                            {option.description}
-                          </p>
                         </button>
                       );
                     })}
@@ -532,8 +577,8 @@ export function CreateProjectDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t bg-muted/30 px-6 py-4">
-          <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DialogFooter className="sticky bottom-0 z-20 mx-0 mb-0 rounded-none border-t bg-background/96 px-4 py-4 backdrop-blur-sm sm:rounded-b-xl sm:px-6">
+          <div className="flex w-full items-center justify-between gap-3">
             <Button
               variant="ghost"
               onClick={() => onOpenChange(false)}
@@ -542,8 +587,8 @@ export function CreateProjectDialog({
               Cancel
             </Button>
 
-            <div className="flex items-center gap-3 sm:ml-auto">
-              {!isFirstStep && (
+            <div className="flex items-center gap-2 sm:gap-3">
+              {isDesktopWizard && !isFirstStep && (
                 <Button
                   variant="outline"
                   onClick={goToPreviousStep}

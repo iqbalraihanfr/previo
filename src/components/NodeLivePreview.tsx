@@ -245,6 +245,6 @@ export function NodeLivePreview({ nodeId, nodeType, projectId }: PreviewProps) {
 
 function EmptyHint() {
   return (
-    <p className="text-[11px] italic text-black/30">No content yet</p>
+    <p className="text-[11px] italic text-muted-foreground/50">No content yet</p>
   );
 }

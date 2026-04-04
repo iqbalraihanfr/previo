@@ -431,3 +431,10 @@ marker polygon {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
 }
+
+@media (max-width: 767px) {
+    .react-flow__controls,
+    .react-flow__minimap {
+        display: none !important;
+    }
+}

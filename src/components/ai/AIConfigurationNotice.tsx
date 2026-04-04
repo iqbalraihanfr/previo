@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import type { AIConfigurationStatus } from "@/lib/ai/config";
 
 type AIConfigurationNoticeProps = {
-  variant?: "compact" | "full";
+  variant?: "compact" | "full" | "subtle";
 };
 
 type StatusState =
@@ -82,6 +82,63 @@ export function AIConfigurationNotice({
           )}
         </div>
       </div>
+    );
+  }
+
+  if (variant === "subtle") {
+    return (
+      <section
+        className="rounded-[14px] border border-border/60 bg-background/70 px-4 py-3 shadow-[0_4px_20px_rgba(46,50,48,0.04)]"
+        data-testid="ai-config-notice"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={aiStatus.configured ? "secondary" : "outline"}>
+                {aiStatus.configured ? "AI ready" : "AI setup required"}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                Provider{" "}
+                <span className="font-medium text-foreground">{aiStatus.provider}</span>
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Model{" "}
+                <span className="font-medium text-foreground">{aiStatus.model}</span>
+              </span>
+            </div>
+
+            <p className="text-sm leading-6 text-muted-foreground">
+              {aiStatus.configured
+                ? "AI-assisted import and parsing are available when you need them."
+                : "The workspace still works without AI, but import assistance and suggestions stay unavailable until a provider key is configured."}
+            </p>
+          </div>
+
+          <details className="rounded-[12px] border border-border/60 bg-background/85 px-3 py-2 text-sm sm:min-w-[220px]">
+            <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-foreground">
+              <Sparkles className="h-4 w-4" />
+              Environment check
+            </summary>
+            <div className="mt-3 space-y-2 text-muted-foreground">
+              <p>
+                Key status:{" "}
+                <span className="font-medium text-foreground">
+                  {aiStatus.configured ? "Configured" : "Missing"}
+                </span>
+              </p>
+              {!aiStatus.configured && (
+                <p>
+                  Required env:{" "}
+                  <span className="font-medium text-foreground">
+                    {aiStatus.missing.join(", ")}
+                  </span>
+                </p>
+              )}
+              <p>Set env vars in `.env.local`, then restart the app.</p>
+            </div>
+          </details>
+        </div>
+      </section>
     );
   }
 
