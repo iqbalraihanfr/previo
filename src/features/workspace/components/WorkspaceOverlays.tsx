@@ -146,7 +146,7 @@ export function WorkspaceOverlays({
       )}
 
       {showContextualWarning && (
-        <div className="pointer-events-none absolute bottom-5 left-20 z-20 hidden md:block">
+        <div className="pointer-events-none absolute bottom-5 z-20 hidden md:block" style={{ left: "5.5rem" }}>
           <button
             type="button"
             onClick={onToggleValidation}
