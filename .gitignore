@@ -72,3 +72,9 @@ next-env.d.ts
 /ai-context/
 /best-practice/
 /docs/ai-context/
+
+# Private — brainstorm/plans/product docs
+.superpowers/
+docs/superpowers/
+*.product-direction.md
+.mcp.json

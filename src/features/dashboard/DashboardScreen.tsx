@@ -164,6 +164,9 @@ export function DashboardScreen() {
               projectCards.find((c) => c.project.id === recentProject.id)?.progress.percent ?? 0
             }
             onOpen={() => router.push(`/workspace/${recentProject.id}`)}
+            onDelete={(event) =>
+              requestDeleteProject(recentProject.id, recentProject.name, event)
+            }
           />
         )}
 

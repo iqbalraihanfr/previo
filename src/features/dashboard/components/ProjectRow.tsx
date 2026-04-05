@@ -1,8 +1,15 @@
 "use client";
 
 import React from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, MoreVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type { Project } from "@/lib/db";
 import type { ProgressMeta } from "@/features/dashboard/selectors";
 import { cn } from "@/lib/utils";
@@ -69,16 +76,34 @@ export function ProjectRow({
 
       {/* Actions */}
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-          onClick={onDelete}
-          aria-label={`Delete ${project.name}`}
-          data-testid={`delete-project-${project.id}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label={`Options for ${project.name}`}
+                data-testid={`options-project-${project.id}`}
+                onClick={(e) => e.stopPropagation()}
+              />
+            }
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={4}>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={(e) => {
+                onDelete(e as unknown as React.MouseEvent);
+              }}
+              data-testid={`delete-project-${project.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button
           variant="ghost"
           size="icon"

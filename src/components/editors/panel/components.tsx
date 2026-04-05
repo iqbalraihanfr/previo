@@ -87,7 +87,7 @@ export function EditorPanelHeader({
       data-testid="editor-panel-header"
     >
       {/* Type badge */}
-      <div className="flex items-center rounded-md border border-border/50 bg-background/50 px-2 py-0.5">
+      <div className="flex items-center rounded-md border border-border/50 bg-background/50 px-2 py-2">
         <span className="text-readable-2xs font-bold uppercase tracking-wider text-muted-foreground/70">
           {getNodeTypeLabel(node.type)}
         </span>

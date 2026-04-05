@@ -172,14 +172,14 @@ export function ValidationSummaryPanel({
       </div>
 
       {/* Search */}
-      <div className="shrink-0 border-b border-border/50 px-3 py-2">
+      <div className="shrink-0 border-b border-border/50 px-4 py-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search issues…"
-            className="h-8 rounded-lg pl-8 text-xs"
+            className="h-8 rounded-lg pl-9 text-xs"
             data-testid="validation-search"
           />
         </div>

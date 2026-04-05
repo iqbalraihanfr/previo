@@ -47,7 +47,7 @@ export function NodeSourceToolbar({
 
   return (
     <div
-      className="flex h-9 shrink-0 items-center gap-2 border-b border-border/50 bg-muted/10 px-4"
+      className="flex h-15 shrink-0 items-center gap-2 border-b border-border/50 bg-muted/10 px-4 py-2"
       data-testid="node-source-toolbar"
     >
       {/* Status badge */}
