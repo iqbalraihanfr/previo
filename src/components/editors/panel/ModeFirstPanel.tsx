@@ -240,38 +240,38 @@ export function EditorReferenceArea({
   const isOpen = manualOpenState ?? defaultOpen;
 
   return (
-    <details
+    <div
       className="mx-6 mb-6 rounded-[24px] border border-border/60 bg-background/60"
-      open={isOpen}
       data-testid="editor-reference-area"
     >
-      <summary
-        className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-foreground"
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-left text-sm font-semibold text-foreground"
         data-testid="editor-reference-toggle"
-        onClick={(event) => {
-          event.preventDefault();
-          setManualOpenState((current) => !(current ?? defaultOpen));
-        }}
+        onClick={() => setManualOpenState((current) => !(current ?? defaultOpen))}
       >
         Notes & Files
-      </summary>
-      <div className="grid gap-6 border-t border-border/60 px-5 py-5 lg:grid-cols-2">
-        <div>
-          <NotesEditor value={freeText} onChange={onFreeTextChange} />
-        </div>
-        <div className="space-y-6">
-          {onSqlSchemaChange && (
-            <SqlNotesEditor value={sqlSchema} onChange={onSqlSchemaChange} />
-          )}
-          <div className="px-6 pb-6">
-            <AttachmentsTab
-              attachments={attachments}
-              onDropAction={onDrop}
-              onDeleteAction={onDeleteAttachment}
-            />
+        <span className="text-xs text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
+      </button>
+      {isOpen && (
+        <div className="grid gap-6 border-t border-border/60 px-5 py-5 lg:grid-cols-2">
+          <div>
+            <NotesEditor value={freeText} onChange={onFreeTextChange} />
+          </div>
+          <div className="space-y-6">
+            {onSqlSchemaChange && (
+              <SqlNotesEditor value={sqlSchema} onChange={onSqlSchemaChange} />
+            )}
+            <div className="px-6 pb-6">
+              <AttachmentsTab
+                attachments={attachments}
+                onDropAction={onDrop}
+                onDeleteAction={onDeleteAttachment}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </details>
+      )}
+    </div>
   );
 }

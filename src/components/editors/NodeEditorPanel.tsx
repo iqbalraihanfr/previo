@@ -325,7 +325,7 @@ export function NodeEditorPanel({
     return (
       <>
         <EditorSectionNav links={sectionLinks} />
-        <div className="flex-1 overflow-y-auto" data-testid="editor-edit-panel">
+        <div data-testid="editor-edit-panel">
           <GuidedEditorContent
             type={currentNode.type}
             fields={guidedFields}
@@ -338,7 +338,7 @@ export function NodeEditorPanel({
   };
 
   const renderFallbackEditor = () => (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1">
       {resolvedMode === "entry" ? (
         <EditorEntryState
           nodeLabel={currentNode.label}
@@ -398,39 +398,39 @@ export function NodeEditorPanel({
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col bg-background/30 transition-colors">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background/30 transition-colors">
         {hasGuidedEditor ? renderGuidedShell() : renderFallbackEditor()}
+
+        {(hasGuidedEditor || hasReferenceArea) && resolvedMode !== "entry" && (
+          <EditorReferenceArea
+            attachments={attachments}
+            freeText={freeText}
+            sqlSchema={sqlSchema}
+            onDrop={(files) => void onDrop(files)}
+            onDeleteAttachment={(id) => void deleteAttachment(id)}
+            onFreeTextChange={setFreeText}
+            onSqlSchemaChange={isErd ? setSqlSchema : undefined}
+            defaultOpen={resolvedMode === "editing" && hasReferenceArea}
+          />
+        )}
+
+        {isDiagram && resolvedMode !== "entry" && (
+          <details className="mx-6 mb-6 rounded-[24px] border border-border/60 bg-background/60">
+            <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-foreground">
+              Diagram override
+            </summary>
+            <div className="border-t border-border/60 px-5 py-5">
+              <MermaidEditor
+                mermaidSyntax={mermaidSyntax}
+                onSyntaxChange={setMermaidSyntax}
+                mermaidSvg={mermaidSvg}
+                mermaidError={mermaidError}
+                nodeLabel={currentNode.label}
+              />
+            </div>
+          </details>
+        )}
       </div>
-
-      {(hasGuidedEditor || hasReferenceArea) && resolvedMode !== "entry" && (
-        <EditorReferenceArea
-          attachments={attachments}
-          freeText={freeText}
-          sqlSchema={sqlSchema}
-          onDrop={(files) => void onDrop(files)}
-          onDeleteAttachment={(id) => void deleteAttachment(id)}
-          onFreeTextChange={setFreeText}
-          onSqlSchemaChange={isErd ? setSqlSchema : undefined}
-          defaultOpen={resolvedMode === "editing" && hasReferenceArea}
-        />
-      )}
-
-      {isDiagram && resolvedMode !== "entry" && (
-        <details className="mx-6 mb-6 rounded-[24px] border border-border/60 bg-background/60">
-          <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-foreground">
-            Diagram override
-          </summary>
-          <div className="border-t border-border/60 px-5 py-5">
-            <MermaidEditor
-              mermaidSyntax={mermaidSyntax}
-              onSyntaxChange={setMermaidSyntax}
-              mermaidSvg={mermaidSvg}
-              mermaidError={mermaidError}
-              nodeLabel={currentNode.label}
-            />
-          </div>
-        </details>
-      )}
 
       {hasGuidedEditor && importableSources.length > 0 && (
         <SourceImportDialog
