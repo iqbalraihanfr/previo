@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 import {
@@ -60,15 +61,19 @@ async function importStructuredNode(
     timeout: 15000,
   });
   await expect(page.getByTestId("node-source-toolbar")).toContainText(
-    "Imported source",
+    "Requirements doc",
     { timeout: 15000 },
   );
+  await expect(
+    page.getByTestId("editor-panel-header").getByText("Saved", { exact: true }),
+  ).toBeVisible({ timeout: 15000 });
 }
 
 test.describe("Previo production smoke", () => {
   test("creates a project, imports canonical data, and opens summary on production build", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     const projectName = `Prod Smoke ${Date.now()}`;
     await createProject(page, { name: projectName, template: "quick" });
 
@@ -82,6 +87,25 @@ test.describe("Previo production smoke", () => {
         "[NFR] [Should] Summary loads in under target | Performance | | response time | 200ms",
       ].join("\n"),
     );
+
+    await page.reload();
+    await openWorkspaceNode(page, "requirements");
+    await page.getByTestId("node-source-provenance-toggle").click();
+    await expect(page.getByText("Imported source", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByTestId("editor-mode-editing").click();
+    const definitions = page
+      .getByTestId("node-editor-panel")
+      .getByPlaceholder("State the requirement clearly and concisely...");
+    await expect(definitions).toHaveCount(3);
+    await expect(definitions.nth(0)).toHaveValue("User can import structured notes");
+    await expect(definitions.nth(1)).toHaveValue("User can review normalized content");
+    await expect(definitions.nth(2)).toHaveValue("User can export markdown snapshots");
+    await page.getByRole("tab", { name: "Quality Attributes", exact: true }).click();
+    await expect(definitions).toHaveCount(1);
+    await expect(definitions.first()).toHaveValue("Summary loads in under target");
+    await expect(page.getByPlaceholder("e.g. Latency, Uptime...")).toHaveValue("response time");
+    await expect(page.getByPlaceholder("e.g. < 200ms, 99.9%...")).toHaveValue("200ms");
 
     await openWorkspaceCommandMenu(page);
     await page.getByTestId("workspace-command-search").fill("summary");
@@ -101,5 +125,16 @@ test.describe("Previo production smoke", () => {
     expect(markdownDownload.suggestedFilename()).toBe(
       `${projectName}-Documentation.md`,
     );
+    const downloadPath = await markdownDownload.path();
+    if (!downloadPath) throw new Error("Markdown download has no local path.");
+    const markdown = await readFile(downloadPath, "utf8");
+    for (const row of [
+      "- [Must] User can import structured notes",
+      "- [Should] User can review normalized content",
+      "- [Could] User can export markdown snapshots",
+      "- [Should] Summary loads in under target",
+    ]) {
+      expect(markdown).toContain(row);
+    }
   });
 });
